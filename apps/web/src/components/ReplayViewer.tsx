@@ -8,7 +8,7 @@ const SPEEDS = [1, 2, 4, 8, 16];
 
 type Tooltip = { x: number; y: number; text: string } | null;
 
-export function ReplayViewer({ data }: { data: ReplayData }) {
+export function ReplayViewer({ data, actions }: { data: ReplayData; actions?: React.ReactNode }) {
   const replay = useMemo(() => new Replay(data), [data]);
   const canvas = useRef<HTMLCanvasElement>(null);
   const renderer = useRef<Renderer | null>(null);
@@ -133,11 +133,14 @@ export function ReplayViewer({ data }: { data: ReplayData }) {
 
   return (
     <div className="viewer">
-      <p className="viewer-info muted">
-        {data.map.name ?? `Mapa #${data.map.id}`} · {g.players.length} jugadores en {teams} equipos ·{" "}
-        {formatTime(replay.duration)} · {g.game_version} (save {g.save_version})
-        {g.untested_version && " · versión no probada, puede haber errores"}
-      </p>
+      <div className="viewer-info">
+        <p className="muted">
+          {data.map.name ?? `Mapa #${data.map.id}`} · {g.players.length} jugadores en {teams} equipos ·{" "}
+          {formatTime(replay.duration)} · {g.game_version} (save {g.save_version})
+          {g.untested_version && " · versión no probada, puede haber errores"}
+        </p>
+        {actions}
+      </div>
 
       <div className="viewer-body">
         <section className="stage">

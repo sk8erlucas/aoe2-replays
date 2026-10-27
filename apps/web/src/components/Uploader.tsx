@@ -1,7 +1,6 @@
 "use client";
 
 import { useRef, useState } from "react";
-import type { ParserError, ReplayData } from "@aoe2-replays/shared";
 
 const MAX_BYTES = 30 * 1024 * 1024;
 
@@ -11,12 +10,15 @@ const MESSAGES: Record<string, string> = {
   invalid_replay: "El archivo no es un replay válido.",
   too_large: "El archivo supera los 30 MB.",
   timeout: "El replay tardó demasiado en procesarse.",
-  parser_unavailable: "El servicio de parseo no responde. ¿Está corriendo?",
+  parser_unavailable: "El servicio de parseo no responde. Probá en un rato.",
+  rate_limited: "Subiste muchos replays en la última hora. Probá más tarde.",
 };
 
 type Status = { kind: "idle" } | { kind: "busy"; name: string } | { kind: "error"; message: string };
 
-export function Uploader({ onParsed }: { onParsed: (data: ReplayData, fileName: string) => void }) {
+export type Uploaded = { id: string; token: string; fileName: string; mapName: string | null; durationMs: number };
+
+export function Uploader({ onUploaded }: { onUploaded: (result: Uploaded) => void }) {
   const input = useRef<HTMLInputElement>(null);
   const [status, setStatus] = useState<Status>({ kind: "idle" });
   const [over, setOver] = useState(false);
@@ -34,15 +36,14 @@ export function Uploader({ onParsed }: { onParsed: (data: ReplayData, fileName: 
     try {
       const body = new FormData();
       body.append("file", file);
-      const res = await fetch("/api/parse", { method: "POST", body });
+      const res = await fetch("/api/replays", { method: "POST", body });
       const json = await res.json().catch(() => null);
-      if (!res.ok || !json) {
-        const err = (json as ParserError | null)?.error;
+      if (!res.ok || !json?.id) {
+        const err = json?.error;
         setStatus({ kind: "error", message: (err && (MESSAGES[err.code] ?? err.message)) || `Error ${res.status}` });
         return;
       }
-      setStatus({ kind: "idle" });
-      onParsed(json as ReplayData, file.name);
+      onUploaded({ id: json.id, token: json.token, fileName: file.name, mapName: json.mapName, durationMs: json.durationMs });
     } catch {
       setStatus({ kind: "error", message: "No se pudo enviar el archivo." });
     }
@@ -89,7 +90,8 @@ export function Uploader({ onParsed }: { onParsed: (data: ReplayData, fileName: 
         </p>
       )}
       <p className="muted small">
-        Por ahora el replay no se guarda: se procesa y se muestra solo en tu navegador. En Windows los replays están en{" "}
+        Guardamos solo los datos de la partida, no el archivo. Es privado: solo lo ve quien tenga el enlace de gestión,
+        hasta que lo hagas público. En Windows los replays están en{" "}
         <code>Usuarios\&lt;vos&gt;\Games\Age of Empires 2 DE\&lt;id&gt;\savegame</code>.
       </p>
     </div>

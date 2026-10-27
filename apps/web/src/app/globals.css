@@ -60,7 +60,6 @@ button.primary {
   background: var(--panel);
   border-bottom: 1px solid var(--border);
 }
-.brand { color: var(--accent); }
 .file-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
 .legal { padding: 6px 16px; border-top: 1px solid var(--border); }
@@ -95,7 +94,39 @@ button.primary {
   grid-template-rows: auto minmax(0, 1fr) auto;
   min-height: 0;
 }
-.viewer-info { margin: 0; padding: 6px 16px; border-bottom: 1px solid var(--border); }
+.viewer-info {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 16px;
+  padding: 6px 16px;
+  border-bottom: 1px solid var(--border);
+}
+.viewer-info p { margin: 0; flex: 1; min-width: 0; }
+
+.replay-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.badge {
+  font-size: 12px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+}
+.badge.public { border-color: var(--accent); color: var(--accent); }
+.notice { margin: 0; color: var(--accent); font-size: 12px; }
+
+.message-page { max-width: 640px; margin: 0 auto; padding: 48px 16px; }
+
+.owned { margin-top: 32px; }
+.owned h2 {
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--muted);
+}
+.owned ul { list-style: none; padding: 0; margin: 0; }
+.owned li { padding: 4px 0; overflow-wrap: anywhere; }
+a { color: var(--accent); }
+.brand { text-decoration: none; font-weight: 700; }
 
 .viewer-body {
   display: grid;

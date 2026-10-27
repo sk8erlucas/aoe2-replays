@@ -3,6 +3,9 @@ FROM node:22-alpine AS deps
 WORKDIR /repo
 COPY package.json package-lock.json ./
 COPY apps/web/package.json apps/web/
+# postinstall runs `prisma generate`, which needs the schema and config.
+COPY apps/web/prisma apps/web/prisma
+COPY apps/web/prisma.config.ts apps/web/
 COPY packages/viewer/package.json packages/viewer/
 COPY packages/shared/package.json packages/shared/
 RUN npm ci
@@ -13,7 +16,12 @@ COPY packages packages
 COPY apps/web apps/web
 RUN npm run build -w apps/web
 
-FROM node:22-alpine
+# One-off job: apply database migrations, then exit.
+FROM deps AS migrate
+WORKDIR /repo/apps/web
+CMD ["npx", "prisma", "migrate", "deploy"]
+
+FROM node:22-alpine AS runner
 ENV NODE_ENV=production NEXT_TELEMETRY_DISABLED=1 HOSTNAME=0.0.0.0 PORT=3000
 WORKDIR /app
 COPY --from=build /repo/apps/web/.next/standalone ./

@@ -1,4 +1,5 @@
-# Local stack: web on http://localhost:3000, parser only reachable from web.
+# Production stack (Dokploy). Variables come from the Dokploy "Environment" tab.
+# The domain is attached to the `web` service, port 3000, from the Dokploy UI.
 services:
   parser:
     build: ./services/parser
@@ -9,14 +10,38 @@ services:
     mem_limit: 1g
     restart: unless-stopped
 
+  migrate:
+    build:
+      context: .
+      dockerfile: apps/web/Dockerfile
+      target: migrate
+    environment:
+      DATABASE_URL: ${DATABASE_URL:?set DATABASE_URL}
+    networks: [default, dokploy-network]
+    restart: "no"
+
   web:
     build:
       context: .
       dockerfile: apps/web/Dockerfile
+      target: runner
     environment:
+      DATABASE_URL: ${DATABASE_URL:?set DATABASE_URL}
       PARSER_URL: http://parser:8000
-    ports:
-      - "3000:3000"
+      IP_HASH_SECRET: ${IP_HASH_SECRET:?set IP_HASH_SECRET}
+      REPLAY_TTL_DAYS: ${REPLAY_TTL_DAYS:-30}
+      UPLOADS_PER_HOUR: ${UPLOADS_PER_HOUR:-20}
+    expose:
+      - "3000"
     depends_on:
-      - parser
+      parser:
+        condition: service_started
+      migrate:
+        condition: service_completed_successfully
+    networks: [default, dokploy-network]
     restart: unless-stopped
+
+networks:
+  # Created by Dokploy; gives access to Traefik and to databases made in Dokploy.
+  dokploy-network:
+    external: true

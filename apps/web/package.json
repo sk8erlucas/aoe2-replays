@@ -7,11 +7,16 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "postinstall": "prisma generate",
+    "db:migrate": "prisma migrate dev",
+    "db:deploy": "prisma migrate deploy"
   },
   "dependencies": {
     "@aoe2-replays/shared": "*",
     "@aoe2-replays/viewer": "*",
+    "@prisma/adapter-pg": "7.10.1",
+    "@prisma/client": "7.10.1",
     "next": "15.5.28",
     "react": "19.1.0",
     "react-dom": "19.1.0"
@@ -21,8 +26,10 @@
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
+    "dotenv": "16.4.7",
     "eslint": "^9",
     "eslint-config-next": "15.5.28",
+    "prisma": "7.10.1",
     "typescript": "^5"
   },
   "license": "MIT"

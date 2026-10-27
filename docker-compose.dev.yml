@@ -1,0 +1,16 @@
+# Local development database only: docker compose -f docker-compose.dev.yml up -d
+# Then use DATABASE_URL=postgresql://aoe2:aoe2@localhost:5433/aoe2replays
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: aoe2
+      POSTGRES_PASSWORD: aoe2
+      POSTGRES_DB: aoe2replays
+    ports:
+      - "127.0.0.1:5433:5432"
+    volumes:
+      - dev-db:/var/lib/postgresql/data
+
+volumes:
+  dev-db:

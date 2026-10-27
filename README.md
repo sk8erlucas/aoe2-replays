@@ -6,33 +6,32 @@ Subís el archivo (sin necesidad de cuenta), lo ves reproducido en pixel art, lo
 > Proyecto de fans. No afiliado a Microsoft, Xbox Game Studios ni World's Edge. Age of Empires es marca de sus dueños.
 
 ## Estado
-Prototipo funcionando de punta a punta: subís un replay en la web, el parser lo convierte a JSON y se reproduce en el mapa. Todavía no se guarda nada (sin base de datos ni cuentas) y el diseño es provisional.
+Prototipo funcionando de punta a punta: subís un replay, el parser lo convierte a JSON, se guarda (privado, comprimido) y se reproduce en `/r/<id>`. Sin cuentas todavía; diseño provisional.
 
-## Cómo iniciar
+## Cómo iniciar (desarrollo)
 
-Requisitos: Python 3.11+ y Node 22+.
-
-**1. Parser** (una vez para instalar, después solo el último comando):
+Requisitos: Python 3.11+, Node 22+ y Docker (solo para la base de datos local).
 
 ```sh
+# 1. Parser (terminal 1)
 cd services/parser
 python -m venv .venv
 .venv/Scripts/python -m pip install -e ".[dev]"      # Linux/macOS: .venv/bin/python
 .venv/Scripts/python -m uvicorn aoe2_parser.api:app --port 8000
-```
 
-**2. Web** (en otra terminal, desde la raíz del repo):
+# 2. Base de datos (desde la raíz)
+docker compose -f docker-compose.dev.yml up -d       # Postgres en localhost:5433
 
-```sh
+# 3. Web (terminal 2, desde la raíz)
 npm install
-npm run dev:web
+cp apps/web/.env.example apps/web/.env.local
+npm run db:migrate -w apps/web
+npm run dev:web                                      # http://localhost:3000
 ```
 
-Abrí http://localhost:3000 y subí un `.aoe2record`. La web le pasa el archivo al parser (`PARSER_URL`, por defecto `http://127.0.0.1:8000`; ver `apps/web/.env.example`).
+Tests: `npm test` en la raíz y `.venv/Scripts/python -m pytest` dentro de `services/parser`.
 
-**Con Docker** (todo junto): `docker compose up --build` y abrir http://localhost:3000. Todavía sin probar: en la máquina de desarrollo el build falla por certificados SSL (ver [`tasks/PENDIENTES.md`](./tasks/PENDIENTES.md)).
-
-**Tests**: `npm test` en la raíz (motor del visor) y `.venv/Scripts/python -m pytest` dentro de `services/parser`.
+Producción (Dokploy): [`docs/DEPLOY.md`](./docs/DEPLOY.md). Guía para agentes de código: [`AGENTS.md`](./AGENTS.md).
 
 ## Estructura
 | Carpeta | Contenido |
@@ -51,6 +50,7 @@ Abrí http://localhost:3000 y subí un `.aoe2record`. La web le pasa el archivo 
 | [`docs/ARCHITECTURE.md`](./docs/ARCHITECTURE.md) | Servicios, flujo de datos y stack |
 | [`docs/DECISIONS.md`](./docs/DECISIONS.md) | Decisiones tomadas y preguntas abiertas |
 | [`docs/LEGAL.md`](./docs/LEGAL.md) | Marcas, assets, publicidad y privacidad |
+| [`docs/DEPLOY.md`](./docs/DEPLOY.md) | Despliegue en Dokploy y variables de entorno |
 
 ## Tareas por fase
 | Fase | Archivo |

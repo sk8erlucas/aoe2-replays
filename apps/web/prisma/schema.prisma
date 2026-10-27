@@ -1,0 +1,40 @@
+// Only the parsed JSON is stored (gzip, ~10x smaller), never the .aoe2record.
+
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model Replay {
+  /// Public link id: 128 random bits, base64url.
+  id              String    @id
+  /// SHA-256 of the management token; the token itself is only shown to the uploader.
+  manageTokenHash String    @map("manage_token_hash")
+  isPublic        Boolean   @default(false) @map("is_public")
+  createdAt       DateTime  @default(now()) @map("created_at")
+  /// Null means it never expires.
+  expiresAt       DateTime? @map("expires_at")
+  uploaderIpHash  String?   @map("uploader_ip_hash")
+
+  fileName      String? @map("file_name")
+  schemaVersion Int     @map("schema_version")
+  gameVersion   String  @map("game_version")
+  saveVersion   Float   @map("save_version")
+  mapName       String? @map("map_name")
+  mapSize       Int     @map("map_size")
+  durationMs    Int     @map("duration_ms")
+  /// [{ number, name, civilization, color_id, team_id }]
+  players       Json
+
+  /// Parser output, gzip-compressed JSON.
+  data      Bytes
+  dataBytes Int   @map("data_bytes")
+
+  @@index([expiresAt])
+  @@index([uploaderIpHash, createdAt])
+  @@map("replays")
+}

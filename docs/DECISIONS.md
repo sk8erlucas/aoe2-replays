@@ -9,6 +9,9 @@
 - Licencia: MIT.
 - Stack web: Next.js + Auth.js + Postgres + Prisma.
 - Replays privados; se comparten solo si el enlace se hace público.
+- Se guarda solo el JSON del parser comprimido con gzip (~230 KB para el replay de ejemplo, frente a 2,7 MB sin comprimir), nunca el `.aoe2record`. Metadatos (mapa, jugadores, duración) en columnas para listar.
+- Expiración provisional: 30 días (`REPLAY_TTL_DAYS`). Tamaño máximo provisional: 30 MB.
+- Límite provisional: 20 subidas por IP por hora; la IP se guarda solo como HMAC.
 - La cuenta no es obligatoria para subir.
 - Sin planes de pago; se financia con publicidad (probable).
 - Primero un prototipo con gráficos simples; mejora continua.
@@ -18,7 +21,7 @@
 - Diseño visual: pendiente de definir juntos (`tasks/07-diseno.md`); hasta entonces, estilo provisional.
 
 ## Abiertas
-- ¿Cuántos días duran los replays de usuarios anónimos antes de borrarse?
+- ¿Cuántos días duran los replays de usuarios anónimos antes de borrarse? (hoy 30, configurable)
 - ¿Tamaño máximo de archivo? (el de ejemplo pesa ~2 MB; hay que medir partidas largas)
 - ¿Idiomas de la web: español, inglés o ambos?
 - ¿Dónde se aloja el repo (GitHub personal o una organización)?

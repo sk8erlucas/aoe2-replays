@@ -4,7 +4,7 @@
 1. **web** (Next.js + TypeScript): UI, auth opcional, subida de archivos, API pública, visor en canvas.
 2. **parser** (Python + FastAPI + `mgz` parcheado): recibe un replay, devuelve JSON normalizado. Sin estado.
 3. **db** (Postgres + Prisma): usuarios, replays, metadatos, tokens de enlace.
-4. **storage**: disco local o S3 compatible para los `.aoe2record` y los JSON parseados.
+4. **storage**: no se guardan los `.aoe2record`. El JSON parseado va comprimido (gzip) en Postgres, columna `data`. Si el volumen crece, mover `data` a S3 compatible sin cambiar la API.
 5. **queue** (opcional al inicio): cola de trabajos de parseo. Empezar con una tabla en Postgres y evolucionar si hace falta.
 
 Se separa el parser en su propio servicio porque `mgz` es Python y porque el parseo es CPU intensivo y no debe bloquear la web. Si más adelante conviene Rust (`aoe2rec`) o WASM en el navegador, se reemplaza el servicio sin tocar la web, siempre que respete el mismo contrato JSON.
@@ -12,7 +12,7 @@ Se separa el parser en su propio servicio porque `mgz` es Python y porque el par
 ## Flujo
 1. Usuario sube el `.aoe2record` (con o sin cuenta).
 2. `web` valida tamaño y firma del archivo, lo guarda y crea un registro con estado `pending`.
-3. Un worker llama a `parser`, guarda el JSON normalizado y marca `ready` (o `failed` con el motivo).
+3. Un worker llama a `parser`, guarda el JSON normalizado y marca `ready` (o `failed` con el motivo). *Hoy: la web llama al parser en el mismo request y guarda el resultado; la cola llega cuando haga falta.*
 4. El visor en el navegador descarga el JSON y reproduce en canvas.
 5. Export a video: en el navegador con `MediaRecorder` sobre el canvas (primera versión).
 
