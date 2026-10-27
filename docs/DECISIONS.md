@@ -18,7 +18,9 @@
 - Código abierto; cada pull request se evalúa antes de aceptarse.
 - Monorepo (un solo repo con `apps/`, `services/`, `packages/`), con un contenedor por servicio. Se despliegan por separado aunque compartan repo; el contrato JSON y sus tipos quedan versionados juntos.
 - Repo privado mientras se desarrolla.
-- Diseño visual: pendiente de definir juntos (`tasks/07-diseno.md`); hasta entonces, estilo provisional.
+- Diseño de la web: **pergamino ilustrado** (papel, tinta, Cinzel + Montserrat, botones de bronce). Guía en `docs/DESIGN.md`. El mapa del visor no sigue esa estética: apunta a parecerse al juego.
+- Experiencia del visor: simular la partida lo más parecido posible al juego, por etapas (`tasks/08-experiencia-de-juego.md`). Sprites propios por defecto; gráficos del juego solo desde la instalación del usuario y si lo legal lo permite.
+- Partidas online: buscar jugadores y reproducir sus partidas descargando el replay de Microsoft (`tasks/09-partidas-online.md`). Las partidas descargadas así son públicas; los replays subidos a mano siguen privados.
 
 ## Abiertas
 - ¿Cuántos días duran los replays de usuarios anónimos antes de borrarse? (hoy 30, configurable)

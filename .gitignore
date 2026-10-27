@@ -22,3 +22,6 @@ Thumbs.db
 .env
 .env.*
 !.env.example
+
+# Third-party design references: inspiration only, not ours to redistribute
+docs/design/referencias/

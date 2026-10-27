@@ -51,6 +51,7 @@ Producción (Dokploy): [`docs/DEPLOY.md`](./docs/DEPLOY.md). Guía para agentes 
 | [`docs/DECISIONS.md`](./docs/DECISIONS.md) | Decisiones tomadas y preguntas abiertas |
 | [`docs/LEGAL.md`](./docs/LEGAL.md) | Marcas, assets, publicidad y privacidad |
 | [`docs/DEPLOY.md`](./docs/DEPLOY.md) | Despliegue en Dokploy y variables de entorno |
+| [`docs/DESIGN.md`](./docs/DESIGN.md) | Guía de estilo de la web |
 
 ## Tareas por fase
 | Fase | Archivo |
@@ -63,6 +64,8 @@ Producción (Dokploy): [`docs/DEPLOY.md`](./docs/DEPLOY.md). Guía para agentes 
 | 5. Exportar a video | [`tasks/05-video.md`](./tasks/05-video.md) |
 | 6. Comunidad open source | [`tasks/06-comunidad.md`](./tasks/06-comunidad.md) |
 | 7. Diseño visual | [`tasks/07-diseno.md`](./tasks/07-diseno.md) |
+| 8. Experiencia de juego (sprites, simulación) | [`tasks/08-experiencia-de-juego.md`](./tasks/08-experiencia-de-juego.md) |
+| 9. Partidas online (buscar jugador, ver sus partidas) | [`tasks/09-partidas-online.md`](./tasks/09-partidas-online.md) |
 | **Pendientes (manual / automático)** | [`tasks/PENDIENTES.md`](./tasks/PENDIENTES.md) |
 
 ## Licencia

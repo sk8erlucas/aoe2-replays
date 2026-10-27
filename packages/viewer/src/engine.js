@@ -4,13 +4,18 @@
 // A replay only stores player commands, so this is an approximation: units walk
 // in a straight line to their target, trained units appear next to the building
 // that trained them, and buildings rise linearly over an estimated build time.
+// Resources are consumed by villagers told to gather them, at estimated rates;
+// when one runs out they move on to the nearest of the same kind, like in-game.
 
 import {
   BUILD_TIMES, DEFAULT_BUILD_TIME, DEFAULT_FOOTPRINT, DEFAULT_SPEED, DEFAULT_TRAIN_TIME,
-  FOOTPRINTS, HIDDEN_OBJECT_TYPES, SPEEDS, TRAIN_TIMES,
+  FOOTPRINTS, GATHER_RATES, HIDDEN_OBJECT_TYPES, RESOURCE_AMOUNTS, RETARGET_RADIUS, SPEEDS, TRAIN_TIMES,
 } from './palette.js';
 
 const MOVING_COMMANDS = new Set(['MOVE', 'ORDER', 'BUILD', 'WALL', 'GATHER_POINT']);
+const GATHER_STEP_MS = 1000;
+const GRID_CELL = 4; // tiles per spatial-grid cell for resource lookups
+const GATHER_REACH = 1.5; // tiles: closer than this to a resource counts as gathering it
 
 export function formatTime(ms) {
   const s = Math.max(0, Math.floor(ms / 1000));
@@ -84,6 +89,11 @@ export class Replay {
     this.log = [];
     // Where each command with a map position was given: drives the camera.
     this.focusPoints = [];
+    this.resourceById = new Map();
+    this.resourceGrid = new Map();
+    this.gatherers = new Map(); // unit -> resource being gathered
+    this.pendingGatherers = []; // trained units sent to a resource by a gather point
+    this.simT = 0;
 
     this.#loadInitialObjects();
     this.#processTimeline();
@@ -106,7 +116,12 @@ export class Replay {
       } else if (category === 'building') {
         this.#addBuilding({ id: o.id, player: o.player, typeId: o.type_id, x: o.x, y: o.y, t: 0, buildTime: 0 });
       } else if (category !== 'decoration') {
-        this.resources.push({ ...o, category });
+        const r = { ...o, category, remaining: RESOURCE_AMOUNTS[category] ?? Infinity, depletedAt: Infinity };
+        this.resources.push(r);
+        this.resourceById.set(o.id, r);
+        const key = this.#cellKey(o.x, o.y);
+        if (!this.resourceGrid.has(key)) this.resourceGrid.set(key, []);
+        this.resourceGrid.get(key).push(r);
       }
     }
   }
@@ -158,9 +173,20 @@ export class Replay {
   #processTimeline() {
     const selection = new Map();
     for (const e of this.data.timeline) {
+      this.#advanceGathering(e.t);
       let ids = e.object_ids ?? [];
       if (ids.length) selection.set(e.player, ids);
       else ids = selection.get(e.player) ?? [];
+
+      // Any new command for a unit interrupts what it was gathering.
+      for (const id of ids) {
+        const unit = this.unitById.get(id);
+        if (unit) this.#stopGathering(unit);
+      }
+      if (e.type === 'GATHER_POINT') {
+        const building = this.buildingById.get(ids[0]);
+        if (building) building.rally = this.resourceById.get(e.target_id) ?? null;
+      }
 
       if (e.type === 'DE_QUEUE') this.#queue(e, ids);
       else if (e.type === 'BUILD') this.#build(e);
@@ -184,11 +210,19 @@ export class Replay {
         ids.map((id) => this.#resolveUnit(id, e.player, e.t))
           .filter(Boolean)
           .forEach((unit, i) => {
+            const target = e.type === 'ORDER' ? this.resourceById.get(e.target_id) : null;
+            if (target) {
+              unit.moveTo(e.t, target.x, target.y);
+              this.#stopGathering(unit);
+              this.gatherers.set(unit, target);
+              return;
+            }
             const [ox, oy] = formationOffset(i);
             unit.moveTo(e.t, e.x + ox, e.y + oy);
           });
       }
     }
+    this.#advanceGathering(this.duration);
     for (const c of this.data.chat ?? []) {
       this.log.push({ t: c.t, player: c.player, kind: 'chat', text: c.message });
     }
@@ -205,11 +239,12 @@ export class Replay {
       const start = Math.max(e.t, building.queueEnd);
       building.queueEnd = start + trainTime;
       const [ox, oy] = formationOffset(this.units.length % 12);
-      this.#addUnit(new Unit({
+      const unit = this.#addUnit(new Unit({
         id: null, player: e.player, typeId: e.unit_id,
         x: building.x + building.size / 2 + 0.5 + ox, y: building.y + building.size / 2 + 0.5 + oy,
         t: building.queueEnd, approx: true,
       }));
+      if (building.rally) this.pendingGatherers.push({ unit, t: building.queueEnd, resource: building.rally });
     }
   }
 
@@ -229,6 +264,75 @@ export class Replay {
       });
     }
     this.log.push({ t: e.t, player: e.player, kind: 'build', text: `construye ${this.objectName(e.building_id)} (${steps + 1} tramos)` });
+  }
+
+  #cellKey(x, y) {
+    return `${Math.floor(x / GRID_CELL)},${Math.floor(y / GRID_CELL)}`;
+  }
+
+  #stopGathering(unit) {
+    this.gatherers.delete(unit);
+    this.pendingGatherers = this.pendingGatherers.filter((g) => g.unit !== unit);
+  }
+
+  /** Closest resource of the same kind that still has something left. */
+  #nextResource(from) {
+    const reach = Math.ceil(RETARGET_RADIUS / GRID_CELL);
+    const cx = Math.floor(from.x / GRID_CELL);
+    const cy = Math.floor(from.y / GRID_CELL);
+    let best = null;
+    let bestD = RETARGET_RADIUS;
+    for (let gx = cx - reach; gx <= cx + reach; gx++) {
+      for (let gy = cy - reach; gy <= cy + reach; gy++) {
+        for (const r of this.resourceGrid.get(`${gx},${gy}`) ?? []) {
+          if (r.category !== from.category || r.remaining <= 0) continue;
+          const d = Math.hypot(r.x - from.x, r.y - from.y);
+          if (d < bestD) {
+            best = r;
+            bestD = d;
+          }
+        }
+      }
+    }
+    return best;
+  }
+
+  // Runs the gathering estimate up to time `to`, one game second at a time.
+  // Called before each command so retarget walks stay in chronological order.
+  #advanceGathering(to) {
+    while (this.simT + GATHER_STEP_MS <= to) {
+      this.simT += GATHER_STEP_MS;
+      const now = this.simT;
+      if (this.pendingGatherers.length) {
+        const ready = this.pendingGatherers.filter((g) => g.t <= now);
+        this.pendingGatherers = this.pendingGatherers.filter((g) => g.t > now);
+        for (const g of ready) {
+          g.unit.moveTo(now, g.resource.x, g.resource.y);
+          this.gatherers.set(g.unit, g.resource);
+        }
+      }
+      for (const [unit, resource] of this.gatherers) {
+        const resigned = this.resignedAt.get(unit.player);
+        if (resigned != null && resigned <= now) {
+          this.gatherers.delete(unit);
+          continue;
+        }
+        if (resource.remaining <= 0) {
+          const next = this.#nextResource(resource);
+          if (next) {
+            this.gatherers.set(unit, next);
+            unit.moveTo(now, next.x, next.y);
+          } else {
+            this.gatherers.delete(unit);
+          }
+          continue;
+        }
+        const at = unit.positionAt(now);
+        if (Math.hypot(at.x - resource.x, at.y - resource.y) > GATHER_REACH) continue; // still walking
+        resource.remaining -= (GATHER_RATES[resource.category] ?? 0) * (GATHER_STEP_MS / 1000);
+        if (resource.remaining <= 0) resource.depletedAt = now;
+      }
+    }
   }
 
   stateAt(t) {

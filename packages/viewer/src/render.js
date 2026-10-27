@@ -258,8 +258,10 @@ export class Renderer {
     const items = [];
     for (const r of this.replay.resources) {
       if (!inView(r.x, r.y)) continue;
+      const gone = r.depletedAt <= state.t;
       if (r.category === 'tree' && !detail) continue; // forest terrain already reads as forest
-      items.push({ depth: r.x + r.y, draw: () => this.#drawResource(r, detail) });
+      if (gone && r.category !== 'tree') continue;
+      items.push({ depth: r.x + r.y, draw: () => (gone ? this.#drawStump(r) : this.#drawResource(r, detail)) });
     }
     for (const it of state.buildings) {
       const bd = it.building;
@@ -346,6 +348,21 @@ export class Renderer {
     ctx.fill();
   }
 
+  // A felled tree leaves a stump.
+  #drawStump(r) {
+    const { ctx } = this;
+    const s = this.cam.scale;
+    const [x, y] = this.toScreen(r.x, r.y);
+    ctx.fillStyle = '#4a321c';
+    ctx.beginPath();
+    ctx.ellipse(x, y - s * 0.06, s * 0.12, s * 0.07, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = '#b08a5a';
+    ctx.beginPath();
+    ctx.ellipse(x, y - s * 0.1, s * 0.1, s * 0.05, 0, 0, Math.PI * 2);
+    ctx.fill();
+  }
+
   #drawBuilding(b, progress, state) {
     const { ctx } = this;
     const s = this.cam.scale;
@@ -375,6 +392,27 @@ export class Renderer {
     ctx.globalAlpha = this.#alpha(b.player, state);
     ctx.strokeStyle = 'rgba(0,0,0,0.55)';
     ctx.lineWidth = Math.max(1, s / 24);
+
+    if (this.replay.objectName(b.typeId) === 'Farm') {
+      // Farms are flat plots: tilled soil with a player-colored border.
+      poly([top, right, bottom, left], progress < 1 ? '#8a6a3c' : '#9c7a3c');
+      ctx.strokeStyle = this.playerColor(b.player);
+      ctx.lineWidth = Math.max(1, s / 16);
+      ctx.stroke();
+      ctx.strokeStyle = 'rgba(60,40,20,0.35)';
+      ctx.lineWidth = 1;
+      for (let i = 1; i < 4; i++) {
+        const k = i / 4;
+        const a1 = [top[0] + (left[0] - top[0]) * k, top[1] + (left[1] - top[1]) * k];
+        const a2 = [right[0] + (bottom[0] - right[0]) * k, right[1] + (bottom[1] - right[1]) * k];
+        ctx.beginPath();
+        ctx.moveTo(a1[0], a1[1]);
+        ctx.lineTo(a2[0], a2[1]);
+        ctx.stroke();
+      }
+      ctx.globalAlpha = 1;
+      return;
+    }
 
     if (progress < 1) {
       // Foundation outline on the ground.

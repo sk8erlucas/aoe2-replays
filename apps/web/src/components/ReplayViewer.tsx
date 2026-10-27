@@ -287,7 +287,10 @@ export function ReplayViewer({ data, actions }: { data: ReplayData; actions?: Re
               <li key={`${e.t}-${i}`}>
                 <span className="time">{formatTime(e.t)}</span>
                 <span className={e.kind}>
-                  <span className="who" style={{ color: playerColor(e.player) }}>
+                  <span className="who">
+                    {playerColor(e.player) && (
+                      <span className="swatch" style={{ background: playerColor(e.player) }} aria-hidden="true" />
+                    )}
                     {playerName(e.player)}
                   </span>
                   {e.kind === "chat" ? `: “${e.text}”` : ` ${e.text}`}

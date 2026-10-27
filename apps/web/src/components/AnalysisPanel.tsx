@@ -50,6 +50,7 @@ function ActivityChart({
               {/* Full-height hit target, larger than the bar. */}
               <rect x={i * 10} y={0} width={10} height={h} fill="transparent" />
               <rect
+                className="bar"
                 x={i * 10 + 1}
                 y={h - bh}
                 width={8}

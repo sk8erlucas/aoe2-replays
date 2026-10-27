@@ -53,7 +53,7 @@ export function Uploader({ onUploaded }: { onUploaded: (result: Uploaded) => voi
 
   return (
     <div
-      className={`dropzone${over ? " over" : ""}${busy ? " busy" : ""}`}
+      className={`dropzone frame${over ? " over" : ""}${busy ? " busy" : ""}`}
       onDragOver={(e) => {
         e.preventDefault();
         setOver(true);
@@ -66,34 +66,36 @@ export function Uploader({ onUploaded }: { onUploaded: (result: Uploaded) => voi
         if (file && !busy) upload(file);
       }}
     >
-      <p className="dropzone-title">{busy ? `Analizando ${status.name}…` : "Arrastrá tu replay acá"}</p>
-      <p className="muted">
-        Archivo <code>.aoe2record</code> de Age of Empires II: DE. No hace falta cuenta.
-      </p>
-      <button type="button" className="primary" disabled={busy} onClick={() => input.current?.click()}>
-        Elegir archivo
-      </button>
-      <input
-        ref={input}
-        type="file"
-        accept=".aoe2record"
-        hidden
-        onChange={(e) => {
-          const file = e.target.files?.[0];
-          e.target.value = "";
-          if (file) upload(file);
-        }}
-      />
-      {status.kind === "error" && (
-        <p className="error" role="alert">
-          {status.message}
+      <div className="dropzone-inner">
+        <p className="dropzone-title">{busy ? `Analizando ${status.name}…` : "Arrastrá tu replay acá"}</p>
+        <p className="muted">
+          Archivo <code>.aoe2record</code> de Age of Empires II: DE. No hace falta cuenta.
         </p>
-      )}
-      <p className="muted small">
-        Guardamos solo los datos de la partida, no el archivo. Es privado: solo lo ve quien tenga el enlace de gestión,
-        hasta que lo hagas público. En Windows los replays están en{" "}
-        <code>Usuarios\&lt;vos&gt;\Games\Age of Empires 2 DE\&lt;id&gt;\savegame</code>.
-      </p>
+        <button type="button" className="primary" disabled={busy} onClick={() => input.current?.click()}>
+          Elegir archivo
+        </button>
+        <input
+          ref={input}
+          type="file"
+          accept=".aoe2record"
+          hidden
+          onChange={(e) => {
+            const file = e.target.files?.[0];
+            e.target.value = "";
+            if (file) upload(file);
+          }}
+        />
+        {status.kind === "error" && (
+          <p className="error" role="alert">
+            {status.message}
+          </p>
+        )}
+        <p className="muted small">
+          Guardamos solo los datos de la partida, no el archivo. Es privado: solo lo ve quien tenga el enlace de gestión,
+          hasta que lo hagas público. En Windows los replays están en{" "}
+          <code>Usuarios\&lt;vos&gt;\Games\Age of Empires 2 DE\&lt;id&gt;\savegame</code>.
+        </p>
+      </div>
     </div>
   );
 }

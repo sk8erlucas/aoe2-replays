@@ -49,7 +49,7 @@ Antes de dar algo por terminado: tests del parser, `npm test`, lint, typecheck y
 **Parser.** `services/parser/src/aoe2_parser/vendor/mgz_header.py` es una copia parcheada de `mgz` (MIT): marcar cada cambio con `aoe2-replays patch`, y no tocar `LICENSE.mgz`. Las versiones nuevas del juego se soportan agregando parches con condición `if save >= X`, sin romper las anteriores.
 
 **Legal y assets.**
-- No usar ni extraer imágenes, sonidos, íconos ni datos de los archivos del juego. Sprites y colores, propios.
+- No subir al repo ni servir imágenes, sonidos, íconos ni datos extraídos de los archivos del juego. Sprites y colores, propios. (La opción de leer gráficos de la instalación del usuario está en estudio: ver `tasks/08-experiencia-de-juego.md` y `docs/LEGAL.md`.)
 - `aocref` (aoc-reference-data) no tiene licencia publicada: usarlo solo como dependencia instalada, nunca copiar sus datos al repo.
 - No poner "Age of Empires" como marca principal; mantener el aviso de "no afiliado".
 
@@ -65,6 +65,7 @@ Antes de dar algo por terminado: tests del parser, `npm test`, lint, typecheck y
 **Visor y análisis.** `packages/viewer/src/engine.js` y `analysis.js` no pueden tocar el DOM (se testean en Node). Todo lo visual va en `render.js` (proyección isométrica 2:1: `u = x - y`, `v = (x + y) / 2 - z`; cámara con seguimiento y minimapa), y los números estimados (velocidades, tiempos) en `palette.js`. Para sprites, reemplazar los métodos `#draw*` sin tocar la cámara. El replay guarda solo comandos, así que todo lo que el motor infiere es aproximado: documentarlo cuando se agregue algo.
 
 ## Estilo
+- Interfaz: seguir [`docs/DESIGN.md`](docs/DESIGN.md) (tokens en `apps/web/src/app/globals.css`). El color de jugador va en una muestra al lado del nombre, nunca como color de texto.
 - Código, identificadores y comentarios en inglés. Documentación, textos de la interfaz y mensajes al usuario en español rioplatense.
 - Comentarios solo donde el porqué no es obvio. Seguir el estilo del archivo que se toca.
 - Python: comillas simples, módulos chicos, errores con `ReplayError` y un `code` estable.

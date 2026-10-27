@@ -91,3 +91,23 @@ export const DEFAULT_SPEED = 1.0;
 
 // Extra objects that make up a Town Center; only the main one (109) is drawn.
 export const HIDDEN_OBJECT_TYPES = new Set([618, 619, 620, 1649, 890]);
+
+// Resource amounts and effective gather rates (per villager, per game second,
+// including walks to the drop-off). Estimates: a replay never says how much
+// was gathered, only who was told to gather what.
+export const RESOURCE_AMOUNTS = {
+  tree: 100,
+  gold: 800,
+  stone: 350,
+  berries: 125,
+};
+
+export const GATHER_RATES = {
+  tree: 0.33,
+  gold: 0.33,
+  stone: 0.32,
+  berries: 0.28,
+};
+
+// How far (tiles) a gatherer looks for the next resource of the same kind.
+export const RETARGET_RADIUS = 8;

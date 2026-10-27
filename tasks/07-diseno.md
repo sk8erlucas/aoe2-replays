@@ -1,18 +1,20 @@
 # Fase 7: Diseño visual
 
-Pendiente de definir **juntos** antes de invertir en la interfaz. La web actual usa un estilo provisional (oscuro, acento dorado) solo para poder probar.
+Dirección elegida: **pergamino ilustrado**. Guía completa en [`docs/DESIGN.md`](../docs/DESIGN.md); la web ya la aplica. El aspecto del mapa (que se parezca al juego) está en [`08-experiencia-de-juego.md`](./08-experiencia-de-juego.md).
 
 ## A definir (manual: decisiones tuyas)
-- [ ] Identidad: nombre visible, tono (serio/analítico vs. temático medieval), logo
-- [ ] Paleta: colores base, acento, claro/oscuro (¿ambos?)
-- [ ] Tipografía (preferir Google Fonts u otras con licencia libre)
-- [ ] Estilo del mapa: vista superior vs. isométrica; pixel art de qué resolución
-- [ ] Referencias visuales que te gusten (sitios, juegos, herramientas)
+- [x] Tono: temático medieval, pergamino y tinta
+- [ ] Logo
+- [x] Paleta (claro; modo oscuro a decidir)
+- [x] Tipografía: Cinzel + Montserrat
+- [x] Estilo del mapa: isométrico, buscando parecerse al juego (ver fase 8)
+- [x] Referencia visual (guardada fuera de git en `docs/design/referencias/`)
 - [ ] Estructura de páginas: inicio, replay, perfil, "mis replays", análisis
 
 ## Lo que puedo hacer después de definirlo
-- [ ] Tokens de diseño (CSS variables) y componentes base
-- [ ] Rediseñar inicio, subida y visor con esos tokens
-- [ ] Sprites pixel art propios para unidades y edificios
+- [x] Tokens de diseño (CSS variables) y componentes base
+- [x] Rediseñar inicio, subida y visor con esos tokens
+- [ ] Ilustraciones propias en estilo grabado (portada, 404, estados vacíos)
+- [ ] Sprites propios para unidades y edificios (fase 8)
 - [ ] Logo/favicon propio
 - [ ] Mockups o prototipo navegable para validar antes de programar

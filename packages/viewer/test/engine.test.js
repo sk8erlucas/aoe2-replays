@@ -117,3 +117,61 @@ test('focus follows the last positioned order of a player', () => {
   assert.equal(r.focusOf(1, 6000).x, 3);
   assert.equal(r.latestFocus(6000).t, 5000);
 });
+
+function forest(timeline, extraObjects = []) {
+  return new Replay({
+    game: {
+      duration_ms: 1_000_000,
+      players: [{ number: 1, name: 'A', color_id: 0, team_id: 1, start: { x: 10, y: 10 } }],
+    },
+    map: { size: 40, terrain: [], elevation: [] },
+    initial_objects: [
+      { id: 100, player: 1, type_id: 109, class_id: 80, x: 10, y: 10 },
+      { id: 101, player: 1, type_id: 83, class_id: 70, x: 20, y: 20 },
+      { id: 200, player: 0, type_id: 349, class_id: 10, x: 20, y: 21 },
+      { id: 201, player: 0, type_id: 349, class_id: 10, x: 21, y: 22 },
+      { id: 202, player: 0, type_id: 349, class_id: 10, x: 35, y: 35 }, // too far to retarget
+      ...extraObjects,
+    ],
+    timeline,
+    chat: [],
+    legend: {
+      objects: {
+        109: { name: 'Town Center', category: 'building' },
+        83: { name: 'Villager', category: 'unit' },
+        349: { name: 'Tree', category: 'tree' },
+      },
+      technologies: {},
+    },
+  });
+}
+
+test('gathered trees disappear and the villager moves to the nearest one', () => {
+  const r = forest([{ t: 0, type: 'ORDER', player: 1, object_ids: [101], target_id: 200, x: 20, y: 21 }]);
+  const tree = (id) => r.resources.find((x) => x.id === id);
+  // 100 wood at 0.33/s: about 304 s (plus ~2 s walking).
+  assert.ok(tree(200).depletedAt > 300_000 && tree(200).depletedAt < 310_000, `${tree(200).depletedAt}`);
+  assert.ok(tree(201).depletedAt > tree(200).depletedAt + 300_000);
+  assert.equal(tree(202).depletedAt, Infinity);
+  const v = r.unitById.get(101);
+  assert.equal(v.positionAt(tree(200).depletedAt + 10_000).x, 21);
+});
+
+test('a new order stops gathering', () => {
+  const r = forest([
+    { t: 0, type: 'ORDER', player: 1, object_ids: [101], target_id: 200, x: 20, y: 21 },
+    { t: 100_000, type: 'MOVE', player: 1, object_ids: [101], x: 5, y: 5 },
+  ]);
+  const tree = r.resources.find((x) => x.id === 200);
+  assert.equal(tree.depletedAt, Infinity);
+  assert.ok(tree.remaining > 60 && tree.remaining < 75, `${tree.remaining}`);
+});
+
+test('units trained with a gather point on a resource go gather it', () => {
+  const r = forest([
+    { t: 0, type: 'GATHER_POINT', player: 1, object_ids: [100], target_id: 200, x: 20, y: 21 },
+    { t: 0, type: 'DE_QUEUE', player: 1, object_ids: [100], amount: 1, unit_id: 83 },
+  ]);
+  const tree = r.resources.find((x) => x.id === 200);
+  assert.ok(tree.depletedAt < Infinity);
+});

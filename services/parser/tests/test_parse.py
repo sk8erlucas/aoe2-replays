@@ -76,3 +76,26 @@ def test_names_and_legend(sample):
     assert legend['objects']['48']['category'] == 'animal'
     assert legend['objects']['70'] == {'name': 'House', 'category': 'building'}
     assert legend['technologies']['22'] == 'Loom'
+
+
+def test_event_converts_raw_bytes():
+    from mgz.fast import Action
+
+    from aoe2_parser.parse import _event
+
+    event = _event(1000, Action.DE_TRIBUTE, {'player_id': 2, 'target_player_id': b'\x01', 'gold': 100.0})
+    assert event == {'t': 1000, 'type': 'DE_TRIBUTE', 'player': 2, 'target_player_id': 1, 'gold': 100.0}
+
+
+LONG = FIXTURES / 'AgeIIDE_Replay_516586396.aoe2record'
+
+
+def test_full_length_match_is_json_serializable():
+    import json
+
+    if not LONG.exists():
+        pytest.skip(f'missing fixture {LONG.name}')
+    result = parse_replay(LONG.read_bytes())
+    assert result['game']['duration_ms'] > 45 * 60_000
+    assert any(e['type'] == 'DE_TRIBUTE' for e in result['timeline'])
+    json.dumps(result)

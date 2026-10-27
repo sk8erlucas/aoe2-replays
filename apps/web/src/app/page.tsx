@@ -17,6 +17,9 @@ export default function Home() {
   return (
     <main className="home">
       <h1>Mirá y analizá tus partidas de Age of Empires II</h1>
+      <div className="ornament" aria-hidden="true">
+        ◆
+      </div>
       <p className="muted">
         Subí un replay y miralo reproducido en el mapa: edificios, unidades, eventos y chat. Prototipo en desarrollo.
       </p>

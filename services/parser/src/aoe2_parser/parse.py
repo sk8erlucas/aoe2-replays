@@ -107,6 +107,9 @@ def _event(t, action_type, payload):
     for key, value in payload.items():
         if key == 'sequence':
             continue
+        # mgz returns some ids as raw bytes (e.g. DE_TRIBUTE target_player_id).
+        if isinstance(value, bytes):
+            value = int.from_bytes(value, 'little')
         event['player' if key == 'player_id' else key] = value
     return event
 
