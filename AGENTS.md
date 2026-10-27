@@ -11,13 +11,15 @@ Contexto y decisiones: [`docs/CONTEXT.md`](docs/CONTEXT.md), [`docs/DECISIONS.md
 | Carpeta | Qué es | Stack |
 |---|---|---|
 | `services/parser` | `.aoe2record` → JSON. CLI y API HTTP sin estado | Python 3.11+, FastAPI, `mgz` |
-| `apps/web` | Web: subida, guardado, página `/r/<id>` con el visor | Next.js 15 (App Router), TypeScript, Prisma 7, Postgres |
+| `apps/web` | Web: portada, subida (`/r/<id>`), búsqueda de jugadores (`/p/<id>`), partidas online (`/m/<id>`), visor y análisis | Next.js 15 (App Router), TypeScript, Prisma 7, Postgres |
 | `packages/viewer` | Motor de reproducción y análisis (sin DOM) y render en canvas | JavaScript ESM + `index.d.ts` |
 | `packages/shared` | Tipos TypeScript del contrato JSON del parser | Solo tipos |
 | `apps/viewer` | Prototipo estático del visor para depurar, sin build | HTML + JS |
 | `fixtures` | Replays de prueba, **fuera de git** | |
 
-Flujo: navegador → `POST /api/replays` (web) → `POST /parse` (parser) → la web guarda el JSON comprimido con gzip en Postgres → `/r/<id>` lo descarga y lo reproduce.
+Flujos:
+- Subida: navegador → `POST /api/replays` (web) → `POST /parse` (parser) → la web guarda el JSON comprimido con gzip en Postgres (tabla `replays`, privado) → `/r/<id>` lo reproduce.
+- Partida online: `/p/<profileId>` lista partidas (aoe2companion, con caché) → `POST /api/matches/<matchId>` descarga el ZIP de Microsoft, lo parsea y lo guarda una vez (tabla `matches`, público) → `/m/<matchId>` lo reproduce.
 
 ## Comandos
 ```sh
@@ -49,7 +51,7 @@ Antes de dar algo por terminado: tests del parser, `npm test`, lint, typecheck y
 **Parser.** `services/parser/src/aoe2_parser/vendor/mgz_header.py` es una copia parcheada de `mgz` (MIT): marcar cada cambio con `aoe2-replays patch`, y no tocar `LICENSE.mgz`. Las versiones nuevas del juego se soportan agregando parches con condición `if save >= X`, sin romper las anteriores.
 
 **Legal y assets.**
-- No subir al repo ni servir imágenes, sonidos, íconos ni datos extraídos de los archivos del juego. Sprites y colores, propios. (La opción de leer gráficos de la instalación del usuario está en estudio: ver `tasks/08-experiencia-de-juego.md` y `docs/LEGAL.md`.)
+- El arte y los gráficos del juego se usan bajo las Game Content Usage Rules de Microsoft (ver `docs/LEGAL.md`): solo arte oficial, cada archivo registrado en `apps/web/public/images/CREDITS.md`, y el aviso de las reglas siempre visible en el pie de la web.
 - `aocref` (aoc-reference-data) no tiene licencia publicada: usarlo solo como dependencia instalada, nunca copiar sus datos al repo.
 - No poner "Age of Empires" como marca principal; mantener el aviso de "no afiliado".
 

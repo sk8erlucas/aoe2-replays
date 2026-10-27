@@ -11,7 +11,7 @@ Referencia de inspiración (no se copian sus ilustraciones): un sitio con estét
 2. **Ornamento con medida.** Marcos, filetes y bordes rasgados en los bordes de las secciones; nunca encima del contenido ni en tablas de datos.
 3. **Los datos se leen primero.** Tablas, tiempos y números usan la fuente de texto con cifras tabulares, sin decoración.
 4. **El color de jugador es identidad, no texto.** Se muestra en una muestra (cuadradito o punto) al lado del nombre; el nombre va en color de tinta. Colores como el amarillo no se leen sobre papel.
-5. **Todo propio.** Texturas, ornamentos e íconos hechos con CSS o SVG propios. Sin imágenes del juego ni de la referencia.
+5. **Ornamento propio, arte del juego donde suma.** Texturas, ornamentos e íconos con CSS o SVG propios. El arte oficial del juego se usa en el hero y en imágenes destacadas (bajo las Game Content Usage Rules, ver `docs/LEGAL.md`), siempre con un velo oscuro para que el texto encima se lea. Nada de la imagen de referencia.
 
 ## Tokens
 Definidos como variables CSS en `apps/web/src/app/globals.css`.
@@ -47,6 +47,9 @@ Escala: 12 / 14 / 16 / 20 / 28 / 40 px. Texto base 14 px en el visor y 16 px en 
 - Marco ornamental: borde doble de 1 px en `--rule` con un rombo pequeño en cada esquina.
 
 ## Componentes
+- **Hero**: arte del juego a pantalla completa con degradado carbón de izquierda a derecha (el texto va a la izquierda), título en Cinzel color papel, buscador de jugadores y botón de bronce, borde de papel rasgado hacia la página. Crédito del arte abajo a la derecha.
+- **Secciones de portada**: título en Cinzel mayúsculas, ornamento (filete con rombo) debajo, ancho máximo 1080 px (720 px para texto largo). Pasos numerados con medallones en números romanos.
+- **Capturas del visor**: marco carbón de 3 px y sombra suave.
 - **Barra superior y barra de controles**: carbón, con borde de papel rasgado hacia el contenido. La marca en Cinzel, en color papel.
 - **Botón principal (bronce)**: degradado de `--bronze` a `--bronze-dark` (el texto nunca va sobre `--bronze-light`), borde de 2 px `--bronze-dark`, texto papel en Cinzel, dos remaches (puntos) a los costados. Se usa para la acción principal de cada pantalla.
 - **Botón secundario**: fondo `--paper-raised`, borde `--rule`, texto `--ink`. Al pasar el mouse el borde pasa a bronce.

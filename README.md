@@ -1,16 +1,37 @@
 # AoE2 Replays
 
-Visor y herramienta de análisis open source para replays de Age of Empires II: Definitive Edition (`.aoe2record`).
-Subís el archivo (sin necesidad de cuenta), lo ves reproducido en pixel art, lo analizás y lo exportás a video.
+Visor y herramienta de análisis open source para partidas de **Age of Empires II: Definitive Edition**.
 
-> Proyecto de fans. No afiliado a Microsoft, Xbox Game Studios ni World's Edge. Age of Empires es marca de sus dueños.
+Subí un replay (`.aoe2record`) o buscá a un jugador y abrí cualquiera de sus partidas online: se reproduce en un mapa isométrico, con la cámara siguiendo la acción, y podés analizar qué hizo cada jugador y cuándo.
 
-## Estado
-Prototipo funcionando de punta a punta: subís un replay, el parser lo convierte a JSON, se guarda (privado, comprimido) y se reproduce en `/r/<id>`. Sin cuentas todavía; diseño provisional.
+> Proyecto de fans. Age of Empires II © Microsoft Corporation. AoE2 Replays se creó bajo las [Game Content Usage Rules](https://www.xbox.com/en-US/developers/rules) de Microsoft usando contenido de Age of Empires II, y no está respaldado ni afiliado a Microsoft.
 
-## Cómo iniciar (desarrollo)
+![Vista cercana del visor](apps/web/public/images/visor/cerca.webp)
 
-Requisitos: Python 3.11+, Node 22+ y Docker (solo para la base de datos local).
+## Qué hace
+- **Visor**: mapa isométrico con relieve, edificios que se construyen, unidades que se mueven, árboles que se talan y recursos que se agotan. Cámara automática que sigue la acción, seguimiento de un jugador, minimapa y línea de tiempo.
+- **Análisis**: APM, momento de avance a cada edad, actividad a lo largo de la partida y build order de cada jugador.
+- **Partidas online**: búsqueda de jugadores con autocompletado, perfil con rankings y partidas recientes, y reproducción de cualquiera de ellas sin subir archivos (el replay se descarga del servicio público de Microsoft).
+- **Privacidad**: los replays subidos son privados hasta que los hagas públicos, se guardan solo los datos de la partida (no el archivo) y se borran solos.
+
+### Qué es exacto y qué es estimado
+Un replay de AoE2 guarda **solo las órdenes de los jugadores**; el juego vuelve a simular todo con su motor, que es cerrado. Por eso:
+- **Exacto**: mapa, jugadores, cada orden y su momento, dónde se construyó cada edificio, investigaciones, abandonos, chat.
+- **Estimado**: el recorrido de las unidades, la tala y recolección de recursos, la llegada a cada edad, el avance de las construcciones.
+
+## Cómo está hecho
+| Carpeta | Qué es | Stack |
+|---|---|---|
+| [`services/parser`](services/parser) | Convierte un `.aoe2record` en JSON. CLI y API HTTP | Python, FastAPI, [`mgz`](https://github.com/happyleavesaoc/aoc-mgz) (con parches para versiones nuevas) |
+| [`apps/web`](apps/web) | Web: subida, partidas online, visor, análisis | Next.js, TypeScript, Prisma, PostgreSQL |
+| [`packages/viewer`](packages/viewer) | Motor de reproducción y análisis + render en canvas | JavaScript (sin dependencias) |
+| [`packages/shared`](packages/shared) | Tipos del formato JSON del parser | TypeScript |
+| [`apps/viewer`](apps/viewer) | Prototipo estático del visor, para depurar | HTML + JS |
+
+El formato JSON que produce el parser está documentado en [`services/parser/README.md`](services/parser/README.md), por si querés armar tu propio visor.
+
+## Correrlo localmente
+Requisitos: Python 3.11+, Node 22+ y Docker (para la base de datos).
 
 ```sh
 # 1. Parser (terminal 1)
@@ -20,7 +41,7 @@ python -m venv .venv
 .venv/Scripts/python -m uvicorn aoe2_parser.api:app --port 8000
 
 # 2. Base de datos (desde la raíz)
-docker compose -f docker-compose.dev.yml up -d       # Postgres en localhost:5433
+docker compose -f docker-compose.dev.yml up -d       # PostgreSQL en localhost:5433
 
 # 3. Web (terminal 2, desde la raíz)
 npm install
@@ -31,42 +52,18 @@ npm run dev:web                                      # http://localhost:3000
 
 Tests: `npm test` en la raíz y `.venv/Scripts/python -m pytest` dentro de `services/parser`.
 
-Producción (Dokploy): [`docs/DEPLOY.md`](./docs/DEPLOY.md). Guía para agentes de código: [`AGENTS.md`](./AGENTS.md).
+Para desplegar (Docker Compose, por ejemplo con Dokploy): [`docs/DEPLOY.md`](docs/DEPLOY.md).
 
-## Estructura
-| Carpeta | Contenido |
-|---|---|
-| [`services/parser`](./services/parser) | Parser en Python (`.aoe2record` → JSON) |
-| [`apps/web`](./apps/web) | Web Next.js: subida y visor |
-| [`apps/viewer`](./apps/viewer) | Prototipo estático del visor, sin build (para depurar) |
-| [`packages/viewer`](./packages/viewer) | Motor de reproducción y render en canvas, compartido |
-| [`packages/shared`](./packages/shared) | Tipos TypeScript del contrato JSON |
-| [`fixtures`](./fixtures) | Replays de prueba (fuera del repo) |
+## Contribuir
+Las mejoras llegan por pull request y se revisan una por una. Leé [`CONTRIBUTING.md`](CONTRIBUTING.md) y, si usás un agente de código, [`AGENTS.md`](AGENTS.md). La hoja de ruta está en [`tasks/`](tasks), empezando por [`tasks/PENDIENTES.md`](tasks/PENDIENTES.md).
 
-## Documentación
-| Archivo | Contenido |
-|---|---|
-| [`docs/CONTEXT.md`](./docs/CONTEXT.md) | Qué es el proyecto, hallazgos técnicos y límites |
-| [`docs/ARCHITECTURE.md`](./docs/ARCHITECTURE.md) | Servicios, flujo de datos y stack |
-| [`docs/DECISIONS.md`](./docs/DECISIONS.md) | Decisiones tomadas y preguntas abiertas |
-| [`docs/LEGAL.md`](./docs/LEGAL.md) | Marcas, assets, publicidad y privacidad |
-| [`docs/DEPLOY.md`](./docs/DEPLOY.md) | Despliegue en Dokploy y variables de entorno |
-| [`docs/DESIGN.md`](./docs/DESIGN.md) | Guía de estilo de la web |
+Documentación interna: [contexto](docs/CONTEXT.md), [arquitectura](docs/ARCHITECTURE.md), [decisiones](docs/DECISIONS.md), [guía de estilo](docs/DESIGN.md), [aspectos legales](docs/LEGAL.md).
 
-## Tareas por fase
-| Fase | Archivo |
-|---|---|
-| 0. Preparación | [`tasks/00-preparacion.md`](./tasks/00-preparacion.md) |
-| 1. Parser | [`tasks/01-parser.md`](./tasks/01-parser.md) |
-| 2. Prototipo del visor | [`tasks/02-prototipo-visor.md`](./tasks/02-prototipo-visor.md) |
-| 3. Web (Next.js) | [`tasks/03-web.md`](./tasks/03-web.md) |
-| 4. Análisis | [`tasks/04-analisis.md`](./tasks/04-analisis.md) |
-| 5. Exportar a video | [`tasks/05-video.md`](./tasks/05-video.md) |
-| 6. Comunidad open source | [`tasks/06-comunidad.md`](./tasks/06-comunidad.md) |
-| 7. Diseño visual | [`tasks/07-diseno.md`](./tasks/07-diseno.md) |
-| 8. Experiencia de juego (sprites, simulación) | [`tasks/08-experiencia-de-juego.md`](./tasks/08-experiencia-de-juego.md) |
-| 9. Partidas online (buscar jugador, ver sus partidas) | [`tasks/09-partidas-online.md`](./tasks/09-partidas-online.md) |
-| **Pendientes (manual / automático)** | [`tasks/PENDIENTES.md`](./tasks/PENDIENTES.md) |
+## Créditos
+- Lectura de replays: [`mgz`](https://github.com/happyleavesaoc/aoc-mgz) de happyleavesaoc (MIT) y datos de referencia de [aoc-reference-data](https://github.com/SiegeEngineers/aoc-reference-data).
+- Datos de jugadores y partidas: [aoe2companion](https://www.aoe2companion.com).
+- Arte del juego: Age of Empires II: Definitive Edition © Microsoft, usado bajo las Game Content Usage Rules (detalle en [`apps/web/public/images/CREDITS.md`](apps/web/public/images/CREDITS.md)).
+- Fuentes: Cinzel y Montserrat (SIL Open Font License).
 
 ## Licencia
-MIT, ver [`LICENSE`](./LICENSE).
+El código es [MIT](LICENSE). El arte y los nombres de Age of Empires pertenecen a Microsoft y **no** están cubiertos por la licencia MIT.

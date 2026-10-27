@@ -1,10 +1,10 @@
 # Fase 6: Comunidad open source
 
-- [ ] `CONTRIBUTING.md` con el proceso para proponer cambios
+- [x] `CONTRIBUTING.md` con el proceso para proponer cambios
 - [ ] Criterios para evaluar pull requests (calidad, tests, licencia de assets)
 - [ ] Plantillas de issue y de pull request
 - [ ] Código de conducta
 - [x] CI: lint, tests, build y build de imágenes Docker en cada push y pull request (`.github/workflows/ci.yml`)
 - [ ] Guía para aportar sprites y temas gráficos (solo assets propios o con licencia compatible)
 - [ ] Etiquetas `good first issue` y hoja de ruta pública
-- [ ] Documentar el contrato JSON del parser para que otros puedan hacer visores propios
+- [x] Documentar el contrato JSON del parser para que otros puedan hacer visores propios (`services/parser/README.md`)

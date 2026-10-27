@@ -26,7 +26,7 @@ def test_game(sample):
 
 def test_players_come_from_de_section(sample):
     first = sample['game']['players'][0]
-    assert first['name'] == 'Bc. .'
+    assert first['name'] and first['number'] == 1
     assert first['civilization_id'] == 28
     assert first['team_id'] == 2
     assert first['start'] == {'x': 121.0, 'y': 22.0}

@@ -9,8 +9,10 @@ Separados entre lo que necesita una decisión o acción tuya y lo que se puede a
 | Deploy en Dokploy | Crear la base PostgreSQL y el servicio Compose, cargar las variables ([DEPLOY](../docs/DEPLOY.md)) | Probar en el servidor |
 | CAPTCHA | Crear claves de Cloudflare Turnstile (sitio + secreto) | Protección de subidas anónimas |
 | Logo e ilustraciones | Decidir si se encargan o se hacen propios (estilo grabado, ver [DESIGN](../docs/DESIGN.md)) | Portada final |
-| Gráficos del juego | Leer las reglas de contenido de Microsoft y decidir si se permite usar los gráficos de la instalación del usuario ([08](./08-experiencia-de-juego.md)) | Camino B de sprites |
-| Partidas online | Revisar términos de aoe2companion / pedir permiso; decidir si se usan solo APIs oficiales ([09](./09-partidas-online.md)) | Buscador de jugadores |
+| Gráficos del juego | Elegir si los sprites se sirven desde el proyecto o se leen de la instalación del usuario ([08](./08-experiencia-de-juego.md)) | Sprites en el visor |
+| Nombre del proyecto | Las reglas de Microsoft piden no usar el nombre del juego en el título; evaluar un nombre propio ([LEGAL](../docs/LEGAL.md)) | Lanzamiento público |
+| Publicidad | Confirmar si las reglas de Microsoft permiten anuncios en un sitio propio | Activar anuncios |
+| Repo público | Hacerlo público cuando quieras: los archivos actuales no tienen replays ni datos personales; el historial de git sí tiene un test viejo con el nombre de un jugador de una partida pública | Comunidad |
 | Replays de prueba | Pasar 2-3 replays: partida completa, 1v1, versión 66/67 | Probar el visor de verdad y los parches |
 | Docker local | El build de imágenes falla por certificados SSL en esta máquina (antivirus o proxy que intercepta HTTPS). Postgres local sí funciona | Probar las imágenes antes del deploy |
 | Legal | Leer reglas de contenido de fans de Microsoft ([LEGAL](../docs/LEGAL.md)) | Publicidad, lanzamiento |
@@ -30,5 +32,7 @@ Separados entre lo que necesita una decisión o acción tuya y lo que se puede a
 - [x] Estilo pergamino aplicado a la web
 - [x] Árboles talados y recursos agotados (estimación)
 - [ ] Sprites propios por etapas ([08](./08-experiencia-de-juego.md))
-- [ ] Descarga de partidas por matchId y página `/m/<matchId>` ([09](./09-partidas-online.md))
+- [x] Búsqueda de jugadores, perfiles y partidas online `/m/<matchId>` ([09](./09-partidas-online.md))
+- [x] Portada con hero, contenido y capturas; README público y CONTRIBUTING
+- [ ] Plantillas de issue y pull request, código de conducta ([06](./06-comunidad.md))
 - [ ] Exportar a video con `MediaRecorder` (prueba de concepto)

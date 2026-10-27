@@ -2,7 +2,6 @@
 
 ## Decididas
 - Nombre: **AoE2 Replays**.
-- Carpeta: `C:\Users\Lucas\Desktop\Proyects\aoe2-replays`.
 - Objetivo: herramienta de análisis (visor + estadísticas + build orders).
 - Procesamiento: parseo en servidor, visor en el navegador.
 - Servidores: más de uno, separados por responsabilidad (ver `ARCHITECTURE.md`): web Next.js y parser en Python.
@@ -19,8 +18,10 @@
 - Monorepo (un solo repo con `apps/`, `services/`, `packages/`), con un contenedor por servicio. Se despliegan por separado aunque compartan repo; el contrato JSON y sus tipos quedan versionados juntos.
 - Repo privado mientras se desarrolla.
 - Diseño de la web: **pergamino ilustrado** (papel, tinta, Cinzel + Montserrat, botones de bronce). Guía en `docs/DESIGN.md`. El mapa del visor no sigue esa estética: apunta a parecerse al juego.
-- Experiencia del visor: simular la partida lo más parecido posible al juego, por etapas (`tasks/08-experiencia-de-juego.md`). Sprites propios por defecto; gráficos del juego solo desde la instalación del usuario y si lo legal lo permite.
-- Partidas online: buscar jugadores y reproducir sus partidas descargando el replay de Microsoft (`tasks/09-partidas-online.md`). Las partidas descargadas así son públicas; los replays subidos a mano siguen privados.
+- Experiencia del visor: simular la partida lo más parecido posible al juego, por etapas (`tasks/08-experiencia-de-juego.md`). Se usan los gráficos y el arte del juego bajo las Game Content Usage Rules de Microsoft (ver `docs/LEGAL.md`).
+- Partidas online (hecho): buscar jugadores con aoe2companion y reproducir sus partidas descargando el replay de Microsoft (`tasks/09-partidas-online.md`). Se guardan una vez por número de partida y son públicas; los replays subidos a mano siguen privados.
+- Portada con hero (arte oficial del juego), cómo funciona, subida, funciones y preguntas frecuentes.
+- Repo público pronto: README público, `CONTRIBUTING.md`, sin replays ni datos personales en los archivos.
 
 ## Abiertas
 - ¿Cuántos días duran los replays de usuarios anónimos antes de borrarse? (hoy 30, configurable)

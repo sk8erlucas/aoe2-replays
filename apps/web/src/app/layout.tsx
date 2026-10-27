@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Cinzel, Montserrat } from "next/font/google";
 import Link from "next/link";
+import { PlayerSearch } from "@/components/PlayerSearch";
 import "./globals.css";
 
 // Self-hosted at build time by next/font; both are SIL Open Font License.
@@ -21,10 +22,19 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
             <Link href="/" className="brand">
               AoE2 Replays
             </Link>
+            <nav className="topnav">
+              <Link href="/#subir">Subir replay</Link>
+            </nav>
+            <PlayerSearch />
           </header>
           {children}
-          <footer className="legal muted small">
-            Proyecto de fans, open source (MIT). No afiliado a Microsoft, Xbox Game Studios ni World&apos;s Edge.
+          <footer className="legal">
+            <p>
+              Age of Empires II © Microsoft Corporation. AoE2 Replays se creó bajo las{" "}
+              <a href="https://www.xbox.com/en-US/developers/rules">Game Content Usage Rules</a> de Microsoft usando
+              contenido de Age of Empires II, y no está respaldado ni afiliado a Microsoft.
+            </p>
+            <p>Proyecto de fans, de código abierto (MIT).</p>
           </footer>
         </div>
       </body>

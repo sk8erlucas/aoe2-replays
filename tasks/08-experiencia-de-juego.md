@@ -11,7 +11,11 @@ El replay guarda **solo las órdenes de los jugadores**. El juego vuelve a simul
 | **A. Sprites propios** | Arte propio que imita el estilo del juego (isométrico, misma escala y proporciones, paleta parecida) | Va en el repo y en la web, MIT/CC | Seguro |
 | **B. Gráficos del juego del usuario** | El navegador lee los archivos de gráficos de **la instalación del propio usuario** (por ejemplo `resources/_common/drs/graphics/*.sld`) y los decodifica localmente. Nosotros no subimos ni servimos esos archivos | No se distribuyen: cada usuario usa su copia | A confirmar con las [reglas de contenido de Microsoft](../docs/LEGAL.md) |
 
-**Decisión propuesta:** A por defecto (la web funciona para todos) y B como opción "usar los gráficos de mi juego" para quien tenga AoE2: DE instalado. **No** se suben sprites extraídos del juego al repo ni al servidor mientras no esté resuelto lo legal, porque no son nuestros para licenciarlos y el proyecto piensa financiarse con publicidad.
+**Decisión (27/10/2026):** se usan **los gráficos del juego** bajo las Game Content Usage Rules (ver `docs/LEGAL.md`). Falta elegir cómo llegan al navegador:
+- **B1. Extraídos y servidos por nosotros**: un script convierte los sprites del juego (SLD) a atlas PNG/WebP una vez y la web los sirve. Funciona para todos, pesa en el servidor (hay que elegir solo lo necesario).
+- **B2. Desde la instalación del usuario**: el navegador los lee de la carpeta del juego. No pesa en el servidor, pero solo funciona en Chrome/Edge y para quien tenga el juego.
+
+Propuesta: B1 con un subconjunto (edificios y unidades principales, por arquitectura), y las formas propias actuales como respaldo mientras cargan.
 
 ## Etapas
 
@@ -33,8 +37,9 @@ El replay guarda **solo las órdenes de los jugadores**. El juego vuelve a simul
 - [ ] Agua animada, orillas
 - [ ] Cargar sprites como atlas (una imagen por grupo + JSON de cuadros) para que el render sea rápido
 
-### Etapa 3: gráficos del juego del usuario (camino B)
-- [ ] Resolver lo legal antes de empezar (ver `docs/LEGAL.md`)
+### Etapa 3: gráficos del juego (camino B)
+- [x] Resolver lo legal (decidido: Game Content Usage Rules)
+- [ ] Elegir B1 (servidos) o B2 (instalación del usuario)
 - [ ] Investigar los formatos SLD/SMX de DE y librerías abiertas que los lean
 - [ ] Elegir la carpeta del juego con la File System Access API (Chrome/Edge) y leer solo lo necesario
 - [ ] Decodificar en un Web Worker y guardar en caché del navegador (IndexedDB)

@@ -20,26 +20,27 @@ Ninguna de estas APIs está documentada como pública ni tiene acuerdo de uso co
 4. Página `/m/<matchId>` con el visor y el análisis. Como la partida ya es pública, esta página es pública (distinto de los replays subidos a mano, que son privados).
 
 ## Tareas
-### Investigación (antes de programar)
-- [ ] Leer términos de uso de aoe2companion y pedir permiso o acordar atribución y límites; evaluar si conviene usar solo las APIs oficiales
-- [ ] Ver si World's Edge tiene búsqueda por nombre (hay endpoints de leaderboard; falta uno de búsqueda libre)
+### Investigación
+- [x] aoe2companion: uso aprobado; se atribuye en la web
 - [ ] Averiguar cuánto tiempo se pueden descargar los replays desde Microsoft (¿días? ¿semanas?) y qué pasa con partidas viejas
-- [ ] Confirmar con `docs/LEGAL.md` que mostrar datos de perfiles públicos y reproducir sus partidas está bien (incluye privacidad: nombres, país)
+- [ ] Mecanismo para que un jugador pida ocultar su perfil
 
 ### Servidor
-- [ ] Servicio/ruta que descarga el replay por `matchId` + `profileId`: validar que la URL final sea de `api.ageofempires.com`, tamaño máximo, tiempo máximo, ZIP con un solo archivo `.aoe2record` (protección contra zip bombs)
-- [ ] Guardar partidas por `matchId` (una sola vez aunque la pidan muchos): tabla `matches` con metadatos y el JSON comprimido, separada de `replays`
-- [ ] Caché de búsquedas y perfiles (minutos) para no golpear las APIs; límite de pedidos por IP
+- [x] Ruta que descarga el replay por `matchId` + `profileId` desde `api.ageofempires.com` sin seguir redirecciones, con tamaño y tiempo máximos y límite de tamaño descomprimido (zip bombs)
+- [x] Guardar partidas por `matchId` una sola vez (tabla `matches`, separada de `replays`); descargas simultáneas de la misma partida se unifican
+- [x] Caché de búsquedas, perfiles y partidas (5 min, en memoria); límites por IP (60 búsquedas/min, 20 descargas/hora)
+- [ ] Caché y límites compartidos si hay más de una instancia de la web (hoy son en memoria)
 - [ ] Cola para descargas y parseo si se vuelve lento (partidas largas)
 - [ ] Manejar errores claros: replay no disponible, versión no soportada, API caída
 
 ### Web
-- [ ] Buscador con autocompletado en la barra superior (debounce, teclado, sin resultados)
-- [ ] Página de perfil `/p/<profileId>` con ELO, récord y partidas recientes
-- [ ] Página de partida `/m/<matchId>` con visor y análisis; botón "Ver partida" desde el perfil
+- [x] Buscador con autocompletado en la barra superior y en la portada (debounce, teclado, sin resultados)
+- [x] Página de perfil `/p/<profileId>` con rankings, récord y partidas recientes (resultado, civilizaciones, ELO y su cambio)
+- [x] Página de partida `/m/<matchId>` con visor y análisis; botón "Ver partida" desde el perfil
+- [ ] Paginación de partidas (hoy muestra la primera página)
 - [ ] Enlaces compartibles a un momento: `/m/<matchId>?t=12:34`
 - [ ] Datos extra que vienen de la API en el análisis: ganador, ELO de cada jugador, ranking de la partida
-- [ ] Atribución visible a las fuentes de datos
+- [x] Atribución visible a las fuentes de datos
 
 ### Más adelante
 - [ ] Seguir jugadores y ver sus partidas nuevas

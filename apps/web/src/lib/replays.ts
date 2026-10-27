@@ -38,7 +38,6 @@ export async function deleteExpired() {
 export async function createReplay(data: ReplayData, raw: string, fileName: string, ipHash: string | null) {
   const id = randomId();
   const token = randomBytes(24).toString("base64url");
-  const gz = gzipSync(raw);
   await db().replay.create({
     data: {
       id,
@@ -46,24 +45,32 @@ export async function createReplay(data: ReplayData, raw: string, fileName: stri
       expiresAt: TTL_DAYS > 0 ? new Date(Date.now() + TTL_DAYS * 86400_000) : null,
       uploaderIpHash: ipHash,
       fileName: fileName.slice(0, 200),
-      schemaVersion: data.schema_version,
-      gameVersion: data.game.game_version,
-      saveVersion: data.game.save_version,
-      mapName: data.map.name,
-      mapSize: data.map.size,
-      durationMs: data.game.duration_ms,
-      players: data.game.players.map((p) => ({
-        number: p.number,
-        name: p.name,
-        civilization: p.civilization,
-        color_id: p.color_id,
-        team_id: p.team_id,
-      })),
-      data: gz,
-      dataBytes: gz.length,
+      ...storedGame(data, raw),
     },
   });
   return { id, token };
+}
+
+/** Columns shared by uploaded replays and imported matches. */
+export function storedGame(data: ReplayData, raw: string) {
+  const gz = gzipSync(raw);
+  return {
+    schemaVersion: data.schema_version,
+    gameVersion: data.game.game_version,
+    saveVersion: data.game.save_version,
+    mapName: data.map.name,
+    mapSize: data.map.size,
+    durationMs: data.game.duration_ms,
+    players: data.game.players.map((p) => ({
+      number: p.number,
+      name: p.name,
+      civilization: p.civilization,
+      color_id: p.color_id,
+      team_id: p.team_id,
+    })),
+    data: gz,
+    dataBytes: gz.length,
+  };
 }
 
 function tokenMatches(token: string | null, hash: string) {

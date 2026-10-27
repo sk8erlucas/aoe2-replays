@@ -38,3 +38,28 @@ model Replay {
   @@index([uploaderIpHash, createdAt])
   @@map("replays")
 }
+
+/// Online matches downloaded from Microsoft's replay service. Public by nature
+/// (anyone can download them), stored once per match id.
+model Match {
+  /// The game's match id.
+  id              String   @id
+  /// Profile whose replay copy was downloaded.
+  sourceProfileId String   @map("source_profile_id")
+  importedAt      DateTime @default(now()) @map("imported_at")
+
+  schemaVersion Int     @map("schema_version")
+  gameVersion   String  @map("game_version")
+  saveVersion   Float   @map("save_version")
+  mapName       String? @map("map_name")
+  mapSize       Int     @map("map_size")
+  durationMs    Int     @map("duration_ms")
+  players       Json
+
+  /// Parser output, gzip-compressed JSON.
+  data      Bytes
+  dataBytes Int   @map("data_bytes")
+
+  @@index([importedAt])
+  @@map("matches")
+}
