@@ -1,0 +1,22 @@
+# Local stack: web on http://localhost:3000, parser only reachable from web.
+services:
+  parser:
+    build: ./services/parser
+    environment:
+      PARSER_MAX_BYTES: "31457280"
+      PARSER_TIMEOUT_S: "30"
+      PARSER_WORKERS: "2"
+    mem_limit: 1g
+    restart: unless-stopped
+
+  web:
+    build:
+      context: .
+      dockerfile: apps/web/Dockerfile
+    environment:
+      PARSER_URL: http://parser:8000
+    ports:
+      - "3000:3000"
+    depends_on:
+      - parser
+    restart: unless-stopped

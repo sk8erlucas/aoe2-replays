@@ -1,0 +1,16 @@
+{
+  "name": "aoe2-replays",
+  "private": true,
+  "license": "MIT",
+  "workspaces": [
+    "apps/web",
+    "packages/*"
+  ],
+  "scripts": {
+    "dev:web": "npm run dev -w apps/web",
+    "test": "npm test -w @aoe2-replays/viewer"
+  },
+  "overrides": {
+    "postcss": "8.5.32"
+  }
+}

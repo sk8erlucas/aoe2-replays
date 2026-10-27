@@ -1,9 +1,9 @@
 // UI wiring: loading, playback controls, map interaction and side panel.
 // Player names and chat come from the replay, so they only go through textContent.
 
-import { Replay, formatTime } from './engine.js';
-import { PLAYER_COLORS } from './palette.js';
-import { Renderer } from './render.js';
+import { Replay, formatTime } from '../../../packages/viewer/src/engine.js';
+import { PLAYER_COLORS } from '../../../packages/viewer/src/palette.js';
+import { Renderer } from '../../../packages/viewer/src/render.js';
 
 const DEFAULT_SRC = '../../fixtures/sample.json';
 

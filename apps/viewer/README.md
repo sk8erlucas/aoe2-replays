@@ -1,6 +1,6 @@
-# viewer (prototipo)
+# viewer (prototipo estático)
 
-Visor en canvas del JSON que genera el parser. JavaScript plano con módulos ES, sin paso de build. Cuando exista `apps/web`, el motor y el render se mudan ahí.
+Página sin build para depurar el motor con un JSON local. Usa el motor y el render de [`packages/viewer`](../../packages/viewer); la web real está en [`apps/web`](../web).
 
 ## Uso
 
@@ -17,16 +17,16 @@ Parámetros: `?src=<url del json>` y `?t=<segundos>` para abrir en un momento da
 
 Controles: espacio para reproducir/pausar, flechas para ±5 s, rueda para zoom, arrastrar para mover el mapa, pasar el mouse para ver qué es cada cosa.
 
-Tests del motor: `npm test` (usa `node --test`, sin dependencias).
+Tests del motor: `npm test` en la raíz del repo.
 
 ## Archivos
 
 | Archivo | Qué hace |
 |---|---|
-| [`src/engine.js`](src/engine.js) | Motor: estado de la partida en cualquier instante. Sin DOM. |
-| [`src/render.js`](src/render.js) | Dibuja un estado en canvas. Cambiar el aspecto = cambiar este archivo. |
-| [`src/palette.js`](src/palette.js) | Colores, tamaños, velocidades y tiempos (aproximaciones propias). |
-| [`src/main.js`](src/main.js) | Carga, controles, panel lateral. |
+| [`packages/viewer/src/engine.js`](../../packages/viewer/src/engine.js) | Motor: estado de la partida en cualquier instante. Sin DOM. |
+| [`packages/viewer/src/render.js`](../../packages/viewer/src/render.js) | Dibuja un estado en canvas. Cambiar el aspecto = cambiar este archivo. |
+| [`packages/viewer/src/palette.js`](../../packages/viewer/src/palette.js) | Colores, tamaños, velocidades y tiempos (aproximaciones propias). |
+| [`src/main.js`](src/main.js) | Carga, controles y panel lateral de esta página. |
 
 ## Qué es exacto y qué es aproximado
 

@@ -13,6 +13,9 @@
 - Sin planes de pago; se financia con publicidad (probable).
 - Primero un prototipo con gráficos simples; mejora continua.
 - Código abierto; cada pull request se evalúa antes de aceptarse.
+- Monorepo (un solo repo con `apps/`, `services/`, `packages/`), con un contenedor por servicio. Se despliegan por separado aunque compartan repo; el contrato JSON y sus tipos quedan versionados juntos.
+- Repo privado mientras se desarrolla.
+- Diseño visual: pendiente de definir juntos (`tasks/07-diseno.md`); hasta entonces, estilo provisional.
 
 ## Abiertas
 - ¿Cuántos días duran los replays de usuarios anónimos antes de borrarse?

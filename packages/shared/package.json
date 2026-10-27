@@ -1,0 +1,13 @@
+{
+  "name": "@aoe2-replays/shared",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "TypeScript types for the parser JSON contract.",
+  "license": "MIT",
+  "exports": {
+    ".": {
+      "types": "./src/index.d.ts"
+    }
+  }
+}

@@ -1,0 +1,17 @@
+{
+  "name": "@aoe2-replays/viewer",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Replay engine and canvas renderer, shared by the web app and the static prototype.",
+  "license": "MIT",
+  "exports": {
+    ".": {
+      "types": "./src/index.d.ts",
+      "default": "./src/index.js"
+    }
+  },
+  "scripts": {
+    "test": "node --test \"test/**/*.test.js\""
+  }
+}

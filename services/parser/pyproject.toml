@@ -8,10 +8,10 @@ version = "0.1.0"
 description = "Parses Age of Empires II: DE replays (.aoe2record) into normalized JSON."
 license = "MIT"
 requires-python = ">=3.11"
-dependencies = ["mgz==1.8.51"]
+dependencies = ["mgz==1.8.51", "fastapi>=0.115,<1", "uvicorn>=0.30,<1", "python-multipart>=0.0.9"]
 
 [project.optional-dependencies]
-dev = ["pytest>=8"]
+dev = ["pytest>=8", "httpx>=0.27"]
 
 [project.scripts]
 aoe2-parser = "aoe2_parser.__main__:main"

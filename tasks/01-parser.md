@@ -10,7 +10,7 @@ Objetivo: convertir un `.aoe2record` en un JSON normalizado que consuma el visor
 - [x] Averiguar la unidad de tiempo de los ticks de sincronización y calcular la duración real
 - [ ] Evaluar `aoe2rec` (Rust) como alternativa o compilarlo a WASM
 - [x] Definir y versionar el contrato JSON (`schema_version`)
-- [ ] Servicio FastAPI con endpoint de parseo, límites de tiempo y memoria
+- [x] Servicio FastAPI (`POST /parse`, `GET /health`) con límite de tamaño y tiempo; memoria limitada desde el contenedor
 - [x] Manejar errores: versión no soportada, archivo corrupto, archivo truncado
 - [~] Tests con los replays de `fixtures/`: hay un 4v4 corto; faltan 1v1 y una partida completa
 - [~] Contemplar versiones nuevas del juego: hoy se intenta parsear y se marca `untested_version`; falta probar contra una versión nueva real

@@ -1,7 +1,7 @@
 # Fase 0: Preparación
 
 - [x] Inicializar repo git en `aoe2-replays` y agregar `LICENSE` (MIT)
-- [ ] Elegir dónde se aloja el repo (GitHub personal u organización)
+- [ ] Elegir dónde se aloja el repo (GitHub personal u organización) y crearlo privado
 - [ ] Verificar disponibilidad del nombre de repo y de dominio (ej. `aoe2replays.com`)
 - [ ] Leer las reglas de contenido de fans de Microsoft y anotar conclusiones en `docs/LEGAL.md`
 - [ ] Decidir idiomas de la web (español, inglés o ambos)
