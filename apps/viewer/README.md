@@ -15,7 +15,7 @@ python -m http.server 8765
 
 Parámetros: `?src=<url del json>` y `?t=<segundos>` para abrir en un momento dado. También se puede abrir o arrastrar un JSON.
 
-Controles: espacio para reproducir/pausar, flechas para ±5 s, rueda para zoom, arrastrar para mover el mapa, pasar el mouse para ver qué es cada cosa.
+Controles: espacio para reproducir/pausar, flechas para ±5 s, rueda para zoom, arrastrar para mover el mapa, pasar el mouse para ver qué es cada cosa. La vista es isométrica y la cámara arranca cerca, siguiendo la acción. La web agrega selector de cámara, botones de zoom, WASD, +/− y minimapa.
 
 Tests del motor: `npm test` en la raíz del repo.
 

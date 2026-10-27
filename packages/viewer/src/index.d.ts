@@ -47,17 +47,32 @@ export class Replay {
   resignedAt: Map<number, number>;
   log: LogEntry[];
   objectName(typeId: number): string;
+  focusOf(player: number, t: number): { t: number; player: number; x: number; y: number };
+  latestFocus(t: number): { t: number; player: number; x: number; y: number } | null;
   stateAt(t: number): State;
   logUntil(t: number): LogEntry[];
 }
 
+/** Camera mode: null = free, 'auto' = follow the action, number = follow that player. */
+export type FollowMode = null | 'auto' | number;
+
 export class Renderer {
   constructor(canvas: HTMLCanvasElement, replay: Replay);
+  follow: FollowMode;
   resize(): void;
+  /** Whole map in view (switches to free camera). */
   fit(): void;
+  centerOn(x: number, y: number, options?: { scale?: number; instant?: boolean }): void;
+  /** Scale for the default close, in-game-like zoom. */
+  closeScale(): number;
+  setFollow(mode: FollowMode): void;
   zoomAt(sx: number, sy: number, factor: number): void;
   pan(dx: number, dy: number): void;
+  /** Glide the camera; returns true while it is still moving. */
+  update(dtMs: number, t: number): boolean;
   draw(state: State): void;
+  drawMinimap(canvas: HTMLCanvasElement, state: State): void;
+  minimapToWorld(canvas: HTMLCanvasElement, mx: number, my: number): [number, number];
   pick(state: State, sx: number, sy: number): Hit | null;
 }
 

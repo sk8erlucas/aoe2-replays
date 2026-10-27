@@ -2,7 +2,15 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { ReplayData } from "@aoe2-replays/shared";
-import { PLAYER_COLORS, Renderer, Replay, formatTime, type LogEntry } from "@aoe2-replays/viewer";
+import {
+  PLAYER_COLORS,
+  Renderer,
+  Replay,
+  formatTime,
+  type FollowMode,
+  type LogEntry,
+  type State,
+} from "@aoe2-replays/viewer";
 import { AnalysisPanel } from "@/components/AnalysisPanel";
 
 const SPEEDS = [1, 2, 4, 8, 16];
@@ -12,15 +20,18 @@ type Tooltip = { x: number; y: number; text: string } | null;
 export function ReplayViewer({ data, actions }: { data: ReplayData; actions?: React.ReactNode }) {
   const replay = useMemo(() => new Replay(data), [data]);
   const canvas = useRef<HTMLCanvasElement>(null);
+  const minimap = useRef<HTMLCanvasElement>(null);
   const renderer = useRef<Renderer | null>(null);
   const time = useRef(0);
   const pointer = useRef<{ x: number; y: number } | null>(null);
   const playingRef = useRef(false);
   const speedRef = useRef(2);
+  const dirty = useRef(true);
 
   const [t, setT] = useState(0);
   const [playing, setPlaying] = useState(false);
   const [speed, setSpeed] = useState(2);
+  const [follow, setFollowState] = useState<FollowMode>("auto");
   const [tooltip, setTooltip] = useState<Tooltip>(null);
   const [tab, setTab] = useState<"events" | "analysis">("events");
 
@@ -33,24 +44,23 @@ export function ReplayViewer({ data, actions }: { data: ReplayData; actions?: Re
     return p ? PLAYER_COLORS[p.color_id] : undefined;
   };
 
-  // Draw the current frame and refresh what React shows (clock, tooltip).
-  const draw = () => {
+  function setFollow(mode: FollowMode) {
+    renderer.current?.setFollow(mode);
+    setFollowState(mode);
+    dirty.current = true;
+  }
+
+  function tooltipFor(state: State): Tooltip {
     const r = renderer.current;
-    if (!r) return;
-    const state = replay.stateAt(time.current);
-    r.draw(state);
-    setT(time.current);
-    const hit = pointer.current && r.pick(state, pointer.current.x, pointer.current.y);
-    if (!hit || !pointer.current) {
-      setTooltip(null);
-      return;
-    }
+    const at = pointer.current;
+    const hit = r && at && r.pick(state, at.x, at.y);
+    if (!hit || !at) return null;
     const obj = hit.kind === "unit" ? hit.unit : hit.building;
     const parts = [obj.typeId != null ? replay.objectName(obj.typeId) : "Unidad", playerName(obj.player)];
     if (hit.kind === "building" && hit.progress < 1) parts.push(`${Math.round(hit.progress * 100)}% construido`);
     if (hit.kind === "unit" && hit.unit.approx) parts.push("posición aproximada");
-    setTooltip({ x: pointer.current.x, y: pointer.current.y, text: parts.join(" · ") });
-  };
+    return { x: at.x, y: at.y, text: parts.join(" · ") };
+  }
 
   useEffect(() => {
     const el = canvas.current!;
@@ -58,30 +68,54 @@ export function ReplayViewer({ data, actions }: { data: ReplayData; actions?: Re
     renderer.current = r;
     time.current = 0;
     r.resize();
-    r.fit();
-    draw();
+    // Start close, like in-game, on the first action (or the first player's start).
+    const first = replay.latestFocus(0) ?? replay.focusOf(replay.players[0]?.number ?? 1, 0);
+    r.centerOn(first.x, first.y, { scale: r.closeScale(), instant: true });
+    r.setFollow("auto");
+    setFollowState("auto");
+    dirty.current = true;
 
     const onResize = () => {
       r.resize();
-      draw();
+      dirty.current = true;
     };
     const onWheel = (e: WheelEvent) => {
       e.preventDefault();
       r.zoomAt(e.offsetX, e.offsetY, e.deltaY < 0 ? 1.15 : 1 / 1.15);
-      draw();
+      dirty.current = true;
     };
     window.addEventListener("resize", onResize);
     el.addEventListener("wheel", onWheel, { passive: false });
 
     let raf = 0;
     let last = performance.now();
+    let shownT = -1;
+    let shownTip = "";
     const frame = (now: number) => {
-      if (playingRef.current) {
-        time.current = Math.min(replay.duration, time.current + (now - last) * speedRef.current);
-        if (time.current >= replay.duration) setPlaying(false);
-        draw();
-      }
+      const dt = Math.min(100, now - last);
       last = now;
+      if (playingRef.current) {
+        time.current = Math.min(replay.duration, time.current + dt * speedRef.current);
+        if (time.current >= replay.duration) setPlaying(false);
+      }
+      const moving = r.update(dt, time.current);
+      if (playingRef.current || moving || dirty.current) {
+        dirty.current = false;
+        const state = replay.stateAt(time.current);
+        r.draw(state);
+        if (minimap.current) r.drawMinimap(minimap.current, state);
+        const tip = tooltipFor(state);
+        const key = tip ? `${tip.text}@${tip.x},${tip.y}` : "";
+        if (key !== shownTip) {
+          shownTip = key;
+          setTooltip(tip);
+        }
+      }
+      // The clock and panels only need ~10 updates per second while playing.
+      if (Math.abs(time.current - shownT) >= 100 || (time.current !== shownT && !playingRef.current)) {
+        shownT = time.current;
+        setT(time.current);
+      }
       raf = requestAnimationFrame(frame);
     };
     raf = requestAnimationFrame(frame);
@@ -92,18 +126,30 @@ export function ReplayViewer({ data, actions }: { data: ReplayData; actions?: Re
       el.removeEventListener("wheel", onWheel);
       renderer.current = null;
     };
-    // draw only reads refs and the replay, so it is safe to leave out.
+    // tooltipFor only reads refs and the replay, so it is safe to leave out.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [replay]);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.target instanceof HTMLInputElement || e.target instanceof HTMLSelectElement) return;
+      const r = renderer.current;
       if (e.code === "Space") {
         e.preventDefault();
         togglePlay();
       } else if (e.code === "ArrowRight") seek(time.current + 5000);
       else if (e.code === "ArrowLeft") seek(time.current - 5000);
+      else if (e.code === "Equal" || e.code === "NumpadAdd") zoom(1.25);
+      else if (e.code === "Minus" || e.code === "NumpadSubtract") zoom(0.8);
+      else if (r) {
+        const step = 120;
+        const pan = ({ KeyW: [0, step], KeyS: [0, -step], KeyA: [step, 0], KeyD: [-step, 0] } as Record<string, number[]>)[e.code];
+        if (pan) {
+          r.pan(pan[0], pan[1]);
+          setFollowState(null);
+          dirty.current = true;
+        }
+      }
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
@@ -111,12 +157,20 @@ export function ReplayViewer({ data, actions }: { data: ReplayData; actions?: Re
 
   function seek(ms: number) {
     time.current = Math.max(0, Math.min(replay.duration, ms));
-    draw();
+    dirty.current = true;
   }
 
   function togglePlay() {
     if (!playing && time.current >= replay.duration) time.current = 0;
     setPlaying(!playing);
+  }
+
+  function zoom(factor: number) {
+    const r = renderer.current;
+    const el = canvas.current;
+    if (!r || !el) return;
+    r.zoomAt(el.clientWidth / 2, el.clientHeight / 2, factor);
+    dirty.current = true;
   }
 
   // Panel data only changes when the visible log or resign set changes.
@@ -156,17 +210,35 @@ export function ReplayViewer({ data, actions }: { data: ReplayData; actions?: Re
             onPointerMove={(e) => {
               pointer.current = { x: e.nativeEvent.offsetX, y: e.nativeEvent.offsetY };
               if (drag.current && renderer.current) {
-                renderer.current.pan(e.clientX - drag.current.x, e.clientY - drag.current.y);
-                drag.current = { x: e.clientX, y: e.clientY };
+                const dx = e.clientX - drag.current.x;
+                const dy = e.clientY - drag.current.y;
+                // Small jitters on click should not drop the camera out of follow mode.
+                if (Math.abs(dx) + Math.abs(dy) > 2) {
+                  renderer.current.pan(dx, dy);
+                  drag.current = { x: e.clientX, y: e.clientY };
+                  if (follow !== null) setFollowState(null);
+                }
               }
-              if (!playingRef.current) draw();
+              dirty.current = true;
             }}
             onPointerUp={() => {
               drag.current = null;
             }}
             onPointerLeave={() => {
               pointer.current = null;
-              if (!playingRef.current) draw();
+              dirty.current = true;
+            }}
+          />
+          <canvas
+            ref={minimap}
+            className="minimap"
+            aria-label="Minimapa: clic para mover la cámara"
+            onPointerDown={(e) => {
+              const r = renderer.current;
+              if (!r || !minimap.current) return;
+              const [x, y] = r.minimapToWorld(minimap.current, e.nativeEvent.offsetX, e.nativeEvent.offsetY);
+              setFollow(null);
+              r.centerOn(x, y);
             }}
           />
           {tooltip && (
@@ -253,15 +325,43 @@ export function ReplayViewer({ data, actions }: { data: ReplayData; actions?: Re
             ))}
           </select>
         </label>
-        <button
-          type="button"
-          onClick={() => {
-            renderer.current?.fit();
-            draw();
-          }}
-        >
-          Encuadrar
-        </button>
+        <label>
+          Cámara{" "}
+          <select
+            value={follow === null ? "free" : String(follow)}
+            onChange={(e) => {
+              const v = e.target.value;
+              setFollow(v === "free" ? null : v === "auto" ? "auto" : Number(v));
+            }}
+          >
+            <option value="auto">Auto (sigue la acción)</option>
+            <option value="free">Libre</option>
+            {players.map((p) => (
+              <option key={p.number} value={p.number}>
+                Seguir a {p.name}
+              </option>
+            ))}
+          </select>
+        </label>
+        <div className="zoom-buttons">
+          <button type="button" onClick={() => zoom(1.25)} aria-label="Acercar" title="Acercar (+)">
+            +
+          </button>
+          <button type="button" onClick={() => zoom(0.8)} aria-label="Alejar" title="Alejar (−)">
+            −
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              renderer.current?.fit();
+              setFollowState(null);
+              dirty.current = true;
+            }}
+            title="Ver el mapa completo"
+          >
+            Mapa
+          </button>
+        </div>
       </footer>
     </div>
   );

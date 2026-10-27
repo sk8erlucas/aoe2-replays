@@ -105,3 +105,15 @@ test('sample replay loads end to end', { skip: !existsSync(SAMPLE) && 'missing f
   }
   assert.ok(r.log.some((e) => e.kind === 'chat' && e.text === 'gg'));
 });
+
+test('focus follows the last positioned order of a player', () => {
+  const r = replay([
+    { t: 1000, type: 'MOVE', player: 1, object_ids: [101], x: 15, y: 5 },
+    { t: 3000, type: 'RESEARCH', player: 1, object_ids: [100], technology_id: 22 },
+    { t: 5000, type: 'BUILD', player: 1, building_id: 70, object_ids: [101], x: 3, y: 4 },
+  ]);
+  assert.deepEqual(r.focusOf(1, 500), { t: 0, player: 1, x: 10, y: 10 });
+  assert.equal(r.focusOf(1, 4000).x, 15);
+  assert.equal(r.focusOf(1, 6000).x, 3);
+  assert.equal(r.latestFocus(6000).t, 5000);
+});

@@ -62,7 +62,7 @@ Antes de dar algo por terminado: tests del parser, `npm test`, lint, typecheck y
 
 **Base de datos.** Cambios de esquema solo con migraciones de Prisma (`npm run db:migrate -w apps/web -- --name <cambio>`), commiteadas en `apps/web/prisma/migrations`. En producción se aplican solas con el servicio `migrate` del compose. El cliente generado (`apps/web/src/generated`) no se commitea.
 
-**Visor y análisis.** `packages/viewer/src/engine.js` y `analysis.js` no pueden tocar el DOM (se testean en Node). Todo lo visual va en `render.js`, y los números estimados (velocidades, tiempos) en `palette.js`. El replay guarda solo comandos, así que todo lo que el motor infiere es aproximado: documentarlo cuando se agregue algo.
+**Visor y análisis.** `packages/viewer/src/engine.js` y `analysis.js` no pueden tocar el DOM (se testean en Node). Todo lo visual va en `render.js` (proyección isométrica 2:1: `u = x - y`, `v = (x + y) / 2 - z`; cámara con seguimiento y minimapa), y los números estimados (velocidades, tiempos) en `palette.js`. Para sprites, reemplazar los métodos `#draw*` sin tocar la cámara. El replay guarda solo comandos, así que todo lo que el motor infiere es aproximado: documentarlo cuando se agregue algo.
 
 ## Estilo
 - Código, identificadores y comentarios en inglés. Documentación, textos de la interfaz y mensajes al usuario en español rioplatense.

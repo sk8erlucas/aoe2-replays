@@ -144,6 +144,20 @@ a { color: var(--accent); }
 }
 .stage canvas:active { cursor: grabbing; }
 
+.stage .minimap {
+  position: absolute;
+  left: 12px;
+  bottom: 12px;
+  width: 220px;
+  height: 120px;
+  cursor: pointer;
+  background: rgba(0, 0, 0, 0.55);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+}
+.zoom-buttons { display: flex; gap: 4px; }
+.zoom-buttons button { min-width: 32px; }
+
 .tooltip {
   position: absolute;
   pointer-events: none;
@@ -253,6 +267,7 @@ button.link:hover { color: var(--accent); }
 .controls .clock { font-variant-numeric: tabular-nums; min-width: 96px; }
 
 @media (max-width: 760px) {
+  .stage .minimap { width: 140px; height: 78px; left: 8px; bottom: 8px; }
   .viewer-body { grid-template-columns: minmax(0, 1fr); grid-template-rows: minmax(0, 1fr) 40%; }
   .sidebar { border-left: 0; border-top: 1px solid var(--border); }
   .controls { flex-wrap: wrap; }

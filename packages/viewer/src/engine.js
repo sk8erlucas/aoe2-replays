@@ -82,6 +82,8 @@ export class Replay {
     this.resources = [];
     this.resignedAt = new Map();
     this.log = [];
+    // Where each command with a map position was given: drives the camera.
+    this.focusPoints = [];
 
     this.#loadInitialObjects();
     this.#processTimeline();
@@ -174,6 +176,10 @@ export class Replay {
         this.log.push({ t: e.t, player: e.player, kind: 'research', text: `investiga ${tech}` });
       }
 
+      if (MOVING_COMMANDS.has(e.type) && e.x != null) {
+        this.focusPoints.push({ t: e.t, player: e.player, x: e.x, y: e.y });
+      }
+
       if (MOVING_COMMANDS.has(e.type) && e.x != null && e.type !== 'GATHER_POINT') {
         ids.map((id) => this.#resolveUnit(id, e.player, e.t))
           .filter(Boolean)
@@ -239,6 +245,27 @@ export class Replay {
     }
     const resigned = new Set([...this.resignedAt].filter(([, rt]) => rt <= t).map(([p]) => p));
     return { t, units, buildings, resigned };
+  }
+
+  /** Last place a player gave an order at or before t, else their start. */
+  focusOf(player, t) {
+    let found = null;
+    for (const f of this.focusPoints) {
+      if (f.t > t) break;
+      if (f.player === player) found = f;
+    }
+    return found ?? { t: 0, player, ...(this.playerByNumber.get(player)?.start ?? { x: 0, y: 0 }) };
+  }
+
+  /** Most recent positioned order by a player still in the game. */
+  latestFocus(t) {
+    let found = null;
+    for (const f of this.focusPoints) {
+      if (f.t > t) break;
+      const resigned = this.resignedAt.get(f.player);
+      if (resigned == null || resigned > t) found = f;
+    }
+    return found;
   }
 
   logUntil(t) {

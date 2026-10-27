@@ -34,7 +34,9 @@ function load(data) {
   replay = new Replay(data);
   renderer = new Renderer(els.canvas, replay);
   renderer.resize();
-  renderer.fit();
+  const first = replay.latestFocus(0) ?? replay.focusOf(replay.players[0]?.number ?? 1, 0);
+  renderer.centerOn(first.x, first.y, { scale: renderer.closeScale(), instant: true });
+  renderer.setFollow('auto');
   t = 0;
   shownLog = -1;
   shownResigned = null;
@@ -133,14 +135,16 @@ function seek(value) {
 }
 
 function frame(now) {
+  const dt = Math.min(100, now - lastFrame);
   if (playing) {
-    t += (now - lastFrame) * Number(els.speed.value);
+    t += dt * Number(els.speed.value);
     if (t >= replay.duration) {
       t = replay.duration;
       setPlaying(false);
     }
-    render();
   }
+  const moving = renderer?.update(dt, t);
+  if (playing || moving) render();
   lastFrame = now;
   requestAnimationFrame(frame);
 }
