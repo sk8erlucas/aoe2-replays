@@ -5,6 +5,7 @@ import struct
 
 from mgz import fast
 
+from aoe2_parser import reference
 from aoe2_parser.vendor import mgz_header
 
 SCHEMA_VERSION = 1
@@ -64,6 +65,7 @@ def _players(header):
             'name': _text(p['name']),
             'profile_id': p['profile_id'] if p['profile_id'] not in (0, 0xFFFFFFFF) else None,
             'civilization_id': p['civilization_id'],
+            'civilization': reference.civilization_name(p['civilization_id']),
             'color_id': p['color_id'],
             'team_id': p['team_id'],
             'is_ai': bool(p['ai_name']),
@@ -74,10 +76,12 @@ def _players(header):
 
 def _map(header):
     m = header['map']
+    map_id = header['de'].get('rms_map_id')
     return {
-        'id': header['de'].get('rms_map_id'),
+        'id': map_id,
+        'name': reference.map_name(map_id),
         'size': m['dimension'],
-        # Row-major, size * size entries.
+        # size * size entries; tile (x, y) is at index y * size + x.
         'terrain': [t[0] for t in m['tiles']],
         'elevation': [t[1] for t in m['tiles']],
     }
@@ -142,6 +146,19 @@ def _parse_body(data, offset):
     return t, timeline, chat, postgame
 
 
+def _legend(map_, objects, timeline):
+    techs = [e['technology_id'] for e in timeline if 'technology_id' in e]
+    units = [e['unit_id'] for e in timeline if 'unit_id' in e]
+    buildings = [e['building_id'] for e in timeline if 'building_id' in e]
+    return reference.legend(
+        map_['terrain'],
+        ((o['type_id'], o['class_id'], o['player']) for o in objects),
+        techs,
+        units,
+        buildings,
+    )
+
+
 def parse_replay(data: bytes) -> dict:
     """Parse raw replay bytes into the normalized contract."""
     if len(data) < 8:
@@ -154,6 +171,8 @@ def parse_replay(data: bytes) -> dict:
     duration, timeline, chat, postgame = _parse_body(data, header_len)
     de = header['de']
     save = header['save_version']
+    map_ = _map(header)
+    objects = _initial_objects(header)
 
     return {
         'schema_version': SCHEMA_VERSION,
@@ -172,8 +191,9 @@ def parse_replay(data: bytes) -> dict:
             'world_time_ms': postgame.get('world_time') if postgame else None,
             'players': _players(header),
         },
-        'map': _map(header),
-        'initial_objects': _initial_objects(header),
+        'map': map_,
+        'initial_objects': objects,
         'timeline': timeline,
         'chat': chat,
+        'legend': _legend(map_, objects, timeline),
     }

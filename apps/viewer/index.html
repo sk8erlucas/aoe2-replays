@@ -1,0 +1,53 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>AoE2 Replays · Visor</title>
+  <link rel="stylesheet" href="./style.css">
+</head>
+<body>
+  <header class="topbar">
+    <strong>AoE2 Replays</strong>
+    <span id="game-info" class="muted">Cargando…</span>
+    <label class="file-button">
+      Abrir JSON
+      <input id="file-input" type="file" accept=".json,application/json" hidden>
+    </label>
+  </header>
+
+  <main class="layout">
+    <section class="stage">
+      <canvas id="map" aria-label="Mapa de la partida"></canvas>
+      <div id="tooltip" class="tooltip" hidden></div>
+      <div id="drop-hint" class="drop-hint" hidden>Soltá el JSON del replay</div>
+    </section>
+
+    <aside class="sidebar">
+      <h2>Jugadores</h2>
+      <ul id="players" class="players"></ul>
+      <h2>Eventos</h2>
+      <ol id="log" class="log"></ol>
+    </aside>
+  </main>
+
+  <footer class="controls">
+    <button id="play" type="button" aria-label="Reproducir">▶</button>
+    <span id="clock" class="clock">0:00 / 0:00</span>
+    <input id="seek" type="range" min="0" max="0" step="100" value="0" aria-label="Tiempo">
+    <label>
+      Velocidad
+      <select id="speed">
+        <option value="1">1×</option>
+        <option value="2" selected>2×</option>
+        <option value="4">4×</option>
+        <option value="8">8×</option>
+        <option value="16">16×</option>
+      </select>
+    </label>
+    <button id="fit" type="button">Encuadrar</button>
+  </footer>
+
+  <script type="module" src="./src/main.js"></script>
+</body>
+</html>

@@ -14,5 +14,6 @@ Objetivo: convertir un `.aoe2record` en un JSON normalizado que consuma el visor
 - [x] Manejar errores: versión no soportada, archivo corrupto, archivo truncado
 - [~] Tests con los replays de `fixtures/`: hay un 4v4 corto; faltan 1v1 y una partida completa
 - [~] Contemplar versiones nuevas del juego: hoy se intenta parsear y se marca `untested_version`; falta probar contra una versión nueva real
-- [ ] Traducir IDs (civilizaciones, mapas, unidades, techs, terrenos) a nombres
+- [x] Traducir IDs a nombres (via `aocref` instalado) y categorías propias para el visor (`legend`)
+- [ ] Completar nombres de IDs nuevos que `aocref` no tiene (terreno 113, objetos 1984, 1902, 1909, 2098...)
 - [ ] Revisar si conviene proponer los parches de 68.9 a `mgz` upstream

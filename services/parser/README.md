@@ -32,17 +32,23 @@ Desde código: `aoe2_parser.parse_replay(data: bytes) -> dict`. Lanza `Unsupport
     "duration_ms": 51091, "world_time_ms": 51091, "speed": 1.69,
     "population_limit": 200, "victory_type_id": 1, "starting_age_id": 0,
     "treaty_length": 0, "multiplayer": true,
-    "players": [{ "number": 1, "name": "…", "profile_id": 123, "civilization_id": 28,
+    "players": [{ "number": 1, "name": "…", "profile_id": 123, "civilization_id": 28, "civilization": "Khmer",
                   "color_id": 1, "team_id": 2, "is_ai": false, "start": { "x": 121, "y": 22 } }]
   },
-  "map": { "id": 12, "size": 220, "terrain": [/* size*size */], "elevation": [/* size*size */] },
+  "map": { "id": 12, "name": "Black Forest", "size": 220, "terrain": [/* size*size */], "elevation": [/* size*size */] },
   "initial_objects": [{ "id": 31035, "player": 1, "type_id": 109, "class_id": 80, "x": 121, "y": 22 }],
   "timeline": [{ "t": 3187, "type": "RESEARCH", "player": 1, "technology_id": 22, "object_ids": [31035] }],
-  "chat": [{ "t": 31454, "player": 3, "channel": 0, "message": "gg" }]
+  "chat": [{ "t": 31454, "player": 3, "channel": 0, "message": "gg" }],
+  // Solo los IDs que aparecen en esta partida. name puede ser null si aocref no lo conoce.
+  "legend": {
+    "terrain": { "113": { "name": null, "category": "forest" } },
+    "objects": { "66": { "name": "Gold Mine", "category": "gold" } },
+    "technologies": { "22": "Loom" }
+  }
 }
 ```
 
-`terrain` y `elevation` van por filas. Los campos de cada evento del `timeline` dependen del `type` (los que da `mgz.fast`, con `player_id` renombrado a `player`).
+`terrain` y `elevation`: el tile (x, y) está en el índice `y * size + x`. `color_id` es base 0 (0 azul … 7 naranja). Categorías de terreno: `grass forest water deep_water shallows sand road snow farm rock`; de objetos: `tree gold stone berries relic animal unit building decoration`. Los nombres salen de `aocref` (instalado, no copiado: no tiene licencia publicada); las categorías y los overrides para IDs nuevos están en [`reference.py`](src/aoe2_parser/reference.py). Los campos de cada evento del `timeline` dependen del `type` (los que da `mgz.fast`, con `player_id` renombrado a `player`).
 
 ## Pendiente
 

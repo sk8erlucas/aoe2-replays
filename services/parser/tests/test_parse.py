@@ -62,3 +62,17 @@ def test_rejects_truncated():
         pytest.skip('missing fixture')
     with pytest.raises(CorruptReplay):
         parse_replay(SAMPLE.read_bytes()[:50_000])
+
+
+def test_names_and_legend(sample):
+    assert sample['game']['players'][0]['civilization'] == 'Khmer'
+    assert sample['map']['name'] == 'Black Forest'
+    legend = sample['legend']
+    assert legend['terrain']['113']['category'] == 'forest'
+    assert legend['terrain']['1']['category'] == 'shallows'
+    assert legend['objects']['1984']['category'] == 'tree'
+    assert legend['objects']['66']['category'] == 'gold'
+    assert legend['objects']['109']['category'] == 'building'
+    assert legend['objects']['48']['category'] == 'animal'
+    assert legend['objects']['70'] == {'name': 'House', 'category': 'building'}
+    assert legend['technologies']['22'] == 'Loom'

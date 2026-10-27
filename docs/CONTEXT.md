@@ -28,6 +28,10 @@ La reproducción será una aproximación:
 - Trae el mapa (220×220, terreno y elevación por tile) y los objetos iniciales con posición: 33.647 de Gaia y 20 por jugador (TC, aldeanos, explorador, etc.).
 - Los `object_ids` de las acciones coinciden con los `instance_id` de los objetos iniciales (ej. el TC 31035 investiga telar).
 - Los ticks de sincronización son milisegundos de juego: suman 51.091 ms, igual al `world_time` del postgame. La partida de ejemplo dura ~51 s (todos abandonan temprano), así que sirve para tests pero poco para probar el visor.
+- Índice de tile: `y * size + x` (los árboles 1984 caen sobre tiles de terreno 113 casi uno a uno).
+- `color_id` es base 0 (0 azul … 5 violeta … 7 naranja): el jugador 7, que abandona en 0:01, tiene `color_id` 5 y un compañero escribe "report purple".
+- Abandonan los jugadores 7, 3, 1 y 5 (todo el equipo 2) y el 4 del equipo 3.
+- Un comando con `object_ids` vacío reusa la selección anterior del jugador.
 - En 68.9, civilización/color/equipo de la sección de jugadores del header no son confiables (civ 96 en todos); se usan los de la sección DE.
 
 ## Aún sin verificar
