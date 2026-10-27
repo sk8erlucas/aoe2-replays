@@ -15,6 +15,7 @@ Contexto y decisiones: [`docs/CONTEXT.md`](docs/CONTEXT.md), [`docs/DECISIONS.md
 | `packages/viewer` | Motor de reproducción y análisis (sin DOM) y render en canvas | JavaScript ESM + `index.d.ts` |
 | `packages/shared` | Tipos TypeScript del contrato JSON del parser | Solo tipos |
 | `apps/viewer` | Prototipo estático del visor para depurar, sin build | HTML + JS |
+| `tools/sprites` | Extrae los gráficos del juego a atlas WebP + `manifest.json` (`apps/web/public/sprites`); requiere el juego instalado | Python, numpy, Pillow, genieutils-py |
 | `fixtures` | Replays de prueba, **fuera de git** | |
 
 Flujos:
@@ -64,7 +65,7 @@ Antes de dar algo por terminado: tests del parser, `npm test`, lint, typecheck y
 
 **Base de datos.** Cambios de esquema solo con migraciones de Prisma (`npm run db:migrate -w apps/web -- --name <cambio>`), commiteadas en `apps/web/prisma/migrations`. En producción se aplican solas con el servicio `migrate` del compose. El cliente generado (`apps/web/src/generated`) no se commitea.
 
-**Visor y análisis.** `packages/viewer/src/engine.js` y `analysis.js` no pueden tocar el DOM (se testean en Node). Todo lo visual va en `render.js` (proyección isométrica 2:1: `u = x - y`, `v = (x + y) / 2 - z`; cámara con seguimiento y minimapa), y los números estimados (velocidades, tiempos) en `palette.js`. Para sprites, reemplazar los métodos `#draw*` sin tocar la cámara. El replay guarda solo comandos, así que todo lo que el motor infiere es aproximado: documentarlo cuando se agregue algo.
+**Visor y análisis.** `packages/viewer/src/engine.js` y `analysis.js` no pueden tocar el DOM (se testean en Node). Todo lo visual va en `render.js` (proyección isométrica 2:1: `u = x - y`, `v = (x + y) / 2 - z`; cámara con seguimiento y minimapa), y los números estimados (velocidades, tiempos) en `palette.js`. Los sprites del juego vienen de `apps/web/public/sprites` (generados por `tools/sprites`) y los carga `sprites.js`; cada `#sprite*` del render devuelve `false` si no hay sprite y entonces se dibuja la forma propia. El replay guarda solo comandos, así que todo lo que el motor infiere es aproximado: documentarlo cuando se agregue algo.
 
 ## Estilo
 - Interfaz: seguir [`docs/DESIGN.md`](docs/DESIGN.md) (tokens en `apps/web/src/app/globals.css`). El color de jugador va en una muestra al lado del nombre, nunca como color de texto.

@@ -48,6 +48,8 @@ export class Replay {
   log: LogEntry[];
   objectName(typeId: number): string;
   focusOf(player: number, t: number): { t: number; player: number; x: number; y: number };
+  /** Age (1 Dark .. 4 Imperial) of a player at time t, estimated from age research. */
+  ageAt(player: number, t: number): number;
   latestFocus(t: number): { t: number; player: number; x: number; y: number } | null;
   stateAt(t: number): State;
   logUntil(t: number): LogEntry[];
@@ -74,6 +76,15 @@ export class Renderer {
   drawMinimap(canvas: HTMLCanvasElement, state: State): void;
   minimapToWorld(canvas: HTMLCanvasElement, mx: number, my: number): [number, number];
   pick(state: State, sx: number, sy: number): Hit | null;
+  /** Game sprites to draw with; null keeps the plain shapes. */
+  setSprites(sprites: SpriteSet | null): void;
+}
+
+/** Game sprites from the atlases in apps/web/public/sprites (made by tools/sprites). */
+export class SpriteSet {
+  static load(baseUrl: string): Promise<SpriteSet>;
+  /** Called whenever an atlas page finishes loading (redraw then). */
+  onLoad: (() => void) | null;
 }
 
 export function formatTime(ms: number): string;

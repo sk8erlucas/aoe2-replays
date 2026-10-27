@@ -4,6 +4,10 @@
 import { Replay, formatTime } from '../../../packages/viewer/src/engine.js';
 import { PLAYER_COLORS } from '../../../packages/viewer/src/palette.js';
 import { Renderer } from '../../../packages/viewer/src/render.js';
+import { SpriteSet } from '../../../packages/viewer/src/sprites.js';
+
+// Game sprites made by tools/sprites; without them the viewer draws plain shapes.
+const spritesReady = SpriteSet.load('../web/public/sprites').catch(() => null);
 
 const DEFAULT_SRC = '../../fixtures/sample.json';
 
@@ -37,6 +41,15 @@ function load(data) {
   const first = replay.latestFocus(0) ?? replay.focusOf(replay.players[0]?.number ?? 1, 0);
   renderer.centerOn(first.x, first.y, { scale: renderer.closeScale(), instant: true });
   renderer.setFollow('auto');
+  // Handy for debugging from the browser console.
+  window.viewerDebug = { replay, renderer };
+  const current = renderer;
+  spritesReady.then((sprites) => {
+    if (!sprites || renderer !== current) return;
+    sprites.onLoad = () => render();
+    renderer.setSprites(sprites);
+    render();
+  });
   t = 0;
   shownLog = -1;
   shownResigned = null;

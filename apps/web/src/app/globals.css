@@ -588,7 +588,7 @@ button.primary:hover:not(:disabled), .button-primary:hover { border-color: var(-
 .log .who .swatch { width: 8px; height: 8px; margin-right: 5px; vertical-align: 1px; }
 
 /* Sidebar tabs and analysis */
-.tabs { display: flex; gap: 4px; margin: 18px 0 8px; border-bottom: 1px solid var(--rule); }
+.tabs { display: flex; flex-wrap: wrap; gap: 4px; margin: 18px 0 8px; border-bottom: 1px solid var(--rule); }
 .tabs button {
   background: none;
   border: 0;
@@ -636,6 +636,11 @@ button.link {
 }
 button.link:hover { color: var(--bronze); }
 .build-order .age { color: var(--bronze-dark); font-weight: 700; }
+
+/* Chat tab */
+.chat-log li.future { opacity: 0.45; }
+.chat-log .chat-text { display: block; overflow-wrap: anywhere; }
+.chat-log .who { margin-right: 4px; }
 
 /* AI context tab */
 .ai-panel > p { margin: 4px 0 12px; line-height: 1.5; }

@@ -8,7 +8,7 @@
 // when one runs out they move on to the nearest of the same kind, like in-game.
 
 import {
-  BUILD_TIMES, DEFAULT_BUILD_TIME, DEFAULT_FOOTPRINT, DEFAULT_SPEED, DEFAULT_TRAIN_TIME,
+  AGE_TECHS, BUILD_TIMES, DEFAULT_BUILD_TIME, DEFAULT_FOOTPRINT, DEFAULT_SPEED, DEFAULT_TRAIN_TIME,
   FOOTPRINTS, GATHER_RATES, HIDDEN_OBJECT_TYPES, RESOURCE_AMOUNTS, RETARGET_RADIUS, SPEEDS, TRAIN_TIMES,
 } from './palette.js';
 
@@ -94,6 +94,7 @@ export class Replay {
     this.gatherers = new Map(); // unit -> resource being gathered
     this.pendingGatherers = []; // trained units sent to a resource by a gather point
     this.simT = 0;
+    this.ageUps = new Map(); // player -> [{ age, t }] (estimated arrival)
 
     this.#loadInitialObjects();
     this.#processTimeline();
@@ -198,6 +199,12 @@ export class Replay {
         }
         continue;
       } else if (e.type === 'RESEARCH') {
+        const age = AGE_TECHS[e.technology_id];
+        if (age) {
+          const list = this.ageUps.get(e.player) ?? [];
+          if (!list.some((a) => a.age === age[0])) list.push({ age: age[0], t: e.t + age[1] * 1000 });
+          this.ageUps.set(e.player, list);
+        }
         const tech = this.legend.technologies?.[e.technology_id] ?? `tech #${e.technology_id}`;
         this.log.push({ t: e.t, player: e.player, kind: 'research', text: `investiga ${tech}` });
       }
@@ -349,6 +356,13 @@ export class Replay {
     }
     const resigned = new Set([...this.resignedAt].filter(([, rt]) => rt <= t).map(([p]) => p));
     return { t, units, buildings, resigned };
+  }
+
+  /** Age (1 Dark .. 4 Imperial) a player is in at time t, estimated from age research. */
+  ageAt(player, t) {
+    let age = 1;
+    for (const a of this.ageUps.get(player) ?? []) if (a.t <= t && a.age > age) age = a.age;
+    return age;
   }
 
   /** Last place a player gave an order at or before t, else their start. */

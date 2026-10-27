@@ -175,3 +175,10 @@ test('units trained with a gather point on a resource go gather it', () => {
   const tree = r.resources.find((x) => x.id === 200);
   assert.ok(tree.depletedAt < Infinity);
 });
+
+test('age is estimated from age research plus its research time', () => {
+  const r = replay([{ t: 10_000, type: 'RESEARCH', player: 1, object_ids: [100], technology_id: 101 }]);
+  assert.equal(r.ageAt(1, 139_999), 1);
+  assert.equal(r.ageAt(1, 140_000), 2);
+  assert.equal(r.ageAt(2, 500_000), 1);
+});

@@ -111,3 +111,10 @@ export const GATHER_RATES = {
 
 // How far (tiles) a gatherer looks for the next resource of the same kind.
 export const RETARGET_RADIUS = 8;
+
+// Age techs: id -> [age it leads to, research time in game seconds].
+export const AGE_TECHS = {
+  101: [2, 130],
+  102: [3, 160],
+  103: [4, 190],
+};

@@ -6,6 +6,7 @@ import {
   PLAYER_COLORS,
   Renderer,
   Replay,
+  SpriteSet,
   formatTime,
   type FollowMode,
   type LogEntry,
@@ -13,8 +14,16 @@ import {
 } from "@aoe2-replays/viewer";
 import { AiContextPanel } from "@/components/AiContextPanel";
 import { AnalysisPanel } from "@/components/AnalysisPanel";
+import { ChatPanel } from "@/components/ChatPanel";
 
 const SPEEDS = [1, 2, 4, 8, 16];
+
+// Loaded once per page; if it fails the viewer keeps drawing plain shapes.
+let spritesPromise: Promise<SpriteSet | null> | null = null;
+function loadSprites() {
+  spritesPromise ??= SpriteSet.load("/sprites").catch(() => null);
+  return spritesPromise;
+}
 
 type Tooltip = { x: number; y: number; text: string } | null;
 
@@ -34,7 +43,7 @@ export function ReplayViewer({ data, actions }: { data: ReplayData; actions?: Re
   const [speed, setSpeed] = useState(2);
   const [follow, setFollowState] = useState<FollowMode>("auto");
   const [tooltip, setTooltip] = useState<Tooltip>(null);
-  const [tab, setTab] = useState<"events" | "analysis" | "ai">("events");
+  const [tab, setTab] = useState<"events" | "chat" | "analysis" | "ai">("events");
 
   playingRef.current = playing;
   speedRef.current = speed;
@@ -75,6 +84,14 @@ export function ReplayViewer({ data, actions }: { data: ReplayData; actions?: Re
     r.setFollow("auto");
     setFollowState("auto");
     dirty.current = true;
+    loadSprites().then((sprites) => {
+      if (!sprites || renderer.current !== r) return;
+      sprites.onLoad = () => {
+        dirty.current = true;
+      };
+      r.setSprites(sprites);
+      dirty.current = true;
+    });
 
     const onResize = () => {
       r.resize();
@@ -269,7 +286,7 @@ export function ReplayViewer({ data, actions }: { data: ReplayData; actions?: Re
             })}
           </ul>
           <div className="tabs" role="tablist">
-            {(["events", "analysis", "ai"] as const).map((key) => (
+            {(["events", "chat", "analysis", "ai"] as const).map((key) => (
               <button
                 key={key}
                 type="button"
@@ -278,12 +295,13 @@ export function ReplayViewer({ data, actions }: { data: ReplayData; actions?: Re
                 className={tab === key ? "active" : ""}
                 onClick={() => setTab(key)}
               >
-                {{ events: "Eventos", analysis: "Análisis", ai: "IA" }[key]}
+                {{ events: "Eventos", chat: `Chat${data.chat?.length ? ` (${data.chat.length})` : ""}`, analysis: "Análisis", ai: "IA" }[key]}
               </button>
             ))}
           </div>
           {tab === "analysis" && <AnalysisPanel data={data} onSeek={seek} />}
           {tab === "ai" && <AiContextPanel data={data} />}
+          {tab === "chat" && <ChatPanel data={data} t={t} onSeek={seek} />}
           <ol className="log" hidden={tab !== "events"}>
             {logItems.map((e: LogEntry, i: number) => (
               <li key={`${e.t}-${i}`}>

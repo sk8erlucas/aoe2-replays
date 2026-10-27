@@ -49,6 +49,13 @@ export class Renderer {
     this.target = { ...this.cam };
     this.follow = 'auto';
     this.autoFocus = null;
+    this.sprites = null;
+    this.facing = new WeakMap(); // unit -> last screen direction index
+  }
+
+  /** Game sprites (SpriteSet) to draw with; null keeps the plain shapes. */
+  setSprites(sprites) {
+    this.sprites = sprites;
   }
 
   // ---------- geometry ----------
@@ -287,6 +294,7 @@ export class Renderer {
   }
 
   #drawResource(r, detail) {
+    if (detail && this.sprites && this.#spriteResource(r)) return;
     const { ctx } = this;
     const s = this.cam.scale;
     const [x, y] = this.toScreen(r.x, r.y);
@@ -364,6 +372,7 @@ export class Renderer {
   }
 
   #drawBuilding(b, progress, state) {
+    if (this.sprites && this.cam.scale >= DETAIL_SCALE && this.#spriteBuilding(b, progress, state)) return;
     const { ctx } = this;
     const s = this.cam.scale;
     const half = b.size / 2;
@@ -455,6 +464,7 @@ export class Renderer {
   }
 
   #drawUnit(u, state, detail) {
+    if (detail && this.sprites && this.#spriteUnit(u, state)) return;
     const { ctx } = this;
     const s = this.cam.scale;
     const [x, y] = this.toScreen(u.x, u.y);
@@ -501,6 +511,87 @@ export class Renderer {
     ctx.fill();
     ctx.stroke();
     ctx.globalAlpha = 1;
+  }
+
+  // ---------- sprites ----------
+
+  // Draws one atlas frame with its anchor on screen point (sx, sy).
+  // (ox, oy): extra offset in sprite pixels, used by sub-graphics such as walls.
+  #blit(key, sx, sy, color, ox = 0, oy = 0) {
+    const f = this.sprites.frame(key);
+    if (!f) return false;
+    const k = (2 * this.cam.scale) / this.sprites.tilePx;
+    const x = sx + (ox - f.ax) * k;
+    const y = sy + (oy - f.ay) * k;
+    const w = f.w * k;
+    const h = f.h * k;
+    this.ctx.drawImage(f.image, f.x, f.y, f.w, f.h, x, y, w, h);
+    if (f.mask && color) this.ctx.drawImage(this.sprites.tint(f, key, color), x, y, w, h);
+    return true;
+  }
+
+  #civ(player) {
+    return this.replay.playerByNumber.get(player)?.civilization_id;
+  }
+
+  #spriteBuilding(b, progress, state) {
+    const civ = this.#civ(b.player);
+    const parts = civ != null && this.sprites.building(civ, b.typeId, this.replay.ageAt(b.player, state.t));
+    if (!parts || parts.some(([key]) => !this.sprites.frame(key))) return false;
+    const color = this.playerColor(b.player);
+    // Foundations show the finished building faded until construction ends.
+    this.ctx.globalAlpha = this.#alpha(b.player, state) * (progress < 1 ? 0.4 + progress * 0.3 : 1);
+    for (const [key, dx, dy, ox = 0, oy = 0] of parts) {
+      const [sx, sy] = this.toScreen(b.x + dx, b.y + dy);
+      this.#blit(key, sx, sy, color, ox, oy);
+    }
+    this.ctx.globalAlpha = 1;
+    return true;
+  }
+
+  // Screen direction as one of `count` angles like the game's sprites: 0 = facing right, turning clockwise.
+  #angleIndex(unit, u, count) {
+    const seg = unit.segmentAt(u.t ?? 0);
+    const dx = (seg.x1 - seg.x0) - (seg.y1 - seg.y0);
+    const dy = (seg.x1 - seg.x0 + seg.y1 - seg.y0) / 2;
+    if (Math.abs(dx) + Math.abs(dy) > 1e-3) {
+      const a = Math.atan2(dy, dx); // screen y grows downward, so this turns clockwise
+      const idx = ((Math.round((a / (2 * Math.PI)) * count) % count) + count) % count;
+      this.facing.set(unit, idx / count);
+    }
+    return Math.round((this.facing.get(unit) ?? 0) * count) % count;
+  }
+
+  #spriteUnit(u, state) {
+    const unit = u.unit;
+    const color = unit.player > 0 ? this.playerColor(unit.player) : null;
+    const [sx, sy] = this.toScreen(u.x, u.y);
+    this.ctx.globalAlpha = this.#alpha(unit.player, state);
+    let ok = false;
+    if (unit.player === 0) {
+      const keys = this.sprites.gaia(unit.typeId);
+      if (keys?.length) ok = this.#blit(keys[this.#angleIndex(unit, { t: state.t }, keys.length)], sx, sy, null);
+    } else {
+      const civ = this.#civ(unit.player);
+      const set = this.sprites.unit(civ, unit.typeId ?? 83) ?? this.sprites.unit(civ, 83);
+      if (set) {
+        if (u.moving && set.walk) {
+          const frames = set.walk[this.#angleIndex(unit, { t: state.t }, set.walk.length)];
+          ok = this.#blit(frames[Math.floor(state.t / 110) % frames.length], sx, sy, color);
+        } else if (set.idle) {
+          ok = this.#blit(set.idle[this.#angleIndex(unit, { t: state.t }, set.idle.length)], sx, sy, color);
+        }
+      }
+    }
+    this.ctx.globalAlpha = 1;
+    return ok;
+  }
+
+  #spriteResource(r) {
+    const keys = this.sprites.gaia(r.type_id);
+    if (!keys?.length) return false;
+    const [sx, sy] = this.toScreen(r.x, r.y);
+    return this.#blit(keys[Math.floor(hash(r.id) * keys.length)], sx, sy, null);
   }
 
   // ---------- minimap ----------

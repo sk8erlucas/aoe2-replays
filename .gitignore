@@ -25,3 +25,6 @@ Thumbs.db
 
 # Third-party design references: inspiration only, not ours to redistribute
 docs/design/referencias/
+
+# Sprite extractor cache (parsed game data)
+tools/sprites/.dat-cache.pkl

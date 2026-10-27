@@ -40,11 +40,16 @@ Elegido: **B1** con un subconjunto (edificios y unidades principales, por arquit
 ### Etapa 3: gráficos del juego (camino B)
 - [x] Resolver lo legal (decidido: Game Content Usage Rules)
 - [x] Elegir B1 (servidos) o B2 (instalación del usuario): **B1**
-- [ ] Extractor (`tools/sprites`, Python): leer los `.sld` de `resources/_common/drs/graphics` (la instalación de desarrollo tiene 7.797 archivos, 8,5 GB), decodificar sus capas (color DXT1, sombra, máscara de color de jugador) y exportar cuadros
-- [ ] Elegir el subconjunto: edificios por edad y arquitectura, aldeanos y unidades militares comunes, árboles, minas, bayas, animales
-- [ ] Generar atlas WebP + JSON (cuadros, anclas, 8 direcciones) en `apps/web/public/sprites/`, registrados en `CREDITS.md`
-- [ ] Teñir con el color del jugador usando la máscara (en el navegador, por color)
-- [ ] Cargar los atlas en `render.js` y reemplazar los `#draw*`, con las formas actuales como respaldo
+- [x] Extractor (`tools/sprites`, Python): leer los `.sld` de `resources/_common/drs/graphics` (la instalación de desarrollo tiene 7.797 archivos, 8,5 GB), decodificar sus capas (color DXT1, sombra, máscara de color de jugador) y exportar cuadros
+- [x] Subconjunto inicial: 19 edificios por civilización y edad (incluido el centro urbano por partes), aldeanos, explorador y unidades comunes (quietos y caminando), árboles, minas, arbustos, reliquias y animales
+- [ ] Más unidades militares, barcos, monjes y unidades únicas; animaciones de trabajo (talar, minar, construir) y ataque
+- [x] Generar atlas WebP + JSON (cuadros, anclas, 8 direcciones) en `apps/web/public/sprites/`, registrados en `CREDITS.md`
+- [x] Teñir con el color del jugador usando la máscara (en el navegador, por color)
+- [x] Cargar los atlas en `render.js` (`SpriteSet`, carga por página) con las formas actuales como respaldo
+- [ ] Muros con su orientación, puertas, edificios destruidos y escombros
+- [ ] Edificios que faltan en algunas civilizaciones (por ejemplo la herrería de los tártaros), trampas de peces, puertas y edificios únicos
+- [ ] Granjas: usan otro formato de gráfico (no SLD); hoy se dibujan planas
+- [ ] Unidades militares entrenadas: hoy se dibujan como aldeanos (el motor no sabe qué unidad es cada ID nuevo)
 - [ ] Investigar los formatos SLD/SMX de DE y librerías abiertas que los lean
 - [ ] Elegir la carpeta del juego con la File System Access API (Chrome/Edge) y leer solo lo necesario
 - [ ] Decodificar en un Web Worker y guardar en caché del navegador (IndexedDB)
