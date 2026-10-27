@@ -21,8 +21,8 @@ Separados entre lo que necesita una decisión o acción tuya y lo que se puede a
 - [x] Página `/r/<id>` para cada replay
 - [ ] Cola de parseo y estados `pending` / `ready` / `failed` (cuando haga falta)
 - [ ] Tests de la API de la web (subida, permisos, expiración)
-- [ ] CI de GitHub Actions (tests de parser, viewer, lint y build de la web), listo para cuando exista el repo
+- [x] CI de GitHub Actions (tests, lint, build y build de imágenes Docker)
 - [ ] Lint y formato para Python (ruff)
-- [ ] Análisis básico: build order, APM y línea de tiempo por jugador
+- [x] Análisis básico: build order, APM, edades y actividad por jugador
 - [ ] Vista isométrica del mapa (independiente del diseño final)
 - [ ] Exportar a video con `MediaRecorder` (prueba de concepto)

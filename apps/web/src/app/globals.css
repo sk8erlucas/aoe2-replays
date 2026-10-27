@@ -160,6 +160,7 @@ a { color: var(--accent); }
   border-left: 1px solid var(--border);
   padding: 8px 16px;
   overflow-y: auto;
+  overflow-x: hidden;
   min-height: 0;
 }
 .sidebar h2 {
@@ -194,6 +195,50 @@ a { color: var(--accent); }
 .log .chat { font-style: italic; }
 .log .resign { color: var(--danger); }
 .log .who { font-weight: 600; }
+
+/* Sidebar tabs and analysis */
+.tabs { display: flex; gap: 4px; margin: 16px 0 8px; border-bottom: 1px solid var(--border); }
+.tabs button {
+  background: none;
+  border: 0;
+  border-bottom: 2px solid transparent;
+  border-radius: 0;
+  padding: 6px 10px;
+  color: var(--muted);
+}
+.tabs button.active { color: var(--text); border-bottom-color: var(--accent); }
+
+.analysis h2 { margin-top: 20px; }
+.analysis select { width: 100%; margin-bottom: 6px; }
+.analysis .footnote { margin-top: 16px; }
+
+.stats { width: 100%; table-layout: fixed; border-collapse: collapse; font-size: 12px; font-variant-numeric: tabular-nums; }
+.stats col.num { width: 52px; }
+.stats col.apm { width: 36px; }
+.stats th, .stats td { padding: 4px 4px; text-align: right; border-bottom: 1px solid var(--border); }
+.stats thead th { color: var(--muted); font-weight: 500; }
+.stats th[scope="row"], .stats thead th:first-child { text-align: left; font-weight: 400; }
+.stats th[scope="row"] { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.stats th[scope="row"] .swatch { display: inline-block; margin-right: 6px; vertical-align: -1px; }
+.stats .swatch { flex: none; width: 10px; height: 10px; border-radius: 2px; }
+
+.activity-row { margin-bottom: 8px; }
+.activity-label { display: flex; justify-content: space-between; gap: 8px; font-size: 12px; }
+.activity-label .name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
+.activity-chart { display: block; width: 100%; height: 28px; }
+.activity-baseline { stroke: var(--border); stroke-width: 1; vector-effect: non-scaling-stroke; }
+
+button.link {
+  background: none;
+  border: 0;
+  padding: 0;
+  color: var(--muted);
+  text-align: left;
+  font: inherit;
+  text-decoration: underline dotted;
+}
+button.link:hover { color: var(--accent); }
+.build-order .age { color: var(--accent); font-weight: 600; }
 
 .controls {
   display: flex;

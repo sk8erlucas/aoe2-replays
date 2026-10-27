@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { ReplayData } from "@aoe2-replays/shared";
 import { PLAYER_COLORS, Renderer, Replay, formatTime, type LogEntry } from "@aoe2-replays/viewer";
+import { AnalysisPanel } from "@/components/AnalysisPanel";
 
 const SPEEDS = [1, 2, 4, 8, 16];
 
@@ -21,6 +22,7 @@ export function ReplayViewer({ data, actions }: { data: ReplayData; actions?: Re
   const [playing, setPlaying] = useState(false);
   const [speed, setSpeed] = useState(2);
   const [tooltip, setTooltip] = useState<Tooltip>(null);
+  const [tab, setTab] = useState<"events" | "analysis">("events");
 
   playingRef.current = playing;
   speedRef.current = speed;
@@ -193,8 +195,22 @@ export function ReplayViewer({ data, actions }: { data: ReplayData; actions?: Re
               );
             })}
           </ul>
-          <h2>Eventos</h2>
-          <ol className="log">
+          <div className="tabs" role="tablist">
+            {(["events", "analysis"] as const).map((key) => (
+              <button
+                key={key}
+                type="button"
+                role="tab"
+                aria-selected={tab === key}
+                className={tab === key ? "active" : ""}
+                onClick={() => setTab(key)}
+              >
+                {key === "events" ? "Eventos" : "Análisis"}
+              </button>
+            ))}
+          </div>
+          {tab === "analysis" && <AnalysisPanel data={data} onSeek={seek} />}
+          <ol className="log" hidden={tab !== "events"}>
             {logItems.map((e: LogEntry, i: number) => (
               <li key={`${e.t}-${i}`}>
                 <span className="time">{formatTime(e.t)}</span>

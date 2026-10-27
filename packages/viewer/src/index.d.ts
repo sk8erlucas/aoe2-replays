@@ -67,3 +67,42 @@ export function formationOffset(index: number): [number, number];
 export const PLAYER_COLORS: Record<number, string>;
 export const TERRAIN_COLORS: Record<string, string>;
 export const RESOURCE_COLORS: Record<string, string>;
+
+export interface BuildOrderItem {
+  t: number;
+  kind: 'build' | 'queue' | 'research' | 'age';
+  name: string;
+  amount?: number;
+}
+
+export interface AgeUp {
+  key: 'feudal' | 'castle' | 'imperial';
+  label: string;
+  /** Exact: when the research was clicked. */
+  clickedAt: number;
+  /** Estimated: click time plus research time. */
+  reachedAt: number;
+}
+
+export interface PlayerAnalysis {
+  number: number;
+  /** Time until the player resigned, or the whole game. */
+  activeMs: number;
+  actions: number;
+  /** Null when the player was active less than 30 s. */
+  apm: number | null;
+  /** Actions per bucket of `bucketMs`. */
+  activity: number[];
+  buildOrder: BuildOrderItem[];
+  trained: Array<{ name: string; amount: number }>;
+  ageUps: AgeUp[];
+}
+
+export interface Analysis {
+  bucketMs: number;
+  players: PlayerAnalysis[];
+}
+
+export const AGES: Array<{ key: AgeUp['key']; label: string; tech: string; seconds: number }>;
+export function analyze(data: ReplayData): Analysis;
+export function bucketSize(durationMs: number, maxBars?: number): number;

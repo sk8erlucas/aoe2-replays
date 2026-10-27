@@ -12,7 +12,7 @@ Contexto y decisiones: [`docs/CONTEXT.md`](docs/CONTEXT.md), [`docs/DECISIONS.md
 |---|---|---|
 | `services/parser` | `.aoe2record` → JSON. CLI y API HTTP sin estado | Python 3.11+, FastAPI, `mgz` |
 | `apps/web` | Web: subida, guardado, página `/r/<id>` con el visor | Next.js 15 (App Router), TypeScript, Prisma 7, Postgres |
-| `packages/viewer` | Motor de reproducción (sin DOM) y render en canvas | JavaScript ESM + `index.d.ts` |
+| `packages/viewer` | Motor de reproducción y análisis (sin DOM) y render en canvas | JavaScript ESM + `index.d.ts` |
 | `packages/shared` | Tipos TypeScript del contrato JSON del parser | Solo tipos |
 | `apps/viewer` | Prototipo estático del visor para depurar, sin build | HTML + JS |
 | `fixtures` | Replays de prueba, **fuera de git** | |
@@ -39,7 +39,7 @@ npm test                          # tests del motor del visor (node --test)
 npm run lint -w apps/web && npm run typecheck -w apps/web
 npm run build -w apps/web
 ```
-Antes de dar algo por terminado: tests del parser, `npm test`, lint, typecheck y build de la web.
+Antes de dar algo por terminado: tests del parser, `npm test`, lint, typecheck y build de la web. El CI (`.github/workflows/ci.yml`) corre lo mismo y además construye las imágenes de Docker.
 
 ## Reglas
 **Contrato JSON.** El JSON del parser es la interfaz entre servicios. Si cambia:
@@ -62,7 +62,7 @@ Antes de dar algo por terminado: tests del parser, `npm test`, lint, typecheck y
 
 **Base de datos.** Cambios de esquema solo con migraciones de Prisma (`npm run db:migrate -w apps/web -- --name <cambio>`), commiteadas en `apps/web/prisma/migrations`. En producción se aplican solas con el servicio `migrate` del compose. El cliente generado (`apps/web/src/generated`) no se commitea.
 
-**Visor.** `packages/viewer/src/engine.js` no puede tocar el DOM (se testea en Node). Todo lo visual va en `render.js`, y los números estimados (velocidades, tiempos) en `palette.js`. El replay guarda solo comandos, así que todo lo que el motor infiere es aproximado: documentarlo cuando se agregue algo.
+**Visor y análisis.** `packages/viewer/src/engine.js` y `analysis.js` no pueden tocar el DOM (se testean en Node). Todo lo visual va en `render.js`, y los números estimados (velocidades, tiempos) en `palette.js`. El replay guarda solo comandos, así que todo lo que el motor infiere es aproximado: documentarlo cuando se agregue algo.
 
 ## Estilo
 - Código, identificadores y comentarios en inglés. Documentación, textos de la interfaz y mensajes al usuario en español rioplatense.
