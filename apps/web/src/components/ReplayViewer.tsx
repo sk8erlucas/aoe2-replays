@@ -11,6 +11,7 @@ import {
   type LogEntry,
   type State,
 } from "@aoe2-replays/viewer";
+import { AiContextPanel } from "@/components/AiContextPanel";
 import { AnalysisPanel } from "@/components/AnalysisPanel";
 
 const SPEEDS = [1, 2, 4, 8, 16];
@@ -33,7 +34,7 @@ export function ReplayViewer({ data, actions }: { data: ReplayData; actions?: Re
   const [speed, setSpeed] = useState(2);
   const [follow, setFollowState] = useState<FollowMode>("auto");
   const [tooltip, setTooltip] = useState<Tooltip>(null);
-  const [tab, setTab] = useState<"events" | "analysis">("events");
+  const [tab, setTab] = useState<"events" | "analysis" | "ai">("events");
 
   playingRef.current = playing;
   speedRef.current = speed;
@@ -268,7 +269,7 @@ export function ReplayViewer({ data, actions }: { data: ReplayData; actions?: Re
             })}
           </ul>
           <div className="tabs" role="tablist">
-            {(["events", "analysis"] as const).map((key) => (
+            {(["events", "analysis", "ai"] as const).map((key) => (
               <button
                 key={key}
                 type="button"
@@ -277,11 +278,12 @@ export function ReplayViewer({ data, actions }: { data: ReplayData; actions?: Re
                 className={tab === key ? "active" : ""}
                 onClick={() => setTab(key)}
               >
-                {key === "events" ? "Eventos" : "Análisis"}
+                {{ events: "Eventos", analysis: "Análisis", ai: "IA" }[key]}
               </button>
             ))}
           </div>
           {tab === "analysis" && <AnalysisPanel data={data} onSeek={seek} />}
+          {tab === "ai" && <AiContextPanel data={data} />}
           <ol className="log" hidden={tab !== "events"}>
             {logItems.map((e: LogEntry, i: number) => (
               <li key={`${e.t}-${i}`}>

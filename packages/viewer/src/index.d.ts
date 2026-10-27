@@ -121,3 +121,6 @@ export interface Analysis {
 export const AGES: Array<{ key: AgeUp['key']; label: string; tech: string; seconds: number }>;
 export function analyze(data: ReplayData): Analysis;
 export function bucketSize(durationMs: number, maxBars?: number): number;
+
+/** Plain-text match context for pasting into an AI chat; `full` adds every command. */
+export function buildAiContext(data: ReplayData, options?: { full?: boolean }): { text: string; tokens: number };

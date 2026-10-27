@@ -15,7 +15,7 @@ El replay guarda **solo las órdenes de los jugadores**. El juego vuelve a simul
 - **B1. Extraídos y servidos por nosotros**: un script convierte los sprites del juego (SLD) a atlas PNG/WebP una vez y la web los sirve. Funciona para todos, pesa en el servidor (hay que elegir solo lo necesario).
 - **B2. Desde la instalación del usuario**: el navegador los lee de la carpeta del juego. No pesa en el servidor, pero solo funciona en Chrome/Edge y para quien tenga el juego.
 
-Propuesta: B1 con un subconjunto (edificios y unidades principales, por arquitectura), y las formas propias actuales como respaldo mientras cargan.
+Elegido: **B1** con un subconjunto (edificios y unidades principales, por arquitectura), y las formas propias actuales como respaldo mientras cargan.
 
 ## Etapas
 
@@ -39,7 +39,12 @@ Propuesta: B1 con un subconjunto (edificios y unidades principales, por arquitec
 
 ### Etapa 3: gráficos del juego (camino B)
 - [x] Resolver lo legal (decidido: Game Content Usage Rules)
-- [ ] Elegir B1 (servidos) o B2 (instalación del usuario)
+- [x] Elegir B1 (servidos) o B2 (instalación del usuario): **B1**
+- [ ] Extractor (`tools/sprites`, Python): leer los `.sld` de `resources/_common/drs/graphics` (la instalación de desarrollo tiene 7.797 archivos, 8,5 GB), decodificar sus capas (color DXT1, sombra, máscara de color de jugador) y exportar cuadros
+- [ ] Elegir el subconjunto: edificios por edad y arquitectura, aldeanos y unidades militares comunes, árboles, minas, bayas, animales
+- [ ] Generar atlas WebP + JSON (cuadros, anclas, 8 direcciones) en `apps/web/public/sprites/`, registrados en `CREDITS.md`
+- [ ] Teñir con el color del jugador usando la máscara (en el navegador, por color)
+- [ ] Cargar los atlas en `render.js` y reemplazar los `#draw*`, con las formas actuales como respaldo
 - [ ] Investigar los formatos SLD/SMX de DE y librerías abiertas que los lean
 - [ ] Elegir la carpeta del juego con la File System Access API (Chrome/Edge) y leer solo lo necesario
 - [ ] Decodificar en un Web Worker y guardar en caché del navegador (IndexedDB)

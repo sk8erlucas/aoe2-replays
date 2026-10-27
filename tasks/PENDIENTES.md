@@ -9,7 +9,6 @@ Separados entre lo que necesita una decisión o acción tuya y lo que se puede a
 | Deploy en Dokploy | Crear la base PostgreSQL y el servicio Compose, cargar las variables ([DEPLOY](../docs/DEPLOY.md)) | Probar en el servidor |
 | CAPTCHA | Crear claves de Cloudflare Turnstile (sitio + secreto) | Protección de subidas anónimas |
 | Logo e ilustraciones | Decidir si se encargan o se hacen propios (estilo grabado, ver [DESIGN](../docs/DESIGN.md)) | Portada final |
-| Gráficos del juego | Elegir si los sprites se sirven desde el proyecto o se leen de la instalación del usuario ([08](./08-experiencia-de-juego.md)) | Sprites en el visor |
 | Nombre del proyecto | Las reglas de Microsoft piden no usar el nombre del juego en el título; evaluar un nombre propio ([LEGAL](../docs/LEGAL.md)) | Lanzamiento público |
 | Publicidad | Confirmar si las reglas de Microsoft permiten anuncios en un sitio propio | Activar anuncios |
 | Repo público | Hacerlo público cuando quieras: los archivos actuales no tienen replays ni datos personales; el historial de git sí tiene un test viejo con el nombre de un jugador de una partida pública | Comunidad |
@@ -31,7 +30,8 @@ Separados entre lo que necesita una decisión o acción tuya y lo que se puede a
 - [x] Vista isométrica del mapa y cámara
 - [x] Estilo pergamino aplicado a la web
 - [x] Árboles talados y recursos agotados (estimación)
-- [ ] Sprites propios por etapas ([08](./08-experiencia-de-juego.md))
+- [ ] Sprites del juego (B1: extractor + atlas) ([08](./08-experiencia-de-juego.md))
+- [x] Pestaña "IA" en el visor: resumen y detalle completo en texto para pegar en una IA, y descarga del JSON
 - [x] Búsqueda de jugadores, perfiles y partidas online `/m/<matchId>` ([09](./09-partidas-online.md))
 - [x] Portada con hero, contenido y capturas; README público y CONTRIBUTING
 - [ ] Plantillas de issue y pull request, código de conducta ([06](./06-comunidad.md))

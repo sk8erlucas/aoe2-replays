@@ -37,7 +37,11 @@ function MatchView() {
         const json = await res.json().catch(() => null);
         set({
           kind: "error",
-          message: json?.error?.message ?? "No encontramos esta partida. Abrila desde el perfil de un jugador.",
+          message:
+            json?.error?.message ??
+            (res.status === 404
+              ? "No encontramos esta partida. Abrila desde el perfil de un jugador."
+              : `No se pudo cargar la partida (error ${res.status}).`),
         });
         return;
       }

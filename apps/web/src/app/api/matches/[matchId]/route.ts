@@ -1,6 +1,6 @@
 // GET: stored match metadata. POST { profileId }: download and store it.
 import { NextResponse } from "next/server";
-import { apiError } from "@/lib/http";
+import { apiError, withErrors } from "@/lib/http";
 import { ImportError, findMatch, importMatch, isMatchId } from "@/lib/matches";
 import { allow } from "@/lib/ratelimit";
 import { hashIp } from "@/lib/replays";
@@ -18,13 +18,19 @@ function meta(m: NonNullable<Awaited<ReturnType<typeof findMatch>>>) {
 }
 
 export async function GET(_request: Request, { params }: Context) {
-  const { matchId } = await params;
-  const m = isMatchId(matchId) ? await findMatch(matchId) : null;
-  if (!m) return apiError(404, "not_found", "Esta partida todavía no fue descargada.");
-  return NextResponse.json(meta(m));
+  return withErrors(async () => {
+    const { matchId } = await params;
+    const m = isMatchId(matchId) ? await findMatch(matchId) : null;
+    if (!m) return apiError(404, "not_found", "Esta partida todavía no fue descargada.");
+    return NextResponse.json(meta(m));
+  });
 }
 
-export async function POST(request: Request, { params }: Context) {
+export async function POST(request: Request, context: Context) {
+  return withErrors(() => importRoute(request, context));
+}
+
+async function importRoute(request: Request, { params }: Context) {
   const { matchId } = await params;
   const body = await request.json().catch(() => null);
   const profileId = String(body?.profileId ?? "");

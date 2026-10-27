@@ -637,6 +637,26 @@ button.link {
 button.link:hover { color: var(--bronze); }
 .build-order .age { color: var(--bronze-dark); font-weight: 700; }
 
+/* AI context tab */
+.ai-panel > p { margin: 4px 0 12px; line-height: 1.5; }
+.ai-actions { display: grid; gap: 4px; }
+.ai-actions button { justify-self: start; }
+.ai-actions p { margin: 0 0 10px; }
+.ai-actions .primary { padding: 8px 30px; font-size: 13px; }
+.ai-preview { margin-top: 8px; }
+.ai-preview summary { cursor: pointer; font-weight: 600; }
+.ai-preview textarea {
+  width: 100%;
+  margin-top: 8px;
+  font: 11px/1.4 ui-monospace, "Cascadia Code", Consolas, monospace;
+  background: var(--paper);
+  color: var(--ink);
+  border: 1px solid var(--rule);
+  border-radius: 4px;
+  padding: 8px;
+  resize: vertical;
+}
+
 /* Playback bar: charcoal with a torn top edge, like the page footer. */
 .controls {
   position: relative;

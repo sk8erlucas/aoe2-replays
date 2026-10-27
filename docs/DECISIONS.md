@@ -18,7 +18,8 @@
 - Monorepo (un solo repo con `apps/`, `services/`, `packages/`), con un contenedor por servicio. Se despliegan por separado aunque compartan repo; el contrato JSON y sus tipos quedan versionados juntos.
 - Repo privado mientras se desarrolla.
 - Diseño de la web: **pergamino ilustrado** (papel, tinta, Cinzel + Montserrat, botones de bronce). Guía en `docs/DESIGN.md`. El mapa del visor no sigue esa estética: apunta a parecerse al juego.
-- Experiencia del visor: simular la partida lo más parecido posible al juego, por etapas (`tasks/08-experiencia-de-juego.md`). Se usan los gráficos y el arte del juego bajo las Game Content Usage Rules de Microsoft (ver `docs/LEGAL.md`).
+- Experiencia del visor: simular la partida lo más parecido posible al juego, por etapas (`tasks/08-experiencia-de-juego.md`). Se usan los gráficos y el arte del juego bajo las Game Content Usage Rules de Microsoft (ver `docs/LEGAL.md`). Los sprites se extraen una vez del juego y los sirve la web (opción B1).
+- Contexto para IA: el visor ofrece la partida como texto para pegar en una IA (resumen ~15 mil tokens o completo), en lugar del JSON crudo, que es casi todo mapa y objetos de Gaia.
 - Partidas online (hecho): buscar jugadores con aoe2companion y reproducir sus partidas descargando el replay de Microsoft (`tasks/09-partidas-online.md`). Se guardan una vez por número de partida y son públicas; los replays subidos a mano siguen privados.
 - Portada con hero (arte oficial del juego), cómo funciona, subida, funciones y preguntas frecuentes.
 - Repo público pronto: README público, `CONTRIBUTING.md`, sin replays ni datos personales en los archivos.
