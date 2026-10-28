@@ -1,5 +1,5 @@
 # Build context: repository root (the web app uses workspace packages).
-FROM node:22-alpine AS deps
+FROM node:26-alpine AS deps
 WORKDIR /repo
 COPY package.json package-lock.json ./
 COPY apps/web/package.json apps/web/
@@ -21,7 +21,7 @@ FROM deps AS migrate
 WORKDIR /repo/apps/web
 CMD ["npx", "prisma", "migrate", "deploy"]
 
-FROM node:22-alpine AS runner
+FROM node:26-alpine AS runner
 ENV NODE_ENV=production NEXT_TELEMETRY_DISABLED=1 HOSTNAME=0.0.0.0 PORT=3000
 WORKDIR /app
 COPY --from=build /repo/apps/web/.next/standalone ./
