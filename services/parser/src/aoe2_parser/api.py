@@ -20,6 +20,17 @@ app = FastAPI(title='AoE2 Replays parser', version='0.1.0')
 pool = ProcessPoolExecutor(max_workers=WORKERS)
 
 
+def _reset_pool():
+    """Kills the workers and starts fresh ones. A timed-out parse would otherwise
+    keep its worker busy (cancelling a running future does not stop it)."""
+    global pool
+    old = pool
+    pool = ProcessPoolExecutor(max_workers=WORKERS)
+    for process in list(getattr(old, '_processes', {}).values()):
+        process.kill()
+    old.shutdown(wait=False, cancel_futures=True)
+
+
 def _error(status, code, message):
     return JSONResponse(status_code=status, content={'error': {'code': code, 'message': message}})
 
@@ -41,6 +52,7 @@ async def parse(file: UploadFile = File(...)):
     try:
         return await asyncio.wait_for(asyncio.wrap_future(future), TIMEOUT_S)
     except TimeoutError:
+        _reset_pool()
         return _error(504, 'timeout', f'parsing took longer than {TIMEOUT_S:g} s')
     except ReplayError as e:
         return _error(422, e.code, e.message)

@@ -1,0 +1,16 @@
+name: Bug report / Reportar un error
+description: Something doesn't work as expected / Algo no funciona como debería
+labels: [bug]
+body:
+  - type: textarea
+    attributes:
+      label: What happened? / ¿Qué pasó?
+      description: Steps to reproduce, what you expected and what you saw. Screenshots help. / Pasos, qué esperabas y qué viste. Las capturas ayudan.
+    validations: { required: true }
+  - type: input
+    attributes:
+      label: Link (match, replay or page) / Enlace
+      description: Don't share private replay management links (the part after #k=). / No compartas enlaces de gestión de replays privados (lo que va después de #k=).
+  - type: input
+    attributes:
+      label: Browser / Navegador

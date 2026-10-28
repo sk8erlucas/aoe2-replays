@@ -88,6 +88,15 @@ function renderPlayers(state) {
   els.players.replaceChildren(...rows);
 }
 
+// Debug page: Spanish wording of the engine's structured log entries.
+function describeLog(e) {
+  if (e.kind === 'chat') return `: "${e.text}"`;
+  if (e.kind === 'resign') return ' abandona';
+  if (e.kind === 'queue') return ` entrena ${e.amount}× ${e.name}`;
+  if (e.kind === 'research') return ` investiga ${e.name}`;
+  return ` construye ${e.name}${e.segments ? ` (${e.segments} tramos)` : ''}`;
+}
+
 function renderLog() {
   const entries = replay.logUntil(t);
   if (entries.length === shownLog) return;
@@ -96,7 +105,7 @@ function renderLog() {
     const who = el('span', { className: 'who', textContent: playerLabel(e.player) });
     const p = replay.playerByNumber.get(e.player);
     if (p) who.style.color = PLAYER_COLORS[p.color_id] ?? '';
-    const text = e.kind === 'chat' ? `: “${e.text}”` : ` ${e.text}`;
+    const text = describeLog(e);
     return el('li', {}, [
       el('span', { className: 'time', textContent: formatTime(e.t) }),
       el('span', { className: e.kind }, [who, text]),

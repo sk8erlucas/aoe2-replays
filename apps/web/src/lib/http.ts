@@ -10,6 +10,6 @@ export async function withErrors(handler: () => Promise<Response>): Promise<Resp
     return await handler();
   } catch (err) {
     console.error(err);
-    return apiError(503, "unavailable", "El servicio no está disponible en este momento. Probá en un rato.");
+    return apiError(503, "unavailable", "The service is unavailable right now.");
   }
 }

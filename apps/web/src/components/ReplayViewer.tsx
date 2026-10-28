@@ -16,6 +16,7 @@ import {
 import { AiContextPanel } from "@/components/AiContextPanel";
 import { AnalysisPanel } from "@/components/AnalysisPanel";
 import { ChatPanel } from "@/components/ChatPanel";
+import { useI18n } from "@/i18n/I18nProvider";
 
 const SPEEDS = [1, 2, 4, 8, 16];
 
@@ -40,6 +41,7 @@ function loadGameData() {
 type ViewerProps = { data: ReplayData; actions?: React.ReactNode };
 
 export function ReplayViewer(props: ViewerProps) {
+  const { t } = useI18n();
   // undefined while loading; null if unavailable (the engine then uses its estimates).
   const [gameData, setGameData] = useState<GameData | null | undefined>(undefined);
   useEffect(() => {
@@ -51,11 +53,12 @@ export function ReplayViewer(props: ViewerProps) {
       alive = false;
     };
   }, []);
-  if (gameData === undefined) return <main className="page message-page muted">Preparando el visor…</main>;
+  if (gameData === undefined) return <main className="page message-page muted">{t.viewer.preparing}</main>;
   return <ReplayStage {...props} gameData={gameData} />;
 }
 
 function ReplayStage({ data, actions, gameData }: ViewerProps & { gameData: GameData | null }) {
+  const { t: tr } = useI18n();
   const replay = useMemo(() => new Replay(data, { gameData }), [data, gameData]);
   const canvas = useRef<HTMLCanvasElement>(null);
   const minimap = useRef<HTMLCanvasElement>(null);
@@ -94,9 +97,9 @@ function ReplayStage({ data, actions, gameData }: ViewerProps & { gameData: Game
     const hit = r && at && r.pick(state, at.x, at.y);
     if (!hit || !at) return null;
     const obj = hit.kind === "unit" ? hit.unit : hit.building;
-    const parts = [obj.typeId != null ? replay.objectName(obj.typeId) : "Unidad", playerName(obj.player)];
-    if (hit.kind === "building" && hit.progress < 1) parts.push(`${Math.round(hit.progress * 100)}% construido`);
-    if (hit.kind === "unit" && hit.unit.approx) parts.push("posición aproximada");
+    const parts = [obj.typeId != null ? replay.objectName(obj.typeId) : tr.viewer.unit, playerName(obj.player)];
+    if (hit.kind === "building" && hit.progress < 1) parts.push(tr.viewer.built(Math.round(hit.progress * 100)));
+    if (hit.kind === "unit" && hit.unit.approx) parts.push(tr.viewer.approx);
     return { x: at.x, y: at.y, text: parts.join(" · ") };
   }
 
@@ -111,6 +114,9 @@ function ReplayStage({ data, actions, gameData }: ViewerProps & { gameData: Game
     r.centerOn(first.x, first.y, { scale: r.closeScale(), instant: true });
     r.setFollow("auto");
     setFollowState("auto");
+    // ?t=<seconds> opens the match at that moment (shareable links).
+    const startAt = Number(new URLSearchParams(location.search).get("t"));
+    if (startAt > 0) time.current = Math.min(replay.duration, startAt * 1000);
     dirty.current = true;
     loadSprites().then((sprites) => {
       if (!sprites || renderer.current !== r) return;
@@ -230,6 +236,14 @@ function ReplayStage({ data, actions, gameData }: ViewerProps & { gameData: Game
   );
 
   const drag = useRef<{ x: number; y: number } | null>(null);
+  const logText = (e: LogEntry) => {
+    const l = tr.viewer.log;
+    if (e.kind === "chat") return `: “${e.text ?? ""}”`;
+    if (e.kind === "resign") return ` ${l.resign}`;
+    if (e.kind === "queue") return ` ${l.queue(e.amount ?? 1, e.name ?? "")}`;
+    if (e.kind === "research") return ` ${l.research(e.name ?? "")}`;
+    return ` ${l.build(e.name ?? "", e.segments)}`;
+  };
   const g = data.game;
   const teams = new Set(g.players.map((p) => p.team_id)).size;
 
@@ -237,9 +251,9 @@ function ReplayStage({ data, actions, gameData }: ViewerProps & { gameData: Game
     <div className="viewer">
       <div className="viewer-info">
         <p className="muted">
-          {data.map.name ?? `Mapa #${data.map.id}`} · {g.players.length} jugadores en {teams} equipos ·{" "}
+          {tr.viewer.summary(data.map.name ?? tr.common.mapNumber(data.map.id), g.players.length, teams)} ·{" "}
           {formatTime(replay.duration)} · {g.game_version} (save {g.save_version})
-          {g.untested_version && " · versión no probada, puede haber errores"}
+          {g.untested_version && tr.viewer.untested}
         </p>
         {actions}
       </div>
@@ -248,7 +262,7 @@ function ReplayStage({ data, actions, gameData }: ViewerProps & { gameData: Game
         <section className="stage">
           <canvas
             ref={canvas}
-            aria-label="Mapa de la partida"
+            aria-label={tr.viewer.mapLabel}
             onPointerDown={(e) => {
               drag.current = { x: e.clientX, y: e.clientY };
               e.currentTarget.setPointerCapture(e.pointerId);
@@ -278,7 +292,7 @@ function ReplayStage({ data, actions, gameData }: ViewerProps & { gameData: Game
           <canvas
             ref={minimap}
             className="minimap"
-            aria-label="Minimapa: clic para mover la cámara"
+            aria-label={tr.viewer.minimapLabel}
             onPointerDown={(e) => {
               const r = renderer.current;
               if (!r || !minimap.current) return;
@@ -295,7 +309,7 @@ function ReplayStage({ data, actions, gameData }: ViewerProps & { gameData: Game
         </section>
 
         <aside className="sidebar">
-          <h2>Jugadores</h2>
+          <h2>{tr.viewer.players}</h2>
           <ul className="players">
             {players.map((p) => {
               const out = resigned.has(p.number);
@@ -306,8 +320,8 @@ function ReplayStage({ data, actions, gameData }: ViewerProps & { gameData: Game
                     {p.name}
                   </span>
                   <span className="meta">
-                    {p.civilization ?? `civ ${p.civilization_id}`} · E{p.team_id}
-                    {out && ` · abandonó ${formatTime(replay.resignedAt.get(p.number) ?? 0)}`}
+                    {p.civilization ?? `civ ${p.civilization_id}`} · {tr.viewer.team(p.team_id)}
+                    {out && tr.viewer.resignedAt(formatTime(replay.resignedAt.get(p.number) ?? 0))}
                   </span>
                 </li>
               );
@@ -323,7 +337,8 @@ function ReplayStage({ data, actions, gameData }: ViewerProps & { gameData: Game
                 className={tab === key ? "active" : ""}
                 onClick={() => setTab(key)}
               >
-                {{ events: "Eventos", chat: `Chat${data.chat?.length ? ` (${data.chat.length})` : ""}`, analysis: "Análisis", ai: "IA" }[key]}
+                {tr.viewer.tabs[key]}
+                {key === "chat" && data.chat?.length ? ` (${data.chat.length})` : ""}
               </button>
             ))}
           </div>
@@ -341,7 +356,7 @@ function ReplayStage({ data, actions, gameData }: ViewerProps & { gameData: Game
                     )}
                     {playerName(e.player)}
                   </span>
-                  {e.kind === "chat" ? `: “${e.text}”` : ` ${e.text}`}
+                  {logText(e)}
                 </span>
               </li>
             ))}
@@ -350,7 +365,7 @@ function ReplayStage({ data, actions, gameData }: ViewerProps & { gameData: Game
       </div>
 
       <footer className="controls">
-        <button type="button" className="play" onClick={togglePlay} aria-label={playing ? "Pausar" : "Reproducir"}>
+        <button type="button" className="play" onClick={togglePlay} aria-label={playing ? tr.viewer.pause : tr.viewer.play}>
           {playing ? "❚❚" : "▶"}
         </button>
         <span className="clock">
@@ -363,11 +378,11 @@ function ReplayStage({ data, actions, gameData }: ViewerProps & { gameData: Game
           max={replay.duration}
           step={100}
           value={t}
-          aria-label="Tiempo"
+          aria-label={tr.viewer.time}
           onChange={(e) => seek(Number(e.target.value))}
         />
         <label>
-          Velocidad{" "}
+          {tr.viewer.speed}{" "}
           <select value={speed} onChange={(e) => setSpeed(Number(e.target.value))}>
             {SPEEDS.map((s) => (
               <option key={s} value={s}>
@@ -377,7 +392,7 @@ function ReplayStage({ data, actions, gameData }: ViewerProps & { gameData: Game
           </select>
         </label>
         <label>
-          Cámara{" "}
+          {tr.viewer.camera}{" "}
           <select
             value={follow === null ? "free" : String(follow)}
             onChange={(e) => {
@@ -385,20 +400,20 @@ function ReplayStage({ data, actions, gameData }: ViewerProps & { gameData: Game
               setFollow(v === "free" ? null : v === "auto" ? "auto" : Number(v));
             }}
           >
-            <option value="auto">Auto (sigue la acción)</option>
-            <option value="free">Libre</option>
+            <option value="auto">{tr.viewer.cameraAuto}</option>
+            <option value="free">{tr.viewer.cameraFree}</option>
             {players.map((p) => (
               <option key={p.number} value={p.number}>
-                Seguir a {p.name}
+                {tr.viewer.follow(p.name)}
               </option>
             ))}
           </select>
         </label>
         <div className="zoom-buttons">
-          <button type="button" onClick={() => zoom(1.25)} aria-label="Acercar" title="Acercar (+)">
+          <button type="button" onClick={() => zoom(1.25)} aria-label={tr.viewer.zoomIn} title={`${tr.viewer.zoomIn} (+)`}>
             +
           </button>
-          <button type="button" onClick={() => zoom(0.8)} aria-label="Alejar" title="Alejar (−)">
+          <button type="button" onClick={() => zoom(0.8)} aria-label={tr.viewer.zoomOut} title={`${tr.viewer.zoomOut} (−)`}>
             −
           </button>
           <button
@@ -408,9 +423,9 @@ function ReplayStage({ data, actions, gameData }: ViewerProps & { gameData: Game
               setFollowState(null);
               dirty.current = true;
             }}
-            title="Ver el mapa completo"
+            title={tr.viewer.fullMapTitle}
           >
-            Mapa
+            {tr.viewer.fullMap}
           </button>
         </div>
       </footer>

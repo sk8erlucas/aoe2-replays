@@ -32,7 +32,7 @@ export async function matchData(id: string) {
 
 async function readCapped(res: Response, max: number): Promise<Uint8Array> {
   const reader = res.body?.getReader();
-  if (!reader) throw new ImportError(502, "replay_unavailable", "Microsoft no devolvió el replay.");
+  if (!reader) throw new ImportError(502, "replay_unavailable", "Microsoft returned no replay.");
   const chunks: Uint8Array[] = [];
   let total = 0;
   for (;;) {
@@ -41,7 +41,7 @@ async function readCapped(res: Response, max: number): Promise<Uint8Array> {
     total += value.length;
     if (total > max) {
       await reader.cancel();
-      throw new ImportError(413, "too_large", "El replay es demasiado grande.");
+      throw new ImportError(413, "too_large", "The replay is too large.");
     }
     chunks.push(value);
   }
@@ -60,14 +60,14 @@ async function download(matchId: string, profileId: string): Promise<Uint8Array>
   try {
     res = await fetch(url, { redirect: "error", signal: AbortSignal.timeout(30_000) });
   } catch {
-    throw new ImportError(502, "replay_unavailable", "No se pudo conectar con el servicio de replays de Microsoft.");
+    throw new ImportError(502, "replay_unavailable", "Could not reach Microsoft's replay service.");
   }
   if (!res.ok) {
-    throw new ImportError(404, "replay_unavailable", "Microsoft no tiene el replay de esta partida (puede haber expirado).");
+    throw new ImportError(404, "replay_unavailable", "Microsoft has no replay for this match (it may have expired).");
   }
   const zip = await readCapped(res, MAX_ZIP_BYTES);
   if (zip[0] !== 0x50 || zip[1] !== 0x4b) {
-    throw new ImportError(404, "replay_unavailable", "Microsoft no tiene el replay de esta partida (puede haber expirado).");
+    throw new ImportError(404, "replay_unavailable", "Microsoft has no replay for this match (it may have expired).");
   }
   let files: Record<string, Uint8Array>;
   try {
@@ -75,10 +75,10 @@ async function download(matchId: string, profileId: string): Promise<Uint8Array>
       filter: (f) => f.name.toLowerCase().endsWith(".aoe2record") && f.originalSize <= MAX_REPLAY_BYTES,
     });
   } catch {
-    throw new ImportError(422, "corrupt_replay", "El archivo de Microsoft está dañado.");
+    throw new ImportError(422, "corrupt_replay", "The file from Microsoft is damaged.");
   }
   const replay = Object.values(files)[0];
-  if (!replay) throw new ImportError(422, "corrupt_replay", "El archivo de Microsoft no contiene un replay.");
+  if (!replay) throw new ImportError(422, "corrupt_replay", "The file from Microsoft contains no replay.");
   return replay;
 }
 

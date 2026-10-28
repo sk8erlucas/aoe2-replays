@@ -50,3 +50,10 @@ test('sample replay context stays small', { skip: !existsSync(LONG) && 'missing 
   const { tokens } = buildAiContext(sample);
   assert.ok(tokens < 20_000, `${tokens}`);
 });
+
+test('English context', () => {
+  const { text } = buildAiContext(data, { locale: 'en' });
+  assert.match(text, /- P1: Ana — Franks, starts at \(10,10\)/);
+  assert.match(text, /- 0:01 trains 3× Villager \(until 0:20\)/);
+  assert.match(text, /- 0:30 builds House at \(12,14\)/);
+});

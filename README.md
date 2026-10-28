@@ -1,39 +1,57 @@
+<div align="center">
+
 # AoE2 Replays
 
-Visor y herramienta de análisis open source para partidas de **Age of Empires II: Definitive Edition**.
+**Watch and analyze Age of Empires II: Definitive Edition matches in your browser.**
 
-Subí un replay (`.aoe2record`) o buscá a un jugador y abrí cualquiera de sus partidas online: se reproduce en un mapa isométrico, con la cámara siguiendo la acción, y podés analizar qué hizo cada jugador y cuándo.
+Upload a replay or search for any player, and play their match back on the map with the game's own graphics: every civilization's architecture, villagers at work, armies on the move. Then see what each player did and when.
 
-> Proyecto de fans. Age of Empires II © Microsoft Corporation. AoE2 Replays se creó bajo las [Game Content Usage Rules](https://www.xbox.com/en-US/developers/rules) de Microsoft usando contenido de Age of Empires II, y no está respaldado ni afiliado a Microsoft.
+[**Open the app →**](https://aoe2replays.sitemaster.com.ar/) · [Español](README.es.md) · [Contributing](CONTRIBUTING.md)
 
-![Vista cercana del visor](apps/web/public/images/visor/cerca.webp)
+![The viewer in Imperial Age: a Central Asian city, a Japanese castle and an army, with the analysis panel open](docs/screenshots/viewer-analysis.webp)
 
-## Qué hace
-- **Visor**: mapa isométrico con relieve, edificios que se construyen, unidades que se mueven, árboles que se talan y recursos que se agotan. Cámara automática que sigue la acción, seguimiento de un jugador, minimapa y línea de tiempo.
-- **Análisis**: APM, momento de avance a cada edad, actividad a lo largo de la partida y build order de cada jugador.
-- **Chat**: todos los mensajes de la partida, y salto al momento en que se escribieron.
-- **Contexto para IA**: la partida como texto para pegar en ChatGPT, Claude u otra IA y hacerle preguntas.
-- **Partidas online**: búsqueda de jugadores con autocompletado, perfil con rankings y partidas recientes, y reproducción de cualquiera de ellas sin subir archivos (el replay se descarga del servicio público de Microsoft).
-- **Privacidad**: los replays subidos son privados hasta que los hagas públicos, se guardan solo los datos de la partida (no el archivo) y se borran solos.
+</div>
 
-### Qué es exacto y qué es estimado
-Un replay de AoE2 guarda **solo las órdenes de los jugadores**; el juego vuelve a simular todo con su motor, que es cerrado. Por eso:
-- **Exacto**: mapa, jugadores, cada orden y su momento, dónde se construyó cada edificio, investigaciones, abandonos, chat.
-- **Estimado**: el recorrido de las unidades, la tala y recolección de recursos, la llegada a cada edad, el avance de las construcciones.
+## Features
 
-## Cómo está hecho
-| Carpeta | Qué es | Stack |
+| | |
+|---|---|
+| ![Villagers farming next to a Cuman base](docs/screenshots/farms.webp) | **Watch it like in the game.** Isometric view with the game's sprites: buildings by civilization and age, villagers chopping, mining, farming and building, trained units coming out of the right building, trees falling as they're cut. The camera follows the action on its own, or follows the player you pick. |
+| ![Whole map of an 8-player match](docs/screenshots/map.webp) | **The whole map at a glance.** Zoom out to see how the map is split, jump anywhere with the minimap and anywhere in time with the timeline. Share a moment with `?t=<seconds>`. |
+| ![Home page with player search](docs/screenshots/home.webp) | **Online matches, no upload needed.** Search any player (autocomplete), see their ratings and recent matches, and open any of them: the replay is fetched from Microsoft's public replay service. |
+
+And also:
+- **Analysis**: APM, when each player clicked up to each age, activity over time, and a clickable build order for every player.
+- **Chat** with a jump to the moment each message was sent.
+- **Ask an AI**: copy the match as text (summary or every command) to paste into ChatGPT, Claude or any other AI.
+- **Private by default**: uploaded replays are only visible with their management link until you make them public; only the match data is stored (never the file), and it expires after 30 days.
+- **English and Spanish**, picked from your browser and switchable at any time.
+
+### What's exact and what's estimated
+A replay stores **only the players' commands**: the game re-simulates everything with its closed-source engine. So commands, timings, what was built where, research, resignations and chat are **exact**; unit paths, gathering, tree felling, fights and age-up arrival times are **estimates**, and the app says so where it matters.
+
+## How it works
+
+```
+.aoe2record ──► parser (Python) ──► JSON ──► web (Next.js) ──► viewer (canvas)
+                    ▲                          │
+Microsoft replay ───┘                          └─► PostgreSQL (gzip JSON)
+service (online matches)
+```
+
+| Folder | What it is | Stack |
 |---|---|---|
-| [`services/parser`](services/parser) | Convierte un `.aoe2record` en JSON. CLI y API HTTP | Python, FastAPI, [`mgz`](https://github.com/happyleavesaoc/aoc-mgz) (con parches para versiones nuevas) |
-| [`apps/web`](apps/web) | Web: subida, partidas online, visor, análisis | Next.js, TypeScript, Prisma, PostgreSQL |
-| [`packages/viewer`](packages/viewer) | Motor de reproducción y análisis + render en canvas | JavaScript (sin dependencias) |
-| [`packages/shared`](packages/shared) | Tipos del formato JSON del parser | TypeScript |
-| [`apps/viewer`](apps/viewer) | Prototipo estático del visor, para depurar | HTML + JS |
+| [`services/parser`](services/parser) | Reads `.aoe2record` into a documented JSON format. CLI and HTTP API | Python, FastAPI, [`mgz`](https://github.com/happyleavesaoc/aoc-mgz) (patched for recent game versions) |
+| [`apps/web`](apps/web) | The web app: home, uploads, player search, matches, viewer, analysis | Next.js, TypeScript, Prisma, PostgreSQL |
+| [`packages/viewer`](packages/viewer) | Replay engine (estimates movement, gathering, building) and isometric canvas renderer | JavaScript, no dependencies |
+| [`packages/shared`](packages/shared) | Types for the parser's JSON format | TypeScript |
+| [`tools/sprites`](tools/sprites) | Extracts the game's graphics (SLD) and data into WebP atlases | Python |
 
-El formato JSON que produce el parser está documentado en [`services/parser/README.md`](services/parser/README.md), por si querés armar tu propio visor.
+The parser's JSON format is documented in [`services/parser/README.md`](services/parser/README.md), in case you want to build your own tools on top of it.
 
-## Correrlo localmente
-Requisitos: Python 3.11+, Node 22+ y Docker (para la base de datos).
+## Run it locally
+
+Requires Python 3.11+, Node 22+ and Docker (for the database).
 
 ```sh
 # 1. Parser (terminal 1)
@@ -42,30 +60,29 @@ python -m venv .venv
 .venv/Scripts/python -m pip install -e ".[dev]"      # Linux/macOS: .venv/bin/python
 .venv/Scripts/python -m uvicorn aoe2_parser.api:app --port 8000
 
-# 2. Base de datos (desde la raíz)
-docker compose -f docker-compose.dev.yml up -d       # PostgreSQL en localhost:5433
+# 2. Database (from the repo root)
+docker compose -f docker-compose.dev.yml up -d       # PostgreSQL on localhost:5433
 
-# 3. Web (terminal 2, desde la raíz)
+# 3. Web (terminal 2, from the repo root)
 npm install
 cp apps/web/.env.example apps/web/.env.local
 npm run db:migrate -w apps/web
 npm run dev:web                                      # http://localhost:3000
 ```
 
-Tests: `npm test` en la raíz y `.venv/Scripts/python -m pytest` dentro de `services/parser`.
+Tests: `npm test` at the root, and `.venv/Scripts/python -m pytest` inside `services/parser`. Deployment (Docker Compose, e.g. on Dokploy): [`docs/DEPLOY.md`](docs/DEPLOY.md).
 
-Para desplegar (Docker Compose, por ejemplo con Dokploy): [`docs/DEPLOY.md`](docs/DEPLOY.md).
+## Contributing
 
-## Contribuir
-Las mejoras llegan por pull request y se revisan una por una. Leé [`CONTRIBUTING.md`](CONTRIBUTING.md) y, si usás un agente de código, [`AGENTS.md`](AGENTS.md). La hoja de ruta está en [`tasks/`](tasks), empezando por [`tasks/PENDIENTES.md`](tasks/PENDIENTES.md).
+Contributions are welcome and every pull request is reviewed. Start with [`CONTRIBUTING.md`](CONTRIBUTING.md) — and [`AGENTS.md`](AGENTS.md) if you use a coding agent. The roadmap lives in [`tasks/`](tasks) (in Spanish), starting with [`tasks/PENDIENTES.md`](tasks/PENDIENTES.md). Found a security issue? See [`SECURITY.md`](SECURITY.md).
 
-Documentación interna: [contexto](docs/CONTEXT.md), [arquitectura](docs/ARCHITECTURE.md), [decisiones](docs/DECISIONS.md), [guía de estilo](docs/DESIGN.md), [aspectos legales](docs/LEGAL.md).
+## Credits and legal
 
-## Créditos
-- Lectura de replays: [`mgz`](https://github.com/happyleavesaoc/aoc-mgz) de happyleavesaoc (MIT) y datos de referencia de [aoc-reference-data](https://github.com/SiegeEngineers/aoc-reference-data).
-- Datos de jugadores y partidas: [aoe2companion](https://www.aoe2companion.com).
-- Arte del juego: Age of Empires II: Definitive Edition © Microsoft, usado bajo las Game Content Usage Rules (detalle en [`apps/web/public/images/CREDITS.md`](apps/web/public/images/CREDITS.md)).
-- Fuentes: Cinzel y Montserrat (SIL Open Font License).
+- Replay reading: [`mgz`](https://github.com/happyleavesaoc/aoc-mgz) by happyleavesaoc (MIT), and reference data from [aoc-reference-data](https://github.com/SiegeEngineers/aoc-reference-data).
+- Player and match data: [aoe2companion](https://www.aoe2companion.com).
+- Game data file reading for the sprite tool: [genieutils-py](https://github.com/SiegeEngineers/genieutils-py) (LGPL, development tool only).
+- Fonts: Cinzel and Montserrat (SIL Open Font License).
 
-## Licencia
-El código es [MIT](LICENSE). El arte y los nombres de Age of Empires pertenecen a Microsoft y **no** están cubiertos por la licencia MIT.
+Age of Empires II © Microsoft Corporation. AoE2 Replays was created under Microsoft's "[Game Content Usage Rules](https://www.xbox.com/en-US/developers/rules)" using assets from Age of Empires II, and it is not endorsed by or affiliated with Microsoft. The game's art and sprites are **not** covered by this project's license; see [`apps/web/public/images/CREDITS.md`](apps/web/public/images/CREDITS.md).
+
+The code is released under the [MIT license](LICENSE).

@@ -370,6 +370,25 @@ button.primary:hover:not(:disabled), .button-primary:hover { border-color: var(-
 .message-page { max-width: 640px; margin: 0 auto; padding: 56px 16px; text-align: center; }
 .message-page h1 { text-transform: uppercase; }
 
+/* Language switch */
+.lang-switch { display: flex; border: 1px solid #5a524a; border-radius: 4px; overflow: hidden; }
+.lang-switch button {
+  border: 0;
+  border-radius: 0;
+  padding: 4px 8px;
+  background: transparent;
+  color: #cbbfa8;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+}
+.lang-switch button.active { background: var(--bronze); color: var(--paper); }
+.lang-switch button:hover:not(.active) { color: var(--charcoal-ink); }
+
+.repo-cta { text-align: center; margin-top: 32px; }
+.ai-sample code { display: block; font-size: 13px; line-height: 1.7; color: var(--ink-soft); white-space: pre-wrap; }
+.feature .feature-stats { margin-top: 16px; }
+
 /* Player search */
 .topnav { display: flex; gap: 16px; margin-left: auto; }
 .topnav a { color: var(--charcoal-ink); text-decoration: none; font-size: 13px; }
@@ -594,7 +613,7 @@ button.primary:hover:not(:disabled), .button-primary:hover { border-color: var(-
   border: 0;
   border-bottom: 2px solid transparent;
   border-radius: 0;
-  padding: 6px 10px;
+  padding: 6px 7px;
   color: var(--ink-faint);
   font-family: var(--font-display);
   font-weight: 600;

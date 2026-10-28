@@ -6,7 +6,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
   const { id } = await params;
   const found = await findVisibleReplay(id, request.headers.get(TOKEN_HEADER));
   const data = found && (await replayData(id));
-  if (!found || !data) return apiError(404, "not_found", "El replay no existe, expiró o es privado.");
+  if (!found || !data) return apiError(404, "not_found", "The replay does not exist, has expired or is private.");
   return new Response(Buffer.from(data), {
     headers: {
       "content-type": "application/json",

@@ -9,18 +9,18 @@ export async function POST(request: Request) {
   try {
     form = await request.formData();
   } catch {
-    return apiError(400, "bad_request", "Se esperaba un formulario con el archivo.");
+    return apiError(400, "bad_request", "Expected a form with the file.");
   }
   const file = form.get("file");
-  if (!(file instanceof File)) return apiError(400, "bad_request", "Falta el archivo.");
-  if (file.size > MAX_UPLOAD_BYTES) return apiError(413, "too_large", "El archivo supera los 30 MB.");
+  if (!(file instanceof File)) return apiError(400, "bad_request", "Missing file.");
+  if (file.size > MAX_UPLOAD_BYTES) return apiError(413, "too_large", "The file is larger than 30 MB.");
   if (!file.name.toLowerCase().endsWith(".aoe2record")) {
-    return apiError(400, "bad_extension", "El archivo tiene que ser un .aoe2record.");
+    return apiError(400, "bad_extension", "The file must be an .aoe2record.");
   }
 
   const ipHash = hashIp(request);
   if (ipHash && uploadLimitReached(await uploadsLastHour(ipHash))) {
-    return apiError(429, "rate_limited", "Subiste muchos replays en la última hora. Probá más tarde.");
+    return apiError(429, "rate_limited", "Too many uploads in the last hour. Try again later.");
   }
 
   const parsed = await parseReplay(file);

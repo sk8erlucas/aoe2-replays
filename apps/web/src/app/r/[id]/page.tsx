@@ -5,6 +5,7 @@ import { useParams, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import type { ReplayData } from "@aoe2-replays/shared";
 import { ReplayViewer } from "@/components/ReplayViewer";
+import { useI18n } from "@/i18n/I18nProvider";
 import { forgetOwned, rememberOwned, tokenFor } from "@/lib/owned";
 
 type Meta = {
@@ -36,6 +37,7 @@ function takeTokenFromHash(): string | null {
 export default function ReplayPage() {
   const { id } = useParams<{ id: string }>();
   const router = useRouter();
+  const { t } = useI18n();
   const [load, setLoad] = useState<Load>({ kind: "loading" });
   const [notice, setNotice] = useState<string | null>(null);
 
@@ -75,20 +77,20 @@ export default function ReplayPage() {
     };
   }, [id]);
 
-  if (load.kind === "loading") return <main className="message-page muted">Cargando replay…</main>;
+  if (load.kind === "loading") return <main className="page message-page muted">{t.replay.loading}</main>;
   if (load.kind === "missing") {
     return (
-      <main className="message-page">
-        <h1>No encontramos este replay</h1>
-        <p className="muted">Puede que no exista, que haya expirado o que sea privado.</p>
-        <Link href="/">Subir un replay</Link>
+      <main className="page message-page">
+        <h1>{t.replay.missingTitle}</h1>
+        <p className="muted">{t.replay.missingText}</p>
+        <Link href="/#upload">{t.home.uploadCta}</Link>
       </main>
     );
   }
   if (load.kind === "error") {
     return (
-      <main className="message-page">
-        <h1>No se pudo cargar el replay</h1>
+      <main className="page message-page">
+        <h1>{t.replay.errorTitle}</h1>
         <p className="muted">{load.message}</p>
       </main>
     );
@@ -101,7 +103,7 @@ export default function ReplayPage() {
       await navigator.clipboard.writeText(text);
       setNotice(done);
     } catch {
-      window.prompt("Copiá el enlace:", text);
+      window.prompt(t.common.copyPrompt, text);
     }
   }
 
@@ -112,21 +114,21 @@ export default function ReplayPage() {
       body: JSON.stringify({ isPublic }),
     });
     if (!res.ok) {
-      setNotice("No se pudo cambiar la visibilidad.");
+      setNotice(t.replay.visibilityFailed);
       return;
     }
     setLoad({ ...load, meta: { ...meta, isPublic } } as Load);
-    setNotice(isPublic ? "Ahora cualquiera con el enlace puede verlo." : "Ahora es privado.");
+    setNotice(isPublic ? t.replay.nowPublic : t.replay.nowPrivate);
   }
 
   async function remove() {
-    if (!window.confirm("¿Eliminar este replay? No se puede deshacer.")) return;
+    if (!window.confirm(t.replay.confirmRemove)) return;
     const res = await fetch(`/api/replays/${meta.id}`, {
       method: "DELETE",
       headers: { "x-manage-token": token ?? "" },
     });
     if (!res.ok) {
-      setNotice("No se pudo eliminar.");
+      setNotice(t.replay.removeFailed);
       return;
     }
     forgetOwned(meta.id);
@@ -136,27 +138,27 @@ export default function ReplayPage() {
   const shareUrl = `${location.origin}/r/${meta.id}`;
   const actions = meta.canManage ? (
     <div className="replay-actions">
-      <span className={`badge${meta.isPublic ? " public" : ""}`}>{meta.isPublic ? "Público" : "Privado"}</span>
+      <span className={`badge${meta.isPublic ? " public" : ""}`}>{meta.isPublic ? t.replay.public : t.replay.private}</span>
       <button type="button" onClick={() => setPublic(!meta.isPublic)}>
-        {meta.isPublic ? "Hacer privado" : "Hacer público"}
+        {meta.isPublic ? t.replay.makePrivate : t.replay.makePublic}
       </button>
       {meta.isPublic && (
-        <button type="button" onClick={() => copy(shareUrl, "Enlace para compartir copiado.")}>
-          Copiar enlace
+        <button type="button" onClick={() => copy(shareUrl, t.replay.shareCopied)}>
+          {t.common.copyLink}
         </button>
       )}
       <button
         type="button"
-        title="Quien tenga este enlace puede ver, cambiar y borrar el replay"
-        onClick={() => copy(`${shareUrl}#k=${token}`, "Enlace de gestión copiado. Guardalo: no se puede recuperar.")}
+        title={t.replay.manageTitle}
+        onClick={() => copy(`${shareUrl}#k=${token}`, t.replay.manageCopied)}
       >
-        Enlace de gestión
+        {t.replay.manageLink}
       </button>
       <button type="button" onClick={remove}>
-        Eliminar
+        {t.replay.remove}
       </button>
       {meta.expiresAt && (
-        <span className="muted small">Se borra el {new Date(meta.expiresAt).toLocaleDateString("es")}</span>
+        <span className="muted small">{t.replay.expires(new Date(meta.expiresAt).toLocaleDateString(t.common.dateLocale))}</span>
       )}
       {notice && <p className="notice">{notice}</p>}
     </div>

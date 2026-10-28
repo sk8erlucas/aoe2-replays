@@ -15,14 +15,14 @@ export async function parseReplay(file: Blob): Promise<ParseResult> {
   try {
     res = await fetch(`${PARSER_URL}/parse`, { method: "POST", body: form });
   } catch {
-    return { ok: false, status: 502, code: "parser_unavailable", message: "El servicio de parseo no responde." };
+    return { ok: false, status: 502, code: "parser_unavailable", message: "The parser service is not responding." };
   }
   const raw = await res.text();
   let json: unknown;
   try {
     json = JSON.parse(raw);
   } catch {
-    return { ok: false, status: 502, code: "parser_error", message: "Respuesta inválida del parser." };
+    return { ok: false, status: 502, code: "parser_error", message: "Invalid response from the parser." };
   }
   if (!res.ok) {
     const err = (json as ParserError).error ?? { code: "parser_error", message: `HTTP ${res.status}` };

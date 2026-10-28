@@ -69,7 +69,8 @@ Antes de dar algo por terminado: tests del parser, `npm test`, lint, typecheck y
 
 ## Estilo
 - Interfaz: seguir [`docs/DESIGN.md`](docs/DESIGN.md) (tokens en `apps/web/src/app/globals.css`). El color de jugador va en una muestra al lado del nombre, nunca como color de texto.
-- Código, identificadores y comentarios en inglés. Documentación, textos de la interfaz y mensajes al usuario en español rioplatense.
+- Código, identificadores y comentarios en inglés. Documentación interna en español rioplatense; README público en inglés con versión en español (`README.es.md`).
+- **Interfaz bilingüe (español e inglés)**: todo texto visible va en `apps/web/src/i18n/messages.ts`, en los dos idiomas (el tipo `Messages` obliga a que tengan las mismas claves). Nada de texto suelto en los componentes. El idioma sale de la cookie `lang` o del navegador; la API devuelve códigos de error y la interfaz los traduce.
 - Comentarios solo donde el porqué no es obvio. Seguir el estilo del archivo que se toca.
 - Python: comillas simples, módulos chicos, errores con `ReplayError` y un `code` estable.
 - TypeScript: estricto, sin `any`; componentes cliente solo donde hace falta (`"use client"`).

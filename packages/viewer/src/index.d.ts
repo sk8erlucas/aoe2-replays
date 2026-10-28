@@ -1,10 +1,17 @@
 import type { Player, ReplayData } from '@aoe2-replays/shared';
 
+/** Structured so each UI language words it its own way. */
 export interface LogEntry {
   t: number;
   player: number | null;
   kind: 'build' | 'queue' | 'research' | 'resign' | 'chat';
-  text: string;
+  /** Object or technology name (game names, in English). */
+  name?: string;
+  amount?: number;
+  /** Wall pieces in one command. */
+  segments?: number;
+  /** Chat message. */
+  text?: string;
 }
 
 export class Unit {
@@ -143,4 +150,7 @@ export function analyze(data: ReplayData): Analysis;
 export function bucketSize(durationMs: number, maxBars?: number): number;
 
 /** Plain-text match context for pasting into an AI chat; `full` adds every command. */
-export function buildAiContext(data: ReplayData, options?: { full?: boolean }): { text: string; tokens: number };
+export function buildAiContext(
+  data: ReplayData,
+  options?: { full?: boolean; locale?: 'es' | 'en' },
+): { text: string; tokens: number };

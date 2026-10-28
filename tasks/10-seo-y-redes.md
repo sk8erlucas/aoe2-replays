@@ -26,7 +26,8 @@ Hoy las páginas de jugador (`/p/<id>`) y de partida (`/m/<id>`) se arman en el 
   - Jugador: nombre, país, ELO por modo, civilizaciones más jugadas.
   - Cacheadas por partida y por jugador.
 - [ ] Botones de compartir: copiar enlace (ya), WhatsApp, X, Reddit, Telegram; en móvil, el menú nativo (`navigator.share`)
-- [ ] Compartir **un momento**: enlace con tiempo (`/m/<id>?t=12:34`) y opción "compartir este momento" en el visor
+- [x] Abrir en un momento: `?t=<segundos>` en `/m/` y `/r/`
+- [ ] Compartir **un momento** desde el visor (botón) y opción "compartir este momento" en el visor
 - [ ] Vista previa de Discord bien armada (Discord usa Open Graph; probar color de tema y tamaño de imagen)
 - [ ] Insertar el visor en otros sitios (`<iframe>` con versión compacta), con enlace de vuelta
 - [ ] Clips: exportar un fragmento a video o GIF para redes (se apoya en la fase 5)
@@ -35,7 +36,8 @@ Hoy las páginas de jugador (`/p/<id>`) y de partida (`/m/<id>`) se arman en el 
 - [ ] Páginas por mapa y por civilización con estadísticas agregadas de las partidas vistas (win rate, duración media, build orders comunes)
 - [ ] Partidas destacadas de jugadores de ELO alto en la portada (se actualiza solo)
 - [ ] Guías cortas: dónde están los replays, cómo leer el análisis, qué es APM
-- [ ] Idiomas: español e inglés (`hreflang`), empezando por la interfaz y los metadatos
+- [x] Interfaz en español e inglés según el navegador, con selector
+- [ ] `hreflang` y URLs por idioma si hace falta para buscadores
 
 ## Medición
 - [ ] Google Search Console y Bing Webmaster Tools (verificación por DNS)

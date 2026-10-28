@@ -2,11 +2,13 @@
 
 import { useRouter } from "next/navigation";
 import { useEffect, useId, useRef, useState } from "react";
+import { useI18n } from "@/i18n/I18nProvider";
 
 type Hit = { profileId: number; name: string; country: string | null; clan: string | null; games: number };
 
 export function PlayerSearch({ size = "small", autoFocus = false }: { size?: "small" | "large"; autoFocus?: boolean }) {
   const router = useRouter();
+  const { t } = useI18n();
   const listId = useId();
   const [q, setQ] = useState("");
   const [hits, setHits] = useState<Hit[]>([]);
@@ -68,7 +70,7 @@ export function PlayerSearch({ size = "small", autoFocus = false }: { size?: "sm
         aria-controls={listId}
         aria-autocomplete="list"
         aria-activedescendant={active >= 0 ? `${listId}-${active}` : undefined}
-        placeholder="Buscá un jugador…"
+        placeholder={t.search.placeholder}
         value={q}
         autoFocus={autoFocus}
         onChange={(e) => {
@@ -93,9 +95,9 @@ export function PlayerSearch({ size = "small", autoFocus = false }: { size?: "sm
       />
       {showList && (
         <ul className="search-results" id={listId} role="listbox">
-          {state === "loading" && hits.length === 0 && <li className="search-note">Buscando…</li>}
-          {state === "error" && <li className="search-note">La búsqueda no responde. Probá en un rato.</li>}
-          {state === "idle" && hits.length === 0 && <li className="search-note">Sin resultados.</li>}
+          {state === "loading" && hits.length === 0 && <li className="search-note">{t.search.searching}</li>}
+          {state === "error" && <li className="search-note">{t.search.failed}</li>}
+          {state === "idle" && hits.length === 0 && <li className="search-note">{t.search.empty}</li>}
           {hits.map((h, i) => (
             <li
               key={h.profileId}
@@ -114,7 +116,7 @@ export function PlayerSearch({ size = "small", autoFocus = false }: { size?: "sm
                 {h.name}
               </span>
               <span className="search-meta">
-                {[h.country?.toUpperCase(), `${h.games.toLocaleString("es")} partidas`].filter(Boolean).join(" · ")}
+                {[h.country?.toUpperCase(), t.common.games(h.games.toLocaleString(t.common.dateLocale))].filter(Boolean).join(" · ")}
               </span>
             </li>
           ))}

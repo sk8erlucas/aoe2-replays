@@ -3,20 +3,20 @@
 import { useMemo, useState } from "react";
 import type { ReplayData } from "@aoe2-replays/shared";
 import { buildAiContext } from "@aoe2-replays/viewer";
-
-const thousands = (n: number) => `${Math.max(1, Math.round(n / 1000))} mil`;
+import { useI18n } from "@/i18n/I18nProvider";
 
 export function AiContextPanel({ data }: { data: ReplayData }) {
-  const summary = useMemo(() => buildAiContext(data), [data]);
-  const full = useMemo(() => buildAiContext(data, { full: true }), [data]);
+  const { t, locale } = useI18n();
+  const summary = useMemo(() => buildAiContext(data, { locale }), [data, locale]);
+  const full = useMemo(() => buildAiContext(data, { full: true, locale }), [data, locale]);
   const [notice, setNotice] = useState<string | null>(null);
 
   async function copy(text: string, what: string) {
     try {
       await navigator.clipboard.writeText(text);
-      setNotice(`${what} copiado. Pegalo en el chat de tu IA y hacé tu pregunta.`);
+      setNotice(t.ai.copied(what));
     } catch {
-      setNotice("Tu navegador no dejó copiar. Seleccioná el texto de abajo y copialo a mano.");
+      setNotice(t.ai.copyFailed);
     }
   }
 
@@ -25,34 +25,27 @@ export function AiContextPanel({ data }: { data: ReplayData }) {
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = `partida-${(data.map.name ?? "mapa").toLowerCase().replace(/[^a-z0-9]+/g, "-")}.json`;
+    a.download = `aoe2-${(data.map.name ?? "map").toLowerCase().replace(/[^a-z0-9]+/g, "-")}.json`;
     a.click();
     URL.revokeObjectURL(url);
   }
 
   return (
     <div className="ai-panel">
-      <p>
-        Copiá la partida como texto y pegala en ChatGPT, Claude, Gemini u otra IA para hacerle preguntas: qué hizo
-        mejor el ganador, cómo mejorar un build order, en qué momento se definió.
-      </p>
+      <p>{t.ai.intro}</p>
       <div className="ai-actions">
-        <button type="button" className="primary" onClick={() => copy(summary.text, "Resumen")}>
-          Copiar resumen
+        <button type="button" className="primary" onClick={() => copy(summary.text, t.ai.summaryName)}>
+          {t.ai.copySummary}
         </button>
-        <p className="muted small">
-          Jugadores, APM, edades, build orders y chat. ≈ {thousands(summary.tokens)} tokens: entra en cualquier IA.
-        </p>
-        <button type="button" onClick={() => copy(full.text, "Detalle completo")}>
-          Copiar completo
+        <p className="muted small">{t.ai.summaryNote(t.ai.thousands(summary.tokens))}</p>
+        <button type="button" onClick={() => copy(full.text, t.ai.fullName)}>
+          {t.ai.copyFull}
         </button>
-        <p className="muted small">
-          Agrega cada orden de la partida. ≈ {thousands(full.tokens)} tokens: necesita una IA con contexto largo.
-        </p>
+        <p className="muted small">{t.ai.fullNote(t.ai.thousands(full.tokens))}</p>
         <button type="button" onClick={download}>
-          Descargar JSON
+          {t.ai.download}
         </button>
-        <p className="muted small">Todos los datos en crudo, incluido el mapa, para procesarlos con otras herramientas.</p>
+        <p className="muted small">{t.ai.downloadNote}</p>
       </div>
       {notice && (
         <p className="notice" role="status">
@@ -60,8 +53,8 @@ export function AiContextPanel({ data }: { data: ReplayData }) {
         </p>
       )}
       <details className="ai-preview">
-        <summary>Ver el resumen</summary>
-        <textarea readOnly value={summary.text} rows={14} aria-label="Resumen de la partida para IA" />
+        <summary>{t.ai.preview}</summary>
+        <textarea readOnly value={summary.text} rows={14} aria-label={t.ai.previewLabel} />
       </details>
     </div>
   );

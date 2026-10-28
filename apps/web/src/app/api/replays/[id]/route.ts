@@ -7,7 +7,7 @@ import { TOKEN_HEADER, findManagedReplay, findVisibleReplay } from "@/lib/replay
 
 type Context = { params: Promise<{ id: string }> };
 
-const NOT_FOUND = () => apiError(404, "not_found", "El replay no existe, expiró o es privado.");
+const NOT_FOUND = () => apiError(404, "not_found", "The replay does not exist, has expired or is private.");
 
 export async function GET(request: Request, { params }: Context) {
   const { id } = await params;
@@ -32,7 +32,7 @@ export async function PATCH(request: Request, { params }: Context) {
   const replay = await findManagedReplay(id, request.headers.get(TOKEN_HEADER));
   if (!replay) return NOT_FOUND();
   const body = await request.json().catch(() => null);
-  if (typeof body?.isPublic !== "boolean") return apiError(400, "bad_request", "Falta isPublic (true/false).");
+  if (typeof body?.isPublic !== "boolean") return apiError(400, "bad_request", "Missing isPublic (true/false).");
   await db().replay.update({ where: { id }, data: { isPublic: body.isPublic } });
   return NextResponse.json({ id, isPublic: body.isPublic });
 }

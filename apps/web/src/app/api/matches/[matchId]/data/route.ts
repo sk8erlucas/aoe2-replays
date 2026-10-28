@@ -6,7 +6,7 @@ export async function GET(_request: Request, { params }: { params: Promise<{ mat
   return withErrors(async () => {
     const { matchId } = await params;
     const data = isMatchId(matchId) ? await matchData(matchId) : null;
-    if (!data) return apiError(404, "not_found", "Esta partida todavía no fue descargada.");
+    if (!data) return apiError(404, "not_found", "This match has not been downloaded yet.");
     return new Response(Buffer.from(data), {
       headers: {
         "content-type": "application/json",

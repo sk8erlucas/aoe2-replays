@@ -1,0 +1,14 @@
+name: Replay that doesn't load / Replay que no se lee
+description: A replay or online match fails to load or looks wrong / Un replay o partida online falla o se ve mal
+labels: [parser]
+body:
+  - type: input
+    attributes:
+      label: Match id or link / Número de partida o enlace
+    validations: { required: true }
+  - type: input
+    attributes:
+      label: Game version / Versión del juego
+  - type: textarea
+    attributes:
+      label: Error message or what looks wrong / Mensaje de error o qué se ve mal

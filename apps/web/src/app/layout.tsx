@@ -1,42 +1,61 @@
 import type { Metadata } from "next";
 import { Cinzel, Montserrat } from "next/font/google";
+import { cookies, headers } from "next/headers";
 import Link from "next/link";
+import { LanguageSwitcher } from "@/components/LanguageSwitcher";
 import { PlayerSearch } from "@/components/PlayerSearch";
+import { I18nProvider } from "@/i18n/I18nProvider";
+import { MESSAGES, REPO_URL, pickLocale } from "@/i18n/messages";
 import "./globals.css";
 
 // Self-hosted at build time by next/font; both are SIL Open Font License.
 const cinzel = Cinzel({ subsets: ["latin"], weight: ["600", "700"], variable: "--font-cinzel" });
 const montserrat = Montserrat({ subsets: ["latin"], weight: ["400", "500", "600", "700"], variable: "--font-montserrat" });
 
-export const metadata: Metadata = {
-  title: "AoE2 Replays",
-  description: "Visor y análisis de replays de Age of Empires II: Definitive Edition.",
-};
+// The user's choice (cookie) wins over the browser's languages.
+async function currentLocale() {
+  return pickLocale((await cookies()).get("lang")?.value, (await headers()).get("accept-language"));
+}
 
-export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
+export async function generateMetadata(): Promise<Metadata> {
+  const t = MESSAGES[await currentLocale()];
+  return { title: "AoE2 Replays", description: t.meta.description };
+}
+
+export default async function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
+  const locale = await currentLocale();
+  const t = MESSAGES[locale];
+  const rules = "Game Content Usage Rules";
+  const [before, after] = t.footer.notice(rules).split(rules);
   return (
-    <html lang="es" className={`${cinzel.variable} ${montserrat.variable}`}>
+    <html lang={locale} className={`${cinzel.variable} ${montserrat.variable}`}>
       <body>
-        <div className="app">
-          <header className="topbar">
-            <Link href="/" className="brand">
-              AoE2 Replays
-            </Link>
-            <nav className="topnav">
-              <Link href="/#subir">Subir replay</Link>
-            </nav>
-            <PlayerSearch />
-          </header>
-          {children}
-          <footer className="legal">
-            <p>
-              Age of Empires II © Microsoft Corporation. AoE2 Replays se creó bajo las{" "}
-              <a href="https://www.xbox.com/en-US/developers/rules">Game Content Usage Rules</a> de Microsoft usando
-              contenido de Age of Empires II, y no está respaldado ni afiliado a Microsoft.
-            </p>
-            <p>Proyecto de fans, de código abierto (MIT).</p>
-          </footer>
-        </div>
+        <I18nProvider initial={locale}>
+          <div className="app">
+            <header className="topbar">
+              <Link href="/" className="brand">
+                AoE2 Replays
+              </Link>
+              <nav className="topnav">
+                <Link href="/#upload">{t.nav.upload}</Link>
+                <a href={REPO_URL}>GitHub</a>
+              </nav>
+              <PlayerSearch />
+              <LanguageSwitcher />
+            </header>
+            {children}
+            <footer className="legal">
+              <p>
+                {before}
+                <a href="https://www.xbox.com/en-US/developers/rules">{rules}</a>
+                {after}
+              </p>
+              <p>
+                {t.footer.project} <a href={REPO_URL}>{t.footer.source}</a>
+              </p>
+            </footer>
+          </div>
+        </I18nProvider>
       </body>
     </html>
   );

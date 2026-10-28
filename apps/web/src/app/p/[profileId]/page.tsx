@@ -4,6 +4,8 @@ import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useEffect, useState } from "react";
 import { formatTime } from "@aoe2-replays/viewer";
+import { errorText, useI18n } from "@/i18n/I18nProvider";
+import type { Messages } from "@/i18n/messages";
 import type { MatchSummary, Profile } from "@/lib/aoe2companion";
 
 type Load =
@@ -16,15 +18,16 @@ function duration(m: MatchSummary) {
   return new Date(m.finished).getTime() - new Date(m.started).getTime();
 }
 
-function result(m: MatchSummary, profileId: number) {
+function result(t: Messages, m: MatchSummary, profileId: number) {
   const me = m.teams.flatMap((t) => t.players).find((p) => p.profileId === profileId);
   if (!me || me.won == null) return null;
-  return me.won ? "Victoria" : "Derrota";
+  return me.won ? { label: t.profile.win, win: true } : { label: t.profile.loss, win: false };
 }
 
 export default function ProfilePage() {
   const { profileId } = useParams<{ profileId: string }>();
   const id = Number(profileId);
+  const { t } = useI18n();
   const [load, setLoad] = useState<Load>({ kind: "loading" });
 
   useEffect(() => {
@@ -32,8 +35,8 @@ export default function ProfilePage() {
     setLoad({ kind: "loading" });
     fetch(`/api/players/${profileId}`)
       .then(async (res) => {
-        const json = await res.json();
-        if (!res.ok) throw new Error(json?.error?.message ?? `HTTP ${res.status}`);
+        const json = await res.json().catch(() => null);
+        if (!res.ok) throw new Error(errorText(t, json?.error?.code, res.status));
         if (!cancelled) setLoad({ kind: "ready", profile: json.profile, matches: json.matches });
       })
       .catch((err: Error) => {
@@ -42,13 +45,14 @@ export default function ProfilePage() {
     return () => {
       cancelled = true;
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [profileId]);
 
-  if (load.kind === "loading") return <main className="page message-page muted">Buscando al jugador…</main>;
+  if (load.kind === "loading") return <main className="page message-page muted">{t.profile.loading}</main>;
   if (load.kind === "error") {
     return (
       <main className="page message-page">
-        <h1>No pudimos cargar este jugador</h1>
+        <h1>{t.profile.errorTitle}</h1>
         <p className="muted">{load.message}</p>
       </main>
     );
@@ -66,7 +70,7 @@ export default function ProfilePage() {
             {profile.name}
           </h1>
           <p className="muted">
-            {[profile.countryName ?? profile.country?.toUpperCase(), `${profile.games.toLocaleString("es")} partidas`]
+            {[profile.countryName ?? profile.country?.toUpperCase(), t.common.games(profile.games.toLocaleString(t.common.dateLocale))]
               .filter(Boolean)
               .join(" · ")}
           </p>
@@ -74,17 +78,17 @@ export default function ProfilePage() {
 
         {ratings.length > 0 && (
           <section>
-            <h2>Rankings</h2>
+            <h2>{t.profile.rankings}</h2>
             <div className="table-scroll">
               <table className="stats ratings">
                 <thead>
                   <tr>
-                    <th scope="col">Modo</th>
-                    <th scope="col">ELO</th>
-                    <th scope="col">Máximo</th>
-                    <th scope="col">Victorias</th>
-                    <th scope="col">Derrotas</th>
-                    <th scope="col">% victorias</th>
+                    <th scope="col">{t.profile.mode}</th>
+                    <th scope="col">{t.profile.elo}</th>
+                    <th scope="col">{t.profile.max}</th>
+                    <th scope="col">{t.profile.wins}</th>
+                    <th scope="col">{t.profile.losses}</th>
+                    <th scope="col">{t.profile.winRate}</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -105,26 +109,26 @@ export default function ProfilePage() {
         )}
 
         <section>
-          <h2>Partidas recientes</h2>
-          {matches.length === 0 && <p className="muted">No encontramos partidas recientes.</p>}
+          <h2>{t.profile.recent}</h2>
+          {matches.length === 0 && <p className="muted">{t.profile.noMatches}</p>}
           <ul className="match-list">
             {matches.map((m) => {
-              const res = result(m, id);
+              const res = result(t, m, id);
               const ms = duration(m);
               return (
                 <li key={m.matchId} className="match-card">
                   <div className="match-head">
                     <div>
-                      <strong>{m.mapName ?? "Mapa desconocido"}</strong>
+                      <strong>{m.mapName ?? t.common.unknownMap}</strong>
                       <span className="muted">
                         {" "}
-                        · {m.leaderboardName ?? "Partida"}
+                        · {m.leaderboardName ?? t.profile.match}
                         {m.started &&
-                          ` · ${new Date(m.started).toLocaleString("es", { dateStyle: "medium", timeStyle: "short" })}`}
+                          ` · ${new Date(m.started).toLocaleString(t.common.dateLocale, { dateStyle: "medium", timeStyle: "short" })}`}
                         {ms != null && ` · ${formatTime(ms)}`}
                       </span>
                     </div>
-                    {res && <span className={`result ${res === "Victoria" ? "win" : "loss"}`}>{res}</span>}
+                    {res && <span className={`result ${res.win ? "win" : "loss"}`}>{res.label}</span>}
                   </div>
                   <div className="match-teams">
                     {m.teams.map((t, ti) => (
@@ -146,7 +150,7 @@ export default function ProfilePage() {
                   </div>
                   <div className="match-actions">
                     <Link className="button-primary" href={`/m/${m.matchId}?p=${id}`}>
-                      Ver partida
+                      {t.profile.watch}
                     </Link>
                   </div>
                 </li>
@@ -155,8 +159,7 @@ export default function ProfilePage() {
           </ul>
         </section>
         <p className="muted small source-note">
-          Datos de jugadores y partidas: <a href="https://www.aoe2companion.com">aoe2companion</a>. Replays: servicio
-          público de Microsoft.
+          <a href="https://www.aoe2companion.com">aoe2companion</a> · {t.profile.sources}
         </p>
       </div>
     </main>

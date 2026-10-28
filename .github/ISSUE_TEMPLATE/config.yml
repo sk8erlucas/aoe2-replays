@@ -1,0 +1,5 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Security issue / Problema de seguridad
+    url: https://github.com/sk8erlucas/aoe2-replays/security/advisories/new
+    about: Report vulnerabilities privately / Reportá vulnerabilidades en privado

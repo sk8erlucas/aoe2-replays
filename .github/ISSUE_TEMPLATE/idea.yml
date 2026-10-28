@@ -1,0 +1,8 @@
+name: Idea / Idea
+description: Suggest an improvement / Proponé una mejora
+labels: [idea]
+body:
+  - type: textarea
+    attributes:
+      label: What would you like and why? / ¿Qué te gustaría y por qué?
+    validations: { required: true }

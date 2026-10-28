@@ -234,7 +234,7 @@ export class Replay {
       else if (e.type === 'RESIGN') {
         if (!this.resignedAt.has(e.player)) {
           this.resignedAt.set(e.player, e.t);
-          this.log.push({ t: e.t, player: e.player, kind: 'resign', text: 'abandona' });
+          this.log.push({ t: e.t, player: e.player, kind: 'resign' });
         }
         continue;
       } else if (e.type === 'RESEARCH') {
@@ -245,7 +245,7 @@ export class Replay {
           this.ageUps.set(e.player, list);
         }
         const tech = this.legend.technologies?.[e.technology_id] ?? `tech #${e.technology_id}`;
-        this.log.push({ t: e.t, player: e.player, kind: 'research', text: `investiga ${tech}` });
+        this.log.push({ t: e.t, player: e.player, kind: 'research', name: tech });
       }
 
       if (MOVING_COMMANDS.has(e.type) && e.x != null) {
@@ -299,7 +299,7 @@ export class Replay {
   #queue(e, ids) {
     const building = this.buildingById.get(ids[0]) ?? this.#bindBuilding(ids[0], e.player, e.unit_id, e.t);
     const name = this.objectName(e.unit_id);
-    this.log.push({ t: e.t, player: e.player, kind: 'queue', text: `entrena ${e.amount}× ${name}` });
+    this.log.push({ t: e.t, player: e.player, kind: 'queue', name, amount: e.amount });
     if (!building) return;
     const trains = this.game?.units?.[e.unit_id]?.train;
     const gameTime = trains?.find(([at]) => at === building.typeId || at === SAME_BUILDING[building.typeId])?.[1];
@@ -319,7 +319,7 @@ export class Replay {
 
   #build(e) {
     const building = this.#addBuilding({ player: e.player, typeId: e.building_id, x: e.x, y: e.y, t: e.t });
-    this.log.push({ t: e.t, player: e.player, kind: 'build', text: `construye ${this.objectName(e.building_id)}` });
+    this.log.push({ t: e.t, player: e.player, kind: 'build', name: this.objectName(e.building_id) });
     return building;
   }
 
@@ -334,7 +334,7 @@ export class Replay {
         t: e.t,
       });
     }
-    this.log.push({ t: e.t, player: e.player, kind: 'build', text: `construye ${this.objectName(e.building_id)} (${steps + 1} tramos)` });
+    this.log.push({ t: e.t, player: e.player, kind: 'build', name: this.objectName(e.building_id), segments: steps + 1 });
     return last;
   }
 

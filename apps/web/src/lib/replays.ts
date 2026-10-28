@@ -12,9 +12,17 @@ export const TOKEN_HEADER = "x-manage-token";
 const randomId = () => randomBytes(16).toString("base64url");
 const sha256 = (value: string) => createHash("sha256").update(value).digest("hex");
 
+// The client can write any X-Forwarded-For it wants, so only trust what the
+// reverse proxy (Traefik) adds: X-Real-IP, or the last X-Forwarded-For entry.
+export function clientIp(request: Request): string | null {
+  const real = request.headers.get("x-real-ip")?.trim();
+  if (real) return real;
+  const forwarded = request.headers.get("x-forwarded-for")?.split(",").at(-1)?.trim();
+  return forwarded || null;
+}
+
 export function hashIp(request: Request): string | null {
-  const forwarded = request.headers.get("x-forwarded-for")?.split(",")[0]?.trim();
-  const ip = forwarded || request.headers.get("x-real-ip");
+  const ip = clientIp(request);
   if (!ip) return null;
   const secret = process.env.IP_HASH_SECRET ?? "dev-only-secret";
   return createHmac("sha256", secret).update(ip).digest("hex");

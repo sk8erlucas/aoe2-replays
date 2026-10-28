@@ -3,8 +3,7 @@
 import { useMemo, useState } from "react";
 import type { Player, ReplayData } from "@aoe2-replays/shared";
 import { AGES, PLAYER_COLORS, analyze, formatTime, type PlayerAnalysis } from "@aoe2-replays/viewer";
-
-const KIND_LABEL = { build: "construye", queue: "entrena", research: "investiga", age: "avanza a" } as const;
+import { useI18n } from "@/i18n/I18nProvider";
 
 function ActivityChart({
   player,
@@ -17,6 +16,7 @@ function ActivityChart({
   bucketMs: number;
   max: number;
 }) {
+  const { t } = useI18n();
   const [hover, setHover] = useState<number | null>(null);
   const n = stats.activity.length;
   const h = 28;
@@ -31,8 +31,8 @@ function ActivityChart({
         </span>
         <span className="muted small">
           {hover == null
-            ? `${stats.actions} acciones`
-            : `${formatTime(hover * bucketMs)}–${formatTime((hover + 1) * bucketMs)} · ${hovered} acciones`}
+            ? t.analysis.actions(stats.actions)
+            : `${formatTime(hover * bucketMs)}–${formatTime((hover + 1) * bucketMs)} · ${t.analysis.actions(hovered ?? 0)}`}
         </span>
       </div>
       <svg
@@ -40,7 +40,7 @@ function ActivityChart({
         viewBox={`0 0 ${n * 10} ${h}`}
         preserveAspectRatio="none"
         role="img"
-        aria-label={`Acciones de ${player.name} cada ${bucketMs / 1000} segundos`}
+        aria-label={t.analysis.actionsLabel(player.name, bucketMs / 1000)}
         onMouseLeave={() => setHover(null)}
       >
         {stats.activity.map((count, i) => {
@@ -68,6 +68,7 @@ function ActivityChart({
 }
 
 export function AnalysisPanel({ data, onSeek }: { data: ReplayData; onSeek: (ms: number) => void }) {
+  const { t } = useI18n();
   const analysis = useMemo(() => analyze(data), [data]);
   const players = useMemo(
     () => [...data.game.players].sort((a, b) => a.team_id - b.team_id || a.number - b.number),
@@ -90,13 +91,13 @@ export function AnalysisPanel({ data, onSeek }: { data: ReplayData; onSeek: (ms:
         </colgroup>
         <thead>
           <tr>
-            <th scope="col">Jugador</th>
-            <th scope="col" title="Acciones por minuto mientras jugó">
+            <th scope="col">{t.analysis.player}</th>
+            <th scope="col" title={t.analysis.apmTitle}>
               APM
             </th>
             {AGES.map((a) => (
-              <th key={a.key} scope="col" title={`Clic en ${a.label} (llegada estimada en el tooltip)`}>
-                {a.label}
+              <th key={a.key} scope="col" title={t.analysis.ageTitle(t.analysis.ages[a.key])}>
+                {t.analysis.ages[a.key]}
               </th>
             ))}
           </tr>
@@ -114,7 +115,7 @@ export function AnalysisPanel({ data, onSeek }: { data: ReplayData; onSeek: (ms:
                 {AGES.map((a) => {
                   const up = s?.ageUps.find((u) => u.key === a.key);
                   return (
-                    <td key={a.key} title={up ? `Llegada estimada: ${formatTime(up.reachedAt)}` : undefined}>
+                    <td key={a.key} title={up ? t.analysis.reached(formatTime(up.reachedAt)) : undefined}>
                       {up ? formatTime(up.clickedAt) : "—"}
                     </td>
                   );
@@ -125,15 +126,15 @@ export function AnalysisPanel({ data, onSeek }: { data: ReplayData; onSeek: (ms:
         </tbody>
       </table>
 
-      <h2>Actividad</h2>
-      <p className="muted small">Acciones cada {analysis.bucketMs / 1000} s, misma escala para todos.</p>
+      <h2>{t.analysis.activity}</h2>
+      <p className="muted small">{t.analysis.activityNote(analysis.bucketMs / 1000)}</p>
       {players.map((p) => {
         const s = byNumber.get(p.number);
         return s ? <ActivityChart key={p.number} player={p} stats={s} bucketMs={analysis.bucketMs} max={max} /> : null;
       })}
 
-      <h2>Build order</h2>
-      <select value={selected} onChange={(e) => setSelected(Number(e.target.value))} aria-label="Jugador">
+      <h2>{t.analysis.buildOrder}</h2>
+      <select value={selected} onChange={(e) => setSelected(Number(e.target.value))} aria-label={t.analysis.player}>
         {players.map((p) => (
           <option key={p.number} value={p.number}>
             {p.name}
@@ -142,28 +143,25 @@ export function AnalysisPanel({ data, onSeek }: { data: ReplayData; onSeek: (ms:
       </select>
       {selectedStats && selectedStats.trained.length > 0 && (
         <p className="muted small">
-          Encolado: {selectedStats.trained.map((t) => `${t.amount}× ${t.name}`).join(", ")}
+          {t.analysis.queued} {selectedStats.trained.map((t) => `${t.amount}× ${t.name}`).join(", ")}
         </p>
       )}
       <ol className="log build-order">
-        {selectedStats?.buildOrder.length === 0 && <li className="muted">Sin construcciones ni investigaciones.</li>}
+        {selectedStats?.buildOrder.length === 0 && <li className="muted">{t.analysis.nothing}</li>}
         {selectedStats?.buildOrder.map((b, i) => (
           <li key={i}>
-            <button type="button" className="time link" onClick={() => onSeek(b.t)} title="Ir a este momento">
+            <button type="button" className="time link" onClick={() => onSeek(b.t)} title={t.analysis.seek}>
               {formatTime(b.t)}
             </button>
             <span className={b.kind}>
-              {KIND_LABEL[b.kind]} {b.amount && b.amount > 1 ? `${b.amount}× ` : ""}
+              {t.analysis.kinds[b.kind]} {b.amount && b.amount > 1 ? `${b.amount}× ` : ""}
               {b.name}
             </span>
           </li>
         ))}
       </ol>
 
-      <p className="muted small footnote">
-        Exacto: cuándo se dio cada orden. Estimado: la llegada a cada edad (clic + tiempo de investigación). APM excluye
-        comandos automáticos y se calcula hasta que el jugador abandona.
-      </p>
+      <p className="muted small footnote">{t.analysis.footnote}</p>
     </div>
   );
 }
