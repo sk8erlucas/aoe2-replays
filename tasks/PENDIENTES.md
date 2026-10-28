@@ -2,6 +2,9 @@
 
 Separados entre lo que necesita una decisión o acción tuya y lo que se puede avanzar sin vos.
 
+## Prioridad: abrir el repo
+Antes de seguir con funciones grandes: revisión de seguridad, límites, limpieza del historial y preparación para colaboradores, y recién ahí hacer público el repo con los links cruzados web ↔ repo. Plan completo en [11-apertura-publica](./11-apertura-publica.md).
+
 ## Manual (necesita tu decisión o acción)
 | Tema | Qué hace falta | Bloquea |
 |---|---|---|
