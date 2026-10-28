@@ -118,7 +118,7 @@ test('focus follows the last positioned order of a player', () => {
   assert.equal(r.latestFocus(6000).t, 5000);
 });
 
-function forest(timeline, extraObjects = []) {
+function forest(timeline, extraObjects = [], extraLegend = {}) {
   return new Replay({
     game: {
       duration_ms: 1_000_000,
@@ -140,6 +140,7 @@ function forest(timeline, extraObjects = []) {
         109: { name: 'Town Center', category: 'building' },
         83: { name: 'Villager', category: 'unit' },
         349: { name: 'Tree', category: 'tree' },
+        ...extraLegend,
       },
       technologies: {},
     },
@@ -230,4 +231,24 @@ test('activity moves to the next tree when one runs out', () => {
   const v = r.unitById.get(101);
   const firstDone = r.resources.find((x) => x.id === 200).depletedAt;
   assert.equal(v.activityAt(firstDone + 1000), 'tree');
+});
+
+test('farm builders keep farming until their next order', () => {
+  const r = forest([
+    { t: 0, type: 'BUILD', player: 1, building_id: 50, object_ids: [101], x: 22, y: 22 },
+    { t: 300_000, type: 'MOVE', player: 1, object_ids: [101], x: 5, y: 5 },
+  ], [], { 50: { name: 'Farm', category: 'building' } });
+  const v = r.unitById.get(101);
+  assert.equal(v.activityAt(10_000), 'build');
+  assert.equal(v.activityAt(100_000), 'farm');
+  assert.equal(v.activityAt(310_000), null);
+});
+
+test('an order before the farm is done cancels the farming that would follow', () => {
+  const r = forest([
+    { t: 0, type: 'BUILD', player: 1, building_id: 50, object_ids: [101], x: 22, y: 22 },
+    { t: 5_000, type: 'MOVE', player: 1, object_ids: [101], x: 5, y: 5 },
+  ], [], { 50: { name: 'Farm', category: 'building' } });
+  const v = r.unitById.get(101);
+  assert.equal(v.activityAt(100_000), null);
 });

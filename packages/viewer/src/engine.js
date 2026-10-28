@@ -52,7 +52,14 @@ export class Unit {
     this.activities.push({ t0: t, t1: until, kind });
   }
 
+  /** Activity after the current one, e.g. farming once the farm is built. */
+  queueActivity(t0, kind, until = Infinity) {
+    this.activities.push({ t0, t1: until, kind });
+  }
+
+  // Ends whatever runs at t and drops anything queued to start later.
   stopActivity(t) {
+    while (this.activities.length && this.activities[this.activities.length - 1].t0 >= t) this.activities.pop();
     const last = this.activities[this.activities.length - 1];
     if (last && last.t1 > t) last.t1 = t;
   }
@@ -259,8 +266,13 @@ export class Replay {
             }
             const [ox, oy] = formationOffset(i);
             unit.moveTo(e.t, e.x + ox, e.y + oy);
-            // Builders work until the building is done (or a new order comes).
-            if (built) unit.startActivity(e.t, 'build', built.t + built.buildTime);
+            // Builders work until the building is done (or a new order comes);
+            // whoever builds a farm then farms it, like in the game.
+            if (built) {
+              const done = built.t + built.buildTime;
+              unit.startActivity(e.t, 'build', done);
+              if (this.objectName(built.typeId) === 'Farm') unit.queueActivity(done, 'farm');
+            }
           });
       }
     }

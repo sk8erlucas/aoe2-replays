@@ -11,7 +11,9 @@ const ELEVATION_UNITS = 0.25; // height of one elevation level
 // Unit class (game data) -> a common unit whose sprite stands in for units
 // without their own, such as civilization unique units.
 // What a villager is doing (engine activity) -> job animation in the sprites.
-const VILLAGER_JOBS = { tree: 'lumberjack', gold: 'miner_gold', stone: 'miner_stone', berries: 'forager', build: 'builder' };
+const VILLAGER_JOBS = {
+  tree: 'lumberjack', gold: 'miner_gold', stone: 'miner_stone', berries: 'forager', build: 'builder', farm: 'farmer',
+};
 const VILLAGER_TYPES = new Set([83, 293]);
 
 const CLASS_STAND_IN = {
@@ -290,7 +292,9 @@ export class Renderer {
     for (const it of state.buildings) {
       const bd = it.building;
       if (!inView(bd.x, bd.y)) continue;
-      items.push({ depth: bd.x + bd.y + bd.size / 2, draw: () => this.#drawBuilding(bd, it.progress, state) });
+      // Farms lie flat on the ground: under everything that stands on them.
+      const flat = this.replay.objectName(bd.typeId) === 'Farm';
+      items.push({ depth: flat ? -Infinity : bd.x + bd.y + bd.size / 2, draw: () => this.#drawBuilding(bd, it.progress, state) });
     }
     for (const u of state.units) {
       if (!inView(u.x, u.y)) continue;
