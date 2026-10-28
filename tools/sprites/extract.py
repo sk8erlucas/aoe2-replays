@@ -11,6 +11,7 @@ graphics, and gaia objects. Art is Microsoft's, used under the Game Content
 Usage Rules (see docs/LEGAL.md).
 """
 import argparse
+import hashlib
 import json
 import os
 import pickle
@@ -142,6 +143,19 @@ class Collector:
         return img, mimg, (f.hotspot_x - x0) * self.scale, (f.hotspot_y - y0) * self.scale
 
 
+def save_hashed(img, out_dir: Path, name: str, quality: int) -> str:
+    """Saves a WebP named after its content, so browsers never mix old and new atlases."""
+    tmp = out_dir / f'{name}.tmp.webp'
+    img.save(tmp, 'WEBP', quality=quality, method=6)
+    digest = hashlib.sha1(tmp.read_bytes()).hexdigest()[:10]
+    final = f'{name}.{digest}.webp'
+    tmp.replace(out_dir / final)
+    return final
+
+
+PAGE_FILES = {}  # page name -> [base file, mask file or None]
+
+
 def pack(frames, keys, out_dir: Path, group: str):
     """Shelf-packs frames into atlas pages; returns {key: entry}."""
     items = sorted(keys, key=lambda k: -frames[k][0].height)
@@ -175,9 +189,10 @@ def pack(frames, keys, out_dir: Path, group: str):
                 has_mask = True
             entries[k] = {'p': name, 'x': px, 'y': py, 'w': img.width, 'h': img.height,
                           'ax': round(ax, 1), 'ay': round(ay, 1), 'm': 1 if mimg is not None else 0}
-        base.save(out_dir / f'{name}.webp', 'WEBP', quality=82, method=6)
-        if has_mask:
-            mask.save(out_dir / f'{name}-mask.webp', 'WEBP', quality=85, method=6)
+        PAGE_FILES[name] = [
+            save_hashed(base, out_dir, name, 82),
+            save_hashed(mask, out_dir, f'{name}-mask', 85) if has_mask else None,
+        ]
     return entries
 
 
@@ -200,6 +215,8 @@ def main():
     ap.add_argument('--scale', type=float, default=0.75, help='64 px tiles at 0.75')
     args = ap.parse_args()
     args.out.mkdir(parents=True, exist_ok=True)
+    for old in args.out.glob('*.webp'):  # previous atlases (hashed names change)
+        old.unlink()
     dat = load_dat(args.game, Path(__file__).with_name('.dat-cache.pkl'))
     col = Collector(args.game / 'resources/_common/drs/graphics', args.scale)
     upgrades = age_upgrades(dat)
@@ -414,7 +431,8 @@ def main():
         'version': 2,
         'scale': args.scale,
         'tilePx': TILE_PX * args.scale,
-        'pages': pages,
+        # [base file, mask file or null] per page; names carry a content hash.
+        'pages': [PAGE_FILES[name] for name in pages],
         # [page, x, y, w, h, anchor x, anchor y, has player mask]
         'frames': frames,
         'civs': {cid: {'name': c['name'], 'buildings': ref(c['buildings']), 'units': ref(c['units'])}

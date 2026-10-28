@@ -31,7 +31,7 @@ type Tooltip = { x: number; y: number; text: string } | null;
 // Unit train locations, speeds and build times from the game (tools/sprites).
 let gameDataPromise: Promise<GameData | null> | null = null;
 function loadGameData() {
-  gameDataPromise ??= fetch("/sprites/game-data.json")
+  gameDataPromise ??= fetch("/sprites/game-data.json", { cache: "no-cache" })
     .then((res) => (res.ok ? (res.json() as Promise<GameData>) : null))
     .catch(() => null);
   return gameDataPromise;

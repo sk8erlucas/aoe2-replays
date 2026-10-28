@@ -8,7 +8,7 @@ import { SpriteSet } from '../../../packages/viewer/src/sprites.js';
 
 // Game sprites made by tools/sprites; without them the viewer draws plain shapes.
 const spritesReady = SpriteSet.load('../web/public/sprites').catch(() => null);
-const gameDataReady = fetch('../web/public/sprites/game-data.json')
+const gameDataReady = fetch('../web/public/sprites/game-data.json', { cache: 'no-cache' })
   .then((res) => (res.ok ? res.json() : null))
   .catch(() => null);
 

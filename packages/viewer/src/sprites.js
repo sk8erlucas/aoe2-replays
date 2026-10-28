@@ -8,7 +8,8 @@ const BUILDING_ALIASES = { 621: 109 };
 
 export class SpriteSet {
   static async load(baseUrl) {
-    const res = await fetch(`${baseUrl}/manifest.json`);
+    // Revalidate every time: atlas names carry a content hash, the manifest does not.
+    const res = await fetch(`${baseUrl}/manifest.json`, { cache: 'no-cache' });
     if (!res.ok) throw new Error(`sprites manifest: HTTP ${res.status}`);
     return new SpriteSet(await res.json(), baseUrl);
   }
@@ -23,24 +24,26 @@ export class SpriteSet {
   }
 
   // Each image (base, mask) is requested the first time a frame needs it.
-  #page(name, withMask) {
-    let page = this.pages.get(name);
+  // `files` is [base file, mask file or null], named with a content hash.
+  #page(index, withMask) {
+    let page = this.pages.get(index);
     if (!page) {
       page = { base: null, mask: null, requested: new Set() };
-      this.pages.set(name, page);
+      this.pages.set(index, page);
     }
-    const load = (suffix, slot) => {
-      if (page.requested.has(slot)) return;
+    const [baseFile, maskFile] = this.m.pages[index];
+    const load = (file, slot) => {
+      if (!file || page.requested.has(slot)) return;
       page.requested.add(slot);
       const img = new Image();
       img.onload = () => {
         page[slot] = img;
         this.onLoad?.();
       };
-      img.src = `${this.base}/${name}${suffix}.webp`;
+      img.src = `${this.base}/${file}`;
     };
-    load('', 'base');
-    if (withMask) load('-mask', 'mask');
+    load(baseFile, 'base');
+    if (withMask) load(maskFile, 'mask');
     return page;
   }
 
@@ -49,7 +52,7 @@ export class SpriteSet {
     const f = this.m.frames[key];
     if (!f) return null;
     const [p, x, y, w, h, ax, ay, m] = f;
-    const page = this.#page(this.m.pages[p], m === 1);
+    const page = this.#page(p, m === 1);
     if (!page.base || (m === 1 && !page.mask)) return null;
     return { x, y, w, h, ax, ay, image: page.base, mask: m === 1 ? page.mask : null };
   }
