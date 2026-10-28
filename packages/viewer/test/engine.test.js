@@ -210,3 +210,24 @@ test('units queued in a building built during the game come out of it (with game
   assert.equal(knight.speed, 1.35);
   assert.equal(knight.spawnT, 130_000);
 });
+
+test('villager activity: chopping until a new order, building until done', () => {
+  const r = forest([
+    { t: 0, type: 'ORDER', player: 1, object_ids: [101], target_id: 200, x: 20, y: 21 },
+    { t: 50_000, type: 'BUILD', player: 1, building_id: 70, object_ids: [101], x: 25, y: 25 },
+    { t: 200_000, type: 'MOVE', player: 1, object_ids: [101], x: 5, y: 5 },
+  ]);
+  const v = r.unitById.get(101);
+  assert.equal(v.activityAt(10_000), 'tree');
+  assert.equal(v.activityAt(60_000), 'build');
+  // House: 40 s default build time in this legend-less test, so done at 90 s.
+  assert.equal(v.activityAt(100_000), null);
+  assert.equal(v.activityAt(250_000), null);
+});
+
+test('activity moves to the next tree when one runs out', () => {
+  const r = forest([{ t: 0, type: 'ORDER', player: 1, object_ids: [101], target_id: 200, x: 20, y: 21 }]);
+  const v = r.unitById.get(101);
+  const firstDone = r.resources.find((x) => x.id === 200).depletedAt;
+  assert.equal(v.activityAt(firstDone + 1000), 'tree');
+});

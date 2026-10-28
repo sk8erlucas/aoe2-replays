@@ -87,6 +87,11 @@ export class SpriteSet {
     return this.m.civs[civId]?.units?.[typeId] ?? null;
   }
 
+  /** Villager job animations: { task: [[keys per angle]], walk: [[keys per angle]] }. */
+  villager(sex, role) {
+    return this.m.villagers?.[sex]?.[role] ?? null;
+  }
+
   /** Keys for a gaia object (tree variants, animal angles, a mine). */
   gaia(typeId) {
     return this.m.gaia[typeId] ?? null;

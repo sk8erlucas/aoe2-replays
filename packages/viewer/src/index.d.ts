@@ -14,6 +14,8 @@ export class Unit {
   spawnT: number;
   approx: boolean;
   positionAt(t: number): { x: number; y: number; moving: boolean; target: { x: number; y: number } | null };
+  /** What the unit is doing at t: a resource category ('tree', 'gold', 'stone', 'berries'), 'build', or null. Estimated. */
+  activityAt(t: number): string | null;
 }
 
 export interface Building {

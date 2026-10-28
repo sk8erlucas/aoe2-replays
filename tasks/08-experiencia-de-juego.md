@@ -30,12 +30,13 @@ Elegido: **B1** con un subconjunto (edificios y unidades principales, por arquit
 - [x] Elegir B1 (servidos) o B2 (instalación del usuario): **B1**
 - [x] Extractor (`tools/sprites`, Python): leer los `.sld` de `resources/_common/drs/graphics` (la instalación de desarrollo tiene 7.797 archivos, 8,5 GB), decodificar sus capas (color DXT1, sombra, máscara de color de jugador) y exportar cuadros
 - [x] Subconjunto inicial: 19 edificios por civilización y edad (incluido el centro urbano por partes), aldeanos, explorador y unidades comunes (quietos y caminando), árboles, minas, arbustos, reliquias y animales
-- [ ] Más unidades militares, barcos, monjes y unidades únicas; animaciones de trabajo (talar, minar, construir) y ataque
+- [x] Animaciones de trabajo de los aldeanos: talar, minar oro y piedra, recolectar bayas y construir (y caminar con la herramienta), según la actividad que estima el motor
+- [ ] Animaciones de granjero (las granjas no se siguen todavía), cazador (la caza no se simula) y de ataque
 - [x] Generar atlas WebP + JSON (cuadros, anclas, 8 direcciones) en `apps/web/public/sprites/`, registrados en `CREDITS.md`
 - [x] Teñir con el color del jugador usando la máscara (en el navegador, por color)
 - [x] Cargar los atlas en `render.js` (`SpriteSet`, carga por página) con las formas actuales como respaldo
 - [ ] Muros con su orientación, puertas, edificios destruidos y escombros
-- [ ] Edificios que faltan en algunas civilizaciones (por ejemplo la herrería de los tártaros), trampas de peces, puertas y edificios únicos
+- [x] Todos los edificios construibles del juego (puertas, trampas de peces, edificios únicos); los gráficos contenedores incluyen su propio gráfico (arreglaba la herrería de varias civilizaciones)
 - [ ] Granjas: usan otro formato de gráfico (no SLD); hoy se dibujan planas
 - [x] Unidades militares: el motor vincula los edificios construidos durante la partida con los IDs que usan las colas (según dónde se entrena cada unidad, del archivo de datos del juego), así las unidades salen del edificio correcto con su tipo, tiempo de entrenamiento y velocidad reales
 - [x] Líneas militares completas, asedio, monjes y barcos en los sprites; las unidades únicas usan el sprite de una unidad común de su clase

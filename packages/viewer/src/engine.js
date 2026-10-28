@@ -42,6 +42,27 @@ export class Unit {
     // Each segment starts at t0 in (x0, y0) and walks to (x1, y1).
     this.path = [{ t0: t, x0: x, y0: y, x1: x, y1: y, speed: DEFAULT_SPEED }];
     this.speed = DEFAULT_SPEED;
+    // What the unit is doing over time: { t0, t1, kind } with kind a resource
+    // category (tree, gold, stone, berries) or 'build'. Chronological.
+    this.activities = [];
+  }
+
+  startActivity(t, kind, until = Infinity) {
+    this.stopActivity(t);
+    this.activities.push({ t0: t, t1: until, kind });
+  }
+
+  stopActivity(t) {
+    const last = this.activities[this.activities.length - 1];
+    if (last && last.t1 > t) last.t1 = t;
+  }
+
+  activityAt(t) {
+    for (let i = this.activities.length - 1; i >= 0; i--) {
+      const a = this.activities[i];
+      if (a.t0 <= t) return a.t1 > t ? a.kind : null;
+    }
+    return null;
   }
 
   segmentAt(t) {
@@ -192,16 +213,17 @@ export class Replay {
       // Any new command for a unit interrupts what it was gathering.
       for (const id of ids) {
         const unit = this.unitById.get(id);
-        if (unit) this.#stopGathering(unit);
+        if (unit) this.#stopGathering(unit, e.t);
       }
       if (e.type === 'GATHER_POINT') {
         const building = this.buildingById.get(ids[0]);
         if (building) building.rally = this.resourceById.get(e.target_id) ?? null;
       }
 
+      let built = null;
       if (e.type === 'DE_QUEUE') this.#queue(e, ids);
-      else if (e.type === 'BUILD') this.#build(e);
-      else if (e.type === 'WALL') this.#wall(e);
+      else if (e.type === 'BUILD') built = this.#build(e);
+      else if (e.type === 'WALL') built = this.#wall(e);
       else if (e.type === 'RESIGN') {
         if (!this.resignedAt.has(e.player)) {
           this.resignedAt.set(e.player, e.t);
@@ -230,12 +252,15 @@ export class Replay {
             const target = e.type === 'ORDER' ? this.resourceById.get(e.target_id) : null;
             if (target) {
               unit.moveTo(e.t, target.x, target.y);
-              this.#stopGathering(unit);
+              this.#stopGathering(unit, e.t);
               this.gatherers.set(unit, target);
+              unit.startActivity(e.t, target.category);
               return;
             }
             const [ox, oy] = formationOffset(i);
             unit.moveTo(e.t, e.x + ox, e.y + oy);
+            // Builders work until the building is done (or a new order comes).
+            if (built) unit.startActivity(e.t, 'build', built.t + built.buildTime);
           });
       }
     }
@@ -281,28 +306,32 @@ export class Replay {
   }
 
   #build(e) {
-    this.#addBuilding({ player: e.player, typeId: e.building_id, x: e.x, y: e.y, t: e.t });
+    const building = this.#addBuilding({ player: e.player, typeId: e.building_id, x: e.x, y: e.y, t: e.t });
     this.log.push({ t: e.t, player: e.player, kind: 'build', text: `construye ${this.objectName(e.building_id)}` });
+    return building;
   }
 
   #wall(e) {
     const steps = Math.max(Math.abs(e.x_end - e.x), Math.abs(e.y_end - e.y));
+    let last = null;
     for (let i = 0; i <= steps; i++) {
       const k = steps === 0 ? 0 : i / steps;
-      this.#addBuilding({
+      last = this.#addBuilding({
         player: e.player, typeId: e.building_id,
         x: Math.round(e.x + (e.x_end - e.x) * k), y: Math.round(e.y + (e.y_end - e.y) * k),
         t: e.t,
       });
     }
     this.log.push({ t: e.t, player: e.player, kind: 'build', text: `construye ${this.objectName(e.building_id)} (${steps + 1} tramos)` });
+    return last;
   }
 
   #cellKey(x, y) {
     return `${Math.floor(x / GRID_CELL)},${Math.floor(y / GRID_CELL)}`;
   }
 
-  #stopGathering(unit) {
+  #stopGathering(unit, t) {
+    if (t != null) unit.stopActivity(t);
     this.gatherers.delete(unit);
     this.pendingGatherers = this.pendingGatherers.filter((g) => g.unit !== unit);
   }
@@ -341,12 +370,14 @@ export class Replay {
         for (const g of ready) {
           g.unit.moveTo(now, g.resource.x, g.resource.y);
           this.gatherers.set(g.unit, g.resource);
+          g.unit.startActivity(now, g.resource.category);
         }
       }
       for (const [unit, resource] of this.gatherers) {
         const resigned = this.resignedAt.get(unit.player);
         if (resigned != null && resigned <= now) {
           this.gatherers.delete(unit);
+          unit.stopActivity(now);
           continue;
         }
         if (resource.remaining <= 0) {
@@ -354,8 +385,10 @@ export class Replay {
           if (next) {
             this.gatherers.set(unit, next);
             unit.moveTo(now, next.x, next.y);
+            unit.startActivity(now, next.category);
           } else {
             this.gatherers.delete(unit);
+            unit.stopActivity(now);
           }
           continue;
         }

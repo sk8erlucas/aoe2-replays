@@ -44,6 +44,17 @@ UNITS = [
 WALK_FRAMES = 6  # frames kept per direction of a walk cycle
 ANGLES_KEPT = 16
 TREE_VARIANTS = 4
+TASK_FRAMES = 5  # frames kept per direction of a work animation
+# Villager jobs: role -> graphic name part. Stone miners reuse the gold miner's work animation.
+VILLAGER_ROLES = {
+    'lumberjack': 'lumberjack',
+    'miner_gold': 'miner_gold',
+    'miner_stone': 'miner_gold',
+    'forager': 'forager',
+    'farmer': 'farmer',
+    'builder': 'builder',
+    'hunter': 'hunter',
+}
 
 
 def load_dat(game: Path, cache: Path):
@@ -207,22 +218,30 @@ def main():
         g = graphic(dat, gid)
         if not g:
             return []
-        subs = [(graphic(dat, d.graphic_id), d.offset_x, d.offset_y) for d in g.deltas if d.graphic_id >= 0]
-        subs = [(sg.file_name, ox, oy) for sg, ox, oy in subs if sg and sg.file_name and 'flag' not in sg.file_name]
-        if subs:
-            return subs
-        return [(g.file_name, 0, 0)] if g.file_name else []
+        if not g.deltas:
+            return [(g.file_name, 0, 0)] if g.file_name else []
+        # A delta of -1 means the graphic itself; the others are sub-graphics
+        # (wall pieces, smoke...). Flags are left out.
+        subs = [(g if d.graphic_id < 0 else graphic(dat, d.graphic_id), d.offset_x, d.offset_y) for d in g.deltas]
+        return [(sg.file_name, ox, oy) for sg, ox, oy in subs if sg and sg.file_name and 'flag' not in sg.file_name]
 
     def stem_of(gid):
         g = graphic(dat, gid)
         return g.file_name if g and g.file_name else None
+
+    buildable = {
+        u.id for c in dat.civs[1:] for u in c.units
+        if u is not None and u.type == 80 and u.creatable and any(t.unit_id >= 0 for t in u.creatable.train_locations)
+    }
+    building_ids = sorted(set(BUILDINGS) | buildable)
+    print(f'{len(building_ids)} building types', flush=True)
 
     civs = {}
     for civ_id, civ in enumerate(dat.civs):
         if civ_id == 0:
             continue
         buildings = {}
-        for bid in BUILDINGS:
+        for bid in building_ids:
             ages = {}
             base = civ.units[bid] if bid < len(civ.units) else None
             annexes = [(a.unit_id, a.misplacement_x, a.misplacement_y)
@@ -271,6 +290,31 @@ def main():
                 units[uid] = entry
         civs[civ_id] = {'name': civ.name, 'buildings': buildings, 'units': units}
 
+    # Villager jobs: work and walk-with-tool animations, by sex and role.
+    by_name = {g.file_name: g for g in dat.graphics if g and g.file_name}
+
+    def animation(stem, frames_kept):
+        g = by_name.get(stem)
+        if not g:
+            return None
+        fc, ac = max(1, g.frame_count), max(1, g.angle_count)
+        step = max(1, fc // frames_kept)
+        keys = [[col.add(stem, a * fc + f) for f in range(0, fc, step)][:frames_kept] for a in range(ac)]
+        return keys if all(all(k) for k in keys) else None
+
+    villagers = {}
+    for sex in ('male', 'female'):
+        for role, part in VILLAGER_ROLES.items():
+            entry = {}
+            task = animation(f'u_vil_{sex}_{part}_taskA_x1', TASK_FRAMES)
+            walk = animation(f'u_vil_{sex}_{part}_walkA_x1', WALK_FRAMES)
+            if task:
+                entry['task'] = task
+            if walk:
+                entry['walk'] = walk
+            if entry:
+                villagers.setdefault(sex, {})[role] = entry
+
     # Gaia: trees, mines, bushes, relics and animals, by unit id.
     gaia = {}
     for uid, unit in enumerate(dat.civs[0].units):
@@ -311,6 +355,13 @@ def main():
                 del entry['walk']
             if not entry:
                 del civ['units'][uid]
+    for roles in villagers.values():
+        for role, entry in list(roles.items()):
+            for kind in list(entry):
+                if not all(k in ok for frames in entry[kind] for k in frames):
+                    del entry[kind]
+            if not entry:
+                del roles[role]
     for uid in list(gaia):
         gaia[uid] = [k for k in gaia[uid] if k in ok]
         if not gaia[uid]:
@@ -369,6 +420,7 @@ def main():
         'civs': {cid: {'name': c['name'], 'buildings': ref(c['buildings']), 'units': ref(c['units'])}
                  for cid, c in civs.items()},
         'gaia': ref(gaia),
+        'villagers': ref(villagers),
     }
     (args.out / 'manifest.json').write_text(json.dumps(manifest, separators=(',', ':')), encoding='utf-8')
     total = sum(f.stat().st_size for f in args.out.iterdir())

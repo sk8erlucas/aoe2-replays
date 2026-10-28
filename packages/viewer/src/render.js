@@ -10,6 +10,10 @@ import { ANIMAL_COLOR, PLAYER_COLORS, RESOURCE_COLORS, TERRAIN_COLORS } from './
 const ELEVATION_UNITS = 0.25; // height of one elevation level
 // Unit class (game data) -> a common unit whose sprite stands in for units
 // without their own, such as civilization unique units.
+// What a villager is doing (engine activity) -> job animation in the sprites.
+const VILLAGER_JOBS = { tree: 'lumberjack', gold: 'miner_gold', stone: 'miner_stone', berries: 'forager', build: 'builder' };
+const VILLAGER_TYPES = new Set([83, 293]);
+
 const CLASS_STAND_IN = {
   0: 4, // archer
   4: 83, // civilian
@@ -586,6 +590,16 @@ export class Renderer {
       if (keys?.length) ok = this.#blit(keys[this.#angleIndex(unit, { t: state.t }, keys.length)], sx, sy, null);
     } else {
       const civ = this.#civ(unit.player);
+      const job = this.#villagerJob(unit, state.t);
+      if (job) {
+        const anim = u.moving ? job.walk : job.task;
+        if (anim) {
+          const frames = anim[this.#angleIndex(unit, { t: state.t }, anim.length)];
+          ok = this.#blit(frames[Math.floor(state.t / (u.moving ? 110 : 160)) % frames.length], sx, sy, color);
+          this.ctx.globalAlpha = 1;
+          if (ok) return true;
+        }
+      }
       const unitClass = this.replay.game?.units?.[unit.typeId]?.class;
       const set = this.sprites.unit(civ, unit.typeId ?? 83)
         ?? this.sprites.unit(civ, CLASS_STAND_IN[unitClass] ?? 74)
@@ -601,6 +615,13 @@ export class Renderer {
     }
     this.ctx.globalAlpha = 1;
     return ok;
+  }
+
+  #villagerJob(unit, t) {
+    if (unit.typeId != null && !VILLAGER_TYPES.has(unit.typeId)) return null;
+    const kind = unit.activityAt(t);
+    const role = kind && VILLAGER_JOBS[kind];
+    return role ? this.sprites.villager(unit.typeId === 293 ? 'female' : 'male', role) : null;
   }
 
   #spriteResource(r) {
