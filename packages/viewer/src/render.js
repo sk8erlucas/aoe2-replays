@@ -558,7 +558,10 @@ export class Renderer {
   #spriteBuilding(b, progress, state) {
     const civ = this.#civ(b.player);
     const parts = civ != null && this.sprites.building(civ, b.typeId, this.replay.ageAt(b.player, state.t));
-    if (!parts || parts.some(([key]) => !this.sprites.frame(key))) return false;
+    if (!parts) return false;
+    // The sprite exists but its atlas is still downloading: draw nothing rather
+    // than a placeholder box that would flash and look broken.
+    if (parts.some(([key]) => !this.sprites.frame(key))) return true;
     const color = this.playerColor(b.player);
     // Foundations show the finished building faded until construction ends.
     this.ctx.globalAlpha = this.#alpha(b.player, state) * (progress < 1 ? 0.4 + progress * 0.3 : 1);
