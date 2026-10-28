@@ -10,6 +10,7 @@ import {
   formatTime,
   type FollowMode,
   type LogEntry,
+  type GameData,
   type State,
 } from "@aoe2-replays/viewer";
 import { AiContextPanel } from "@/components/AiContextPanel";
@@ -27,8 +28,35 @@ function loadSprites() {
 
 type Tooltip = { x: number; y: number; text: string } | null;
 
-export function ReplayViewer({ data, actions }: { data: ReplayData; actions?: React.ReactNode }) {
-  const replay = useMemo(() => new Replay(data), [data]);
+// Unit train locations, speeds and build times from the game (tools/sprites).
+let gameDataPromise: Promise<GameData | null> | null = null;
+function loadGameData() {
+  gameDataPromise ??= fetch("/sprites/game-data.json")
+    .then((res) => (res.ok ? (res.json() as Promise<GameData>) : null))
+    .catch(() => null);
+  return gameDataPromise;
+}
+
+type ViewerProps = { data: ReplayData; actions?: React.ReactNode };
+
+export function ReplayViewer(props: ViewerProps) {
+  // undefined while loading; null if unavailable (the engine then uses its estimates).
+  const [gameData, setGameData] = useState<GameData | null | undefined>(undefined);
+  useEffect(() => {
+    let alive = true;
+    loadGameData().then((g) => {
+      if (alive) setGameData(g);
+    });
+    return () => {
+      alive = false;
+    };
+  }, []);
+  if (gameData === undefined) return <main className="page message-page muted">Preparando el visor…</main>;
+  return <ReplayStage {...props} gameData={gameData} />;
+}
+
+function ReplayStage({ data, actions, gameData }: ViewerProps & { gameData: GameData | null }) {
+  const replay = useMemo(() => new Replay(data, { gameData }), [data, gameData]);
   const canvas = useRef<HTMLCanvasElement>(null);
   const minimap = useRef<HTMLCanvasElement>(null);
   const renderer = useRef<Renderer | null>(null);

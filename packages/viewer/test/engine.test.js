@@ -182,3 +182,31 @@ test('age is estimated from age research plus its research time', () => {
   assert.equal(r.ageAt(1, 140_000), 2);
   assert.equal(r.ageAt(2, 500_000), 1);
 });
+
+test('units queued in a building built during the game come out of it (with game data)', () => {
+  const gameData = {
+    units: { 38: { speed: 1.35, class: 12, train: [[101, 30]] } },
+    buildings: { 101: { size: 3, buildTime: 50 } },
+  };
+  const data = {
+    game: { duration_ms: 600_000, players: [{ number: 1, name: 'A', color_id: 0, team_id: 1, start: { x: 10, y: 10 } }] },
+    map: { size: 40, terrain: [], elevation: [] },
+    initial_objects: [{ id: 101, player: 1, type_id: 83, class_id: 70, x: 12, y: 10 }],
+    timeline: [
+      { t: 1000, type: 'BUILD', player: 1, building_id: 101, object_ids: [101], x: 30, y: 30 },
+      { t: 100_000, type: 'DE_QUEUE', player: 1, object_ids: [900], amount: 1, unit_id: 38 },
+      { t: 200_000, type: 'MOVE', player: 1, object_ids: [901], x: 5, y: 5 },
+    ],
+    chat: [],
+    legend: { objects: { 83: { name: 'Villager', category: 'unit' }, 101: { name: 'Stable', category: 'building' }, 38: { name: 'Knight', category: 'unit' } } },
+  };
+  const r = new Replay(data, { gameData });
+  const stable = r.buildingById.get(900);
+  assert.equal(stable?.typeId, 101);
+  assert.equal(stable.size, 3);
+  assert.equal(stable.buildTime, 50_000);
+  const knight = r.unitById.get(901);
+  assert.equal(knight.typeId, 38);
+  assert.equal(knight.speed, 1.35);
+  assert.equal(knight.spawnT, 130_000);
+});

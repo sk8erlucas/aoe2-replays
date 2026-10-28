@@ -11,6 +11,8 @@ Subí un replay (`.aoe2record`) o buscá a un jugador y abrí cualquiera de sus 
 ## Qué hace
 - **Visor**: mapa isométrico con relieve, edificios que se construyen, unidades que se mueven, árboles que se talan y recursos que se agotan. Cámara automática que sigue la acción, seguimiento de un jugador, minimapa y línea de tiempo.
 - **Análisis**: APM, momento de avance a cada edad, actividad a lo largo de la partida y build order de cada jugador.
+- **Chat**: todos los mensajes de la partida, y salto al momento en que se escribieron.
+- **Contexto para IA**: la partida como texto para pegar en ChatGPT, Claude u otra IA y hacerle preguntas.
 - **Partidas online**: búsqueda de jugadores con autocompletado, perfil con rankings y partidas recientes, y reproducción de cualquiera de ellas sin subir archivos (el replay se descarga del servicio público de Microsoft).
 - **Privacidad**: los replays subidos son privados hasta que los hagas públicos, se guardan solo los datos de la partida (no el archivo) y se borran solos.
 

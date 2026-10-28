@@ -8,6 +8,9 @@ import { SpriteSet } from '../../../packages/viewer/src/sprites.js';
 
 // Game sprites made by tools/sprites; without them the viewer draws plain shapes.
 const spritesReady = SpriteSet.load('../web/public/sprites').catch(() => null);
+const gameDataReady = fetch('../web/public/sprites/game-data.json')
+  .then((res) => (res.ok ? res.json() : null))
+  .catch(() => null);
 
 const DEFAULT_SRC = '../../fixtures/sample.json';
 
@@ -34,8 +37,8 @@ function el(tag, props = {}, children = []) {
   return node;
 }
 
-function load(data) {
-  replay = new Replay(data);
+async function load(data) {
+  replay = new Replay(data, { gameData: await gameDataReady });
   renderer = new Renderer(els.canvas, replay);
   renderer.resize();
   const first = replay.latestFocus(0) ?? replay.focusOf(replay.players[0]?.number ?? 1, 0);
@@ -166,7 +169,7 @@ async function loadFromUrl(url) {
   try {
     const res = await fetch(url);
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    load(await res.json());
+    await load(await res.json());
   } catch (err) {
     els.info.textContent = `No se pudo cargar ${url} (${err.message}). Abrí un JSON generado por el parser.`;
   }
@@ -174,7 +177,7 @@ async function loadFromUrl(url) {
 
 async function loadFromFile(file) {
   try {
-    load(JSON.parse(await file.text()));
+    await load(JSON.parse(await file.text()));
   } catch (err) {
     els.info.textContent = `Archivo inválido: ${err.message}`;
   }

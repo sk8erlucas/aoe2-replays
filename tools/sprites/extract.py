@@ -29,7 +29,18 @@ PAD = 1
 # Buildings drawn by the viewer (dat unit ids, Dark Age versions).
 BUILDINGS = [70, 109, 68, 562, 584, 12, 87, 101, 103, 84, 104, 209, 82, 45, 49, 79, 50, 72, 117]
 # Units with idle/walk graphics. Villagers (male, female) and the scout first.
-UNITS = [83, 293, 448, 751, 4, 7, 24, 38, 74, 93, 125, 280, 329, 39, 40]
+UNITS = [
+    83, 293,  # villagers
+    74, 75, 77, 473, 567,  # militia line
+    93, 358, 359,  # spearman line
+    4, 24, 492, 7, 6, 5,  # archers, skirmishers, hand cannoneer
+    39, 474, 40,  # cavalry archers
+    448, 546, 441, 38, 283, 569, 329, 330, 207,  # scouts, knights, camels
+    751, 753, 752,  # eagles
+    1258, 422, 548, 280, 550, 588, 279, 542, 36, 42, 331,  # siege
+    125, 128,  # monk, trade cart
+    13, 545, 17, 539, 21, 442, 529, 1103, 1104,  # ships
+]
 WALK_FRAMES = 6  # frames kept per direction of a walk cycle
 ANGLES_KEPT = 16
 TREE_VARIANTS = 4
@@ -312,6 +323,24 @@ def main():
     for group, keys in sorted(groups.items()):
         entries.update(pack(col.frames, keys, args.out, group))
         print(f'{group}: {len(keys)} frames')
+
+    # Game data the engine uses instead of guesses: where each unit is trained,
+    # how long it takes, how fast it walks; building footprints and build times.
+    game_units, game_buildings = {}, {}
+    for civ in dat.civs[1:]:
+        for unit in civ.units:
+            if unit is None or not unit.creatable:
+                continue
+            trains = [[t.unit_id, t.train_time] for t in unit.creatable.train_locations if t.unit_id >= 0]
+            if not trains:
+                continue
+            if unit.type in (80,) and unit.id not in game_buildings:  # buildings
+                game_buildings[unit.id] = {'size': round(unit.collision_size_x * 2), 'buildTime': trains[0][1]}
+            elif unit.type == 70 and unit.id not in game_units:  # combatants
+                game_units[unit.id] = {'speed': round(unit.speed, 3), 'class': unit.class_, 'train': trains}
+    (args.out / 'game-data.json').write_text(
+        json.dumps({'units': game_units, 'buildings': game_buildings}, separators=(',', ':')), encoding='utf-8')
+    print(f'game data: {len(game_units)} units, {len(game_buildings)} buildings')
 
     # Compact manifest: frames as arrays, referenced by index everywhere else.
     pages = sorted({e['p'] for e in entries.values()})

@@ -8,6 +8,19 @@
 import { ANIMAL_COLOR, PLAYER_COLORS, RESOURCE_COLORS, TERRAIN_COLORS } from './palette.js';
 
 const ELEVATION_UNITS = 0.25; // height of one elevation level
+// Unit class (game data) -> a common unit whose sprite stands in for units
+// without their own, such as civilization unique units.
+const CLASS_STAND_IN = {
+  0: 4, // archer
+  4: 83, // civilian
+  6: 74, // infantry
+  12: 38, // cavalry
+  13: 280, // siege weapon
+  18: 125, // monk
+  36: 39, // cavalry archer
+  44: 5, // hand cannoneer
+  47: 448, // scout cavalry
+};
 const CLOSE_TILE_PX = 64; // tile width on screen at the default close zoom
 const MAX_TILE_PX = 160;
 const DETAIL_SCALE = 5; // from this scale on, trees and resources are drawn as objects
@@ -573,7 +586,10 @@ export class Renderer {
       if (keys?.length) ok = this.#blit(keys[this.#angleIndex(unit, { t: state.t }, keys.length)], sx, sy, null);
     } else {
       const civ = this.#civ(unit.player);
-      const set = this.sprites.unit(civ, unit.typeId ?? 83) ?? this.sprites.unit(civ, 83);
+      const unitClass = this.replay.game?.units?.[unit.typeId]?.class;
+      const set = this.sprites.unit(civ, unit.typeId ?? 83)
+        ?? this.sprites.unit(civ, CLASS_STAND_IN[unitClass] ?? 74)
+        ?? this.sprites.unit(civ, 83);
       if (set) {
         if (u.moving && set.walk) {
           const frames = set.walk[this.#angleIndex(unit, { t: state.t }, set.walk.length)];

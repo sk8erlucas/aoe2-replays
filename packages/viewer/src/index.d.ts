@@ -38,8 +38,15 @@ export type Hit =
   | ({ kind: 'unit' } & State['units'][number])
   | ({ kind: 'building' } & State['buildings'][number]);
 
+/** Game data made by tools/sprites (game-data.json). */
+export interface GameData {
+  units: Record<string, { speed: number; class: number; train: Array<[number, number]> }>;
+  buildings: Record<string, { size: number; buildTime: number }>;
+}
+
 export class Replay {
-  constructor(data: ReplayData);
+  constructor(data: ReplayData, options?: { gameData?: GameData | null });
+  game: GameData | null;
   data: ReplayData;
   duration: number;
   players: Player[];

@@ -25,18 +25,6 @@ Elegido: **B1** con un subconjunto (edificios y unidades principales, por arquit
 - [x] Formas simples: edificios con techo, granjas planas, unidades, árboles, oro, piedra, bayas
 - [x] Recursos que se agotan: árboles talados (dejan tocón), minas y bayas agotadas, según las órdenes de recolección
 
-### Etapa 2: arte propio (camino A)
-- [ ] Definir la grilla de sprites: tamaño de tile en píxeles, ángulo, anclaje, sombra
-- [ ] Edificios principales por edad: Centro urbano, Casa, Molino, Campamento maderero y minero, Cuartel, Galería de tiro, Establo, Herrería, Mercado, Monasterio, Universidad, Castillo, Muelle, Torres, Murallas, Puertas
-- [ ] Conjuntos de arquitectura por región (como el juego: centroeuropeo, occidental, oriental, africano, etc.) y mapeo civilización → conjunto
-- [ ] Cimientos y estados de construcción (0%, 50%, 100%) y edificio destruido
-- [ ] Unidades: aldeano (hombre y mujer), explorador, milicia, arqueros, caballería, asedio, monje, barcos
-- [ ] Animaciones por unidad: quieta, caminando, trabajando (talar, minar, cosechar, construir), atacando, muriendo; 8 direcciones
-- [ ] Recursos: variantes de árbol por bioma, minas por cantidad restante, bayas, animales
-- [ ] Terreno con textura y transiciones suaves entre tipos (hoy es un color por tile)
-- [ ] Agua animada, orillas
-- [ ] Cargar sprites como atlas (una imagen por grupo + JSON de cuadros) para que el render sea rápido
-
 ### Etapa 3: gráficos del juego (camino B)
 - [x] Resolver lo legal (decidido: Game Content Usage Rules)
 - [x] Elegir B1 (servidos) o B2 (instalación del usuario): **B1**
@@ -49,7 +37,9 @@ Elegido: **B1** con un subconjunto (edificios y unidades principales, por arquit
 - [ ] Muros con su orientación, puertas, edificios destruidos y escombros
 - [ ] Edificios que faltan en algunas civilizaciones (por ejemplo la herrería de los tártaros), trampas de peces, puertas y edificios únicos
 - [ ] Granjas: usan otro formato de gráfico (no SLD); hoy se dibujan planas
-- [ ] Unidades militares entrenadas: hoy se dibujan como aldeanos (el motor no sabe qué unidad es cada ID nuevo)
+- [x] Unidades militares: el motor vincula los edificios construidos durante la partida con los IDs que usan las colas (según dónde se entrena cada unidad, del archivo de datos del juego), así las unidades salen del edificio correcto con su tipo, tiempo de entrenamiento y velocidad reales
+- [x] Líneas militares completas, asedio, monjes y barcos en los sprites; las unidades únicas usan el sprite de una unidad común de su clase
+- [ ] Sprites propios de las unidades únicas de cada civilización
 - [ ] Investigar los formatos SLD/SMX de DE y librerías abiertas que los lean
 - [ ] Elegir la carpeta del juego con la File System Access API (Chrome/Edge) y leer solo lo necesario
 - [ ] Decodificar en un Web Worker y guardar en caché del navegador (IndexedDB)
@@ -57,6 +47,7 @@ Elegido: **B1** con un subconjunto (edificios y unidades principales, por arquit
 - [ ] Interruptor "gráficos propios / gráficos de mi juego"
 
 ### Etapa 4: simulación más fiel
+- [ ] Actualizar el home con imagenes del nuevo motor grafico
 - [ ] Recorridos alrededor de obstáculos (pathfinding en la grilla de tiles) en vez de línea recta
 - [ ] Viajes a depositar recursos (aldeano ↔ campamento / centro urbano)
 - [ ] Recolección con más fuentes: punto de reunión en recursos (hecho), órdenes a granjas, caza de animales
@@ -70,7 +61,12 @@ Elegido: **B1** con un subconjunto (edificios y unidades principales, por arquit
 - [ ] Panel de producción: qué está entrenando/investigando cada uno
 - [ ] Banderas de avance de edad en la línea de tiempo
 - [ ] Niebla de guerra opcional por jugador
-- [ ] Sonidos ambiente propios (opcional, con licencia libre)
+- [ ] **Música de fondo** como en el juego, mientras se mira una partida:
+  - Pistas de la banda sonora del juego (bajo las Game Content Usage Rules, registradas en `CREDITS.md`) o música libre como alternativa.
+  - Que **no arranque sola** (los navegadores bloquean el audio automático y molesta): botón de música en la barra de controles, con volumen y silencio recordados en el navegador.
+  - Pistas en archivos comprimidos (Opus/OGG o MP3, ~128 kbps) cargadas solo al activar la música; lista que pasa de una pista a otra.
+  - Opcional: pistas según la civilización del jugador seguido o el momento de la partida.
+- [ ] Sonidos del juego (efectos: construir, avanzar de edad, chat) con el mismo control de volumen
 - [ ] Atajos de teclado parecidos a los del juego para el espectador
 
 ## Cómo se integra

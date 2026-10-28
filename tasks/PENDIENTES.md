@@ -35,4 +35,6 @@ Separados entre lo que necesita una decisión o acción tuya y lo que se puede a
 - [x] Búsqueda de jugadores, perfiles y partidas online `/m/<matchId>` ([09](./09-partidas-online.md))
 - [x] Portada con hero, contenido y capturas; README público y CONTRIBUTING
 - [ ] Plantillas de issue y pull request, código de conducta ([06](./06-comunidad.md))
+- [ ] Música de fondo en el visor ([08](./08-experiencia-de-juego.md))
+- [ ] SEO y compartir en redes: metadatos, vistas previas generadas, sitemap ([10](./10-seo-y-redes.md))
 - [ ] Exportar a video con `MediaRecorder` (prueba de concepto)

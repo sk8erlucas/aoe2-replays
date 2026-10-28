@@ -73,9 +73,17 @@ export class Unit {
   }
 }
 
+// Town centers built during the game use another id than the starting one.
+const SAME_BUILDING = { 621: 109, 109: 621 };
+
 export class Replay {
-  constructor(data) {
+  /**
+   * `gameData` (optional, from tools/sprites game-data.json) replaces guessed
+   * speeds, train and build times, and says where each unit is trained.
+   */
+  constructor(data, { gameData = null } = {}) {
     this.data = data;
+    this.game = gameData;
     this.legend = data.legend ?? { objects: {}, terrain: {}, technologies: {} };
     this.duration = data.game.duration_ms;
     this.players = data.game.players;
@@ -128,7 +136,7 @@ export class Replay {
   }
 
   #addUnit(unit) {
-    unit.speed = SPEEDS[this.objectName(unit.typeId)] ?? DEFAULT_SPEED;
+    unit.speed = this.game?.units?.[unit.typeId]?.speed ?? SPEEDS[this.objectName(unit.typeId)] ?? DEFAULT_SPEED;
     unit.path[0].speed = unit.speed;
     this.units.push(unit);
     if (unit.id != null) this.unitById.set(unit.id, unit);
@@ -137,10 +145,11 @@ export class Replay {
 
   #addBuilding({ id = null, player, typeId, x, y, t, buildTime }) {
     const name = this.objectName(typeId);
+    const known = this.game?.buildings?.[typeId];
     const b = {
       id, player, typeId, x, y, t,
-      size: FOOTPRINTS[name] ?? DEFAULT_FOOTPRINT,
-      buildTime: buildTime ?? (BUILD_TIMES[name] ?? DEFAULT_BUILD_TIME) * 1000,
+      size: known?.size || FOOTPRINTS[name] || DEFAULT_FOOTPRINT,
+      buildTime: buildTime ?? (known?.buildTime ?? BUILD_TIMES[name] ?? DEFAULT_BUILD_TIME) * 1000,
       queueEnd: 0,
     };
     this.buildings.push(b);
@@ -155,9 +164,10 @@ export class Replay {
     const known = this.unitById.get(id);
     if (known) return known;
     if (this.buildingById.has(id)) return null;
+    // Prefer units already out of their building; IDs grow in creation order.
     const pending = this.units
       .filter((u) => u.id == null && u.player === player)
-      .sort((a, b) => a.spawnT - b.spawnT)[0];
+      .sort((a, b) => (a.spawnT > t) - (b.spawnT > t) || a.spawnT - b.spawnT)[0];
     if (pending) {
       pending.id = id;
       if (pending.spawnT > t) {
@@ -236,12 +246,27 @@ export class Replay {
     this.log.sort((a, b) => a.t - b.t);
   }
 
+  // A building built during the game has no known ID until a command uses it.
+  // Bind it to the oldest unbound building of that player that can train the unit.
+  #bindBuilding(id, player, unitId, t) {
+    const trainedAt = this.game?.units?.[unitId]?.train?.map(([buildingId]) => buildingId);
+    if (id == null || !trainedAt) return null;
+    const fits = (typeId) => trainedAt.includes(typeId) || trainedAt.includes(SAME_BUILDING[typeId]);
+    const building = this.buildings.find((b) => b.id == null && b.player === player && b.t <= t && fits(b.typeId));
+    if (!building) return null;
+    building.id = id;
+    this.buildingById.set(id, building);
+    return building;
+  }
+
   #queue(e, ids) {
-    const building = this.buildingById.get(ids[0]);
+    const building = this.buildingById.get(ids[0]) ?? this.#bindBuilding(ids[0], e.player, e.unit_id, e.t);
     const name = this.objectName(e.unit_id);
     this.log.push({ t: e.t, player: e.player, kind: 'queue', text: `entrena ${e.amount}× ${name}` });
     if (!building) return;
-    const trainTime = (TRAIN_TIMES[name] ?? DEFAULT_TRAIN_TIME) * 1000;
+    const trains = this.game?.units?.[e.unit_id]?.train;
+    const gameTime = trains?.find(([at]) => at === building.typeId || at === SAME_BUILDING[building.typeId])?.[1];
+    const trainTime = (gameTime ?? TRAIN_TIMES[name] ?? DEFAULT_TRAIN_TIME) * 1000;
     for (let i = 0; i < e.amount; i++) {
       const start = Math.max(e.t, building.queueEnd);
       building.queueEnd = start + trainTime;
