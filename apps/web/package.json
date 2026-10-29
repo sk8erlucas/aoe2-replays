@@ -19,15 +19,15 @@
     "@prisma/client": "7.10.1",
     "fflate": "0.8.3",
     "next": "15.5.28",
-    "react": "19.1.0",
-    "react-dom": "19.1.0"
+    "react": "19.3.1",
+    "react-dom": "19.3.1"
   },
   "devDependencies": {
     "@eslint/eslintrc": "^3",
-    "@types/node": "^20",
+    "@types/node": "^22",
     "@types/react": "^19",
     "@types/react-dom": "^19",
-    "dotenv": "16.4.7",
+    "dotenv": "18.0.9",
     "eslint": "^9",
     "eslint-config-next": "15.5.28",
     "prisma": "7.10.1",

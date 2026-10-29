@@ -10,7 +10,7 @@ Hoy las páginas de jugador (`/p/<id>`) y de partida (`/m/<id>`) se arman en el 
   - Jugador: "Nombre — ELO, civilizaciones favoritas, partidas recientes".
   - Partida: "Mapa · 4v4 · Jugadores · Duración · Ganador".
 - [ ] Renderizar en el servidor lo esencial de `/p/<id>` y `/m/<id>` (datos del jugador, resumen de la partida) para que sea indexable; el visor sigue siendo del lado del cliente
-- [ ] `robots.txt` y `sitemap.xml`:
+- [x] `robots.txt` y `sitemap.xml` (por ahora el sitemap solo tiene la portada; `/r/` lleva `noindex`):
   - Indexar: portada, jugadores, partidas online.
   - **No indexar** replays subidos (`/r/<id>`, son privados o de enlace) ni páginas de gestión: `noindex` además de excluirlos del sitemap.
 - [ ] Sitemap dinámico de jugadores y partidas vistos, con límite y prioridad por actividad
@@ -20,7 +20,8 @@ Hoy las páginas de jugador (`/p/<id>`) y de partida (`/m/<id>`) se arman en el 
 - [ ] Páginas de error y 404 útiles (con buscador) y sin contenido duplicado
 
 ## Compartir en redes
-- [ ] Open Graph y Twitter Cards en todas las páginas públicas
+- [x] Open Graph y Twitter Cards generales (`SITE_URL`, imagen `og.jpg` 1200×630)
+- [ ] Open Graph propio de cada partida y jugador (necesita renderizar en el servidor)
 - [ ] **Imágenes de vista previa generadas** (`next/og`, 1200×630) con el estilo pergamino:
   - Partida: mapa en miniatura (minimapa isométrico), jugadores con civilización y color, duración y ganador.
   - Jugador: nombre, país, ELO por modo, civilizaciones más jugadas.

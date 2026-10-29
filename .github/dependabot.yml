@@ -4,6 +4,17 @@ updates:
     directory: /
     schedule: { interval: weekly }
     open-pull-requests-limit: 5
+    groups:
+      # react and react-dom must move together
+      react:
+        patterns: ["react", "react-dom", "@types/react", "@types/react-dom"]
+    ignore:
+      # Types follow the Node version we run (22); bump together with the Docker images.
+      - dependency-name: "@types/node"
+        update-types: ["version-update:semver-major"]
+      # TypeScript 7 (native port) is not supported by Next.js 15 yet.
+      - dependency-name: "typescript"
+        update-types: ["version-update:semver-major"]
   - package-ecosystem: pip
     directory: /services/parser
     schedule: { interval: weekly }
@@ -13,6 +24,13 @@ updates:
   - package-ecosystem: docker
     directory: /apps/web
     schedule: { interval: weekly }
+    ignore:
+      # Node majors are moved by hand, to an LTS release, with the CI image and @types/node.
+      - dependency-name: "node"
+        update-types: ["version-update:semver-major"]
   - package-ecosystem: github-actions
     directory: /
     schedule: { interval: weekly }
+    groups:
+      actions:
+        patterns: ["*"]

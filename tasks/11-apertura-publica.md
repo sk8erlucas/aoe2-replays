@@ -30,8 +30,8 @@ Revisión completa del código con estos puntos. Ya conocidos (hallazgos de desa
 
 ### Navegador
 - [x] Encabezados de seguridad (CSP, nosniff, Referrer-Policy, X-Frame-Options, Permissions-Policy): Content-Security-Policy (scripts propios, imágenes propias, `connect-src` acotado), `X-Content-Type-Options`, `Referrer-Policy`, `Permissions-Policy`, `frame-ancestors` (salvo la futura vista para insertar).
-- [ ] Revisar que todo texto del replay o de APIs externas (nombres, chat, clanes) se muestre como texto (regla ya vigente; agregar test o lint que prohíba `dangerouslySetInnerHTML`).
-- [ ] Enlaces externos con `rel="noopener noreferrer"`.
+- [x] Revisar que todo texto del replay o de APIs externas (nombres, chat, clanes) se muestre como texto: el lint de la web prohíbe `dangerouslySetInnerHTML`, `innerHTML`/`outerHTML` e `insertAdjacentHTML`.
+- [x] Enlaces externos: ninguno abre en otra pestaña (`target="_blank"`), así que no hace falta `rel="noopener"`; el `Referrer-Policy` limita lo que se envía. Si se agrega alguno, llevar `rel="noopener noreferrer"`.
 
 ### Datos y privacidad
 - [ ] Tokens de gestión: longitud, comparación en tiempo constante (hecho), y que nunca se registren en logs.
@@ -66,7 +66,7 @@ Revisión completa del código con estos puntos. Ya conocidos (hallazgos de desa
 - [ ] Revisar `CONTRIBUTING.md` y `AGENTS.md` con todo lo anterior.
 
 ## 5. Abrir
-- [ ] Repo → público.
+- [x] Repo → público.
 - [x] **Link a la web en el repo**: arriba del README (falta el campo "website" de GitHub, manual).
 - [x] **Link al repo en la web**: barra superior, pie de página y preguntas frecuentes.
 - [ ] Activar en GitHub: secret scanning, Dependabot alerts, private vulnerability reporting.

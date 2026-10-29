@@ -8,6 +8,7 @@ export const DEFAULT_LOCALE: Locale = "en";
 const es = {
   meta: {
     description: "Visor y análisis de replays de Age of Empires II: Definitive Edition.",
+    imageAlt: "El visor reproduciendo una partida de 8 jugadores, con el panel de análisis",
   },
   nav: {
     upload: "Subir replay",
@@ -264,6 +265,7 @@ export type Messages = typeof es;
 const en: Messages = {
   meta: {
     description: "Replay viewer and analysis for Age of Empires II: Definitive Edition.",
+    imageAlt: "The viewer playing back an 8-player match, with the analysis panel",
   },
   nav: {
     upload: "Upload replay",

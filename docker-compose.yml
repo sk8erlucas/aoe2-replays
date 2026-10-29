@@ -31,6 +31,7 @@ services:
       IP_HASH_SECRET: ${IP_HASH_SECRET:?set IP_HASH_SECRET}
       REPLAY_TTL_DAYS: ${REPLAY_TTL_DAYS:-30}
       UPLOADS_PER_HOUR: ${UPLOADS_PER_HOUR:-20}
+      SITE_URL: ${SITE_URL:-https://aoe2replays.sitemaster.com.ar}
     expose:
       - "3000"
     depends_on:

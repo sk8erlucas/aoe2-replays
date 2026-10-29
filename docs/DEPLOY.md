@@ -41,6 +41,7 @@ IP_HASH_SECRET=<generar con: openssl rand -hex 32>
 # Opcionales (valor por defecto)
 REPLAY_TTL_DAYS=30       # días hasta borrar un replay; 0 = nunca
 UPLOADS_PER_HOUR=20      # subidas por IP por hora; 0 = sin límite
+SITE_URL=https://aoe2replays.sitemaster.com.ar   # dirección pública: enlaces canónicos, vista previa en redes, sitemap
 ```
 `PARSER_URL` no hace falta: el compose ya la apunta a `http://parser:8000`.
 

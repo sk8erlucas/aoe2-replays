@@ -6,6 +6,7 @@ import { LanguageSwitcher } from "@/components/LanguageSwitcher";
 import { PlayerSearch } from "@/components/PlayerSearch";
 import { I18nProvider } from "@/i18n/I18nProvider";
 import { MESSAGES, REPO_URL, pickLocale } from "@/i18n/messages";
+import { SITE_URL } from "@/lib/site";
 import "./globals.css";
 
 // Self-hosted at build time by next/font; both are SIL Open Font License.
@@ -18,8 +19,24 @@ async function currentLocale() {
 }
 
 export async function generateMetadata(): Promise<Metadata> {
-  const t = MESSAGES[await currentLocale()];
-  return { title: "AoE2 Replays", description: t.meta.description };
+  const locale = await currentLocale();
+  const t = MESSAGES[locale];
+  const image = { url: "/images/og.jpg", width: 1200, height: 630, alt: t.meta.imageAlt };
+  return {
+    metadataBase: new URL(SITE_URL),
+    title: "AoE2 Replays",
+    description: t.meta.description,
+    openGraph: {
+      type: "website",
+      siteName: "AoE2 Replays",
+      title: "AoE2 Replays",
+      description: t.meta.description,
+      url: "/",
+      locale: locale === "es" ? "es_AR" : "en_US",
+      images: [image],
+    },
+    twitter: { card: "summary_large_image", title: "AoE2 Replays", description: t.meta.description, images: [image] },
+  };
 }
 
 export default async function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
