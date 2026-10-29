@@ -7,6 +7,7 @@ import {
   Renderer,
   Replay,
   SpriteSet,
+  TerrainSet,
   formatTime,
   type FollowMode,
   type LogEntry,
@@ -25,6 +26,13 @@ let spritesPromise: Promise<SpriteSet | null> | null = null;
 function loadSprites() {
   spritesPromise ??= SpriteSet.load("/sprites").catch(() => null);
   return spritesPromise;
+}
+
+// Terrain textures, also from tools/sprites; without them the ground is flat colour.
+let terrainPromise: Promise<TerrainSet | null> | null = null;
+function loadTerrain() {
+  terrainPromise ??= TerrainSet.load("/sprites").catch(() => null);
+  return terrainPromise;
 }
 
 type Tooltip = { x: number; y: number; text: string } | null;
@@ -126,6 +134,12 @@ function ReplayStage({ data, actions, gameData }: ViewerProps & { gameData: Game
       r.setSprites(sprites);
       dirty.current = true;
     });
+    loadTerrain()
+      .then((terrain) => r.setTerrain(terrain))
+      .then(() => {
+        if (renderer.current === r) dirty.current = true;
+      })
+      .catch(() => {});
 
     const onResize = () => {
       r.resize();

@@ -6,6 +6,7 @@ Extrae los gráficos de Age of Empires II: DE a atlas WebP + `manifest.json` par
 python -m venv .venv
 .venv/Scripts/python -m pip install -r requirements.txt     # Linux/macOS: .venv/bin/python
 .venv/Scripts/python extract.py --game "C:/Program Files (x86)/Steam/steamapps/common/AoE2DE" --out ../../apps/web/public/sprites
+.venv/Scripts/python terrain.py --game "C:/Program Files (x86)/Steam/steamapps/common/AoE2DE" --out ../../apps/web/public/sprites
 ```
 
 ## Cómo funciona
@@ -15,6 +16,7 @@ python -m venv .venv
   - centro urbano armado con sus partes (anexos) y desplazamientos;
   - aldeanos, explorador y unidades comunes: quieto (16 direcciones) y caminando (8 cuadros por dirección);
   - árboles (4 variantes por tipo), minas, arbustos, reliquias y animales.
+- [`terrain.py`](terrain.py) pasa las texturas de terreno (`resources/_common/terrain/textures/2x/*.dds`, 128 texeles por lado de tile) a WebP de 32 texeles por tile en `terrain/`, y escribe `terrain.json` con qué textura usa cada ID de terreno (campo `name_2` del archivo de datos), cada cuántos tiles se repite y su color promedio. El visor proyecta la textura en isométrico y baja solo las que usa el mapa.
 - Recorta, escala (0,75 → tiles de 64 px como el zoom cercano del visor) y empaqueta en páginas de hasta 4096 px. La máscara de color de jugador va en una imagen aparte (`*-mask.webp`) que el visor tiñe con el color de cada jugador.
 
 El arte es de Microsoft, usado bajo las Game Content Usage Rules (ver `docs/LEGAL.md`). genieutils-py es LGPL-3.0 y solo se usa en esta herramienta, no se distribuye con la web.

@@ -5,9 +5,11 @@ import { Replay, formatTime } from '../../../packages/viewer/src/engine.js';
 import { PLAYER_COLORS } from '../../../packages/viewer/src/palette.js';
 import { Renderer } from '../../../packages/viewer/src/render.js';
 import { SpriteSet } from '../../../packages/viewer/src/sprites.js';
+import { TerrainSet } from '../../../packages/viewer/src/terrain.js';
 
 // Game sprites made by tools/sprites; without them the viewer draws plain shapes.
 const spritesReady = SpriteSet.load('../web/public/sprites').catch(() => null);
+const terrainReady = TerrainSet.load('../web/public/sprites').catch(() => null);
 const gameDataReady = fetch('../web/public/sprites/game-data.json', { cache: 'no-cache' })
   .then((res) => (res.ok ? res.json() : null))
   .catch(() => null);
@@ -53,6 +55,10 @@ async function load(data) {
     renderer.setSprites(sprites);
     render();
   });
+  terrainReady
+    .then((terrain) => current.setTerrain(terrain))
+    .then(() => { if (renderer === current) render(); })
+    .catch(() => {});
   t = 0;
   shownLog = -1;
   shownResigned = null;

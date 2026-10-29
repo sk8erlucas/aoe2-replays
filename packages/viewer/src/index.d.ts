@@ -94,6 +94,13 @@ export class Renderer {
   pick(state: State, sx: number, sy: number): Hit | null;
   /** Game sprites to draw with; null keeps the plain shapes. */
   setSprites(sprites: SpriteSet | null): void;
+  /** Game terrain textures; resolves when the ground is rebuilt with them (redraw then). */
+  setTerrain(terrain: TerrainSet | null): Promise<void>;
+}
+
+/** Game terrain textures in apps/web/public/sprites/terrain (made by tools/sprites/terrain.py). */
+export class TerrainSet {
+  static load(baseUrl: string): Promise<TerrainSet>;
 }
 
 /** Game sprites from the atlases in apps/web/public/sprites (made by tools/sprites). */

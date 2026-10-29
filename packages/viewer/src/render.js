@@ -32,6 +32,13 @@ const MAX_TILE_PX = 160;
 const DETAIL_SCALE = 5; // from this scale on, trees and resources are drawn as objects
 const AUTO_HOLD_MS = 4000; // auto camera keeps a target at least this long (game time)
 const CAMERA_SPEED = 4; // higher = snappier camera
+// Close-up ground is drawn in square chunks at the zoom's resolution and cached.
+const CHUNK_PX = 512;
+const MAX_CHUNKS = 64;
+const MAX_CHUNK_K = 32; // px per unit; beyond this chunks are scaled up
+const CHUNKS_PER_FRAME = 2; // render budget, so zooming never stalls a frame
+const FARM_TERRAIN = 7; // the game's farm ground ("Farm1"), drawn under farm buildings
+const CANOPY_RGB = [38, 66, 30]; // forest seen from afar, where trees are not drawn
 
 function hexToRgb(hex) {
   const n = parseInt(hex.slice(1), 16);
@@ -70,6 +77,25 @@ export class Renderer {
     this.autoFocus = null;
     this.sprites = null;
     this.facing = new WeakMap(); // unit -> last screen direction index
+    this.textures = null; // terrain id -> { name, image, tiles }
+    this.scaledTextures = new Map(); // `${name}:${texels per tile}` -> canvas
+    this.chunks = new Map(); // `${k}:${cu}:${cv}` -> canvas, oldest first
+    this.pending = false; // chunks still to render: ask for another frame
+  }
+
+  /**
+   * Game terrain textures (TerrainSet). Resolves once the map's textures are
+   * loaded and the ground is rebuilt with them; redraw then.
+   */
+  async setTerrain(terrainSet) {
+    if (!terrainSet) return;
+    const textures = await terrainSet.prepare(new Set([...this.replay.data.map.terrain, FARM_TERRAIN]));
+    if (!textures.size) return;
+    this.textures = textures;
+    this.farmPattern = null;
+    this.scaledTextures.clear();
+    this.chunks.clear();
+    this.base = this.#buildBaseLayer();
   }
 
   /** Game sprites (SpriteSet) to draw with; null keeps the plain shapes. */
@@ -111,44 +137,181 @@ export class Renderer {
   // ---------- base layer ----------
 
   #buildBaseLayer() {
-    const { size: n, k, elevation: elev } = this;
-    const { terrain } = this.replay.data.map;
-    const legend = this.replay.legend.terrain ?? {};
+    const { size: n, k } = this;
     const layer = document.createElement('canvas');
     layer.width = 2 * n * k;
     layer.height = Math.ceil((n + this.elevPad + 1) * k);
-    const ctx = layer.getContext('2d');
-    const rgb = new Map();
-    const e = (x, y) => elev[Math.min(n - 1, Math.max(0, y)) * n + Math.min(n - 1, Math.max(0, x))] ?? 0;
+    // Zoomed out trees are not drawn, so forests get a canopy colour.
+    this.#paintTerrain(layer.getContext('2d'), k, -n, -this.elevPad, 2 * n, n + this.elevPad + 1, true);
+    return layer;
+  }
 
-    // Back to front so nearer (raised) tiles cover the ones behind them.
-    for (let d = 0; d <= 2 * n - 2; d++) {
-      for (let x = Math.max(0, d - n + 1); x <= Math.min(d, n - 1); x++) {
+  // Texture resampled to `texels` per tile side, so patterns never alias.
+  #scaledTexture(tex, texels) {
+    const key = `${tex.name}:${texels}`;
+    let canvas = this.scaledTextures.get(key);
+    if (!canvas) {
+      const side = tex.tiles * texels;
+      canvas = document.createElement('canvas');
+      canvas.width = side;
+      canvas.height = side;
+      const ctx = canvas.getContext('2d');
+      ctx.imageSmoothingQuality = 'high';
+      ctx.drawImage(tex.image, 0, 0, side, side);
+      this.scaledTextures.set(key, canvas);
+    }
+    return canvas;
+  }
+
+  /**
+   * Paints the ground inside a (u, v) rectangle into ctx at k px per unit:
+   * canvas point = ((u - u0) * k, (v - v0) * k).
+   */
+  #paintTerrain(ctx, k, u0, v0, uw, vh, canopy = false) {
+    const { size: n, elevation: elev } = this;
+    const { terrain } = this.replay.data.map;
+    const legend = this.replay.legend.terrain ?? {};
+    const e = (x, y) => elev[Math.min(n - 1, Math.max(0, y)) * n + Math.min(n - 1, Math.max(0, x))] ?? 0;
+    // Texels per tile side close to the screen's, at most the texture's own.
+    const texels = Math.min(32, 2 ** Math.max(1, Math.ceil(Math.log2(k * 1.12))));
+    const fills = new Map(); // terrain id -> { pattern, unit, z } or { color }
+    const fillFor = (id) => {
+      let f = fills.get(id);
+      if (f === undefined) {
+        const tex = this.textures?.get(id);
+        if (tex) {
+          f = { pattern: ctx.createPattern(this.#scaledTexture(tex, texels), 'repeat'), unit: 1 / texels, z: null };
+        } else {
+          f = { color: hexToRgb(TERRAIN_COLORS[legend[id]?.category] ?? TERRAIN_COLORS.grass) };
+        }
+        fills.set(id, f);
+      }
+      return f;
+    };
+    const px = (u) => (u - u0) * k;
+    const py = (v) => (v - v0) * k;
+    const diamond = (path, x, y, z) => {
+      path.moveTo(px(x - y), py((x + y) / 2 - z)); // top
+      path.lineTo(px(x + 1 - y), py((x + 1 + y) / 2 - z)); // right
+      path.lineTo(px(x - y), py((x + y + 2) / 2 - z)); // bottom
+      path.lineTo(px(x - y - 1), py((x + y + 1) / 2 - z)); // left
+      path.closePath();
+    };
+    ctx.lineWidth = 1;
+
+    // Tiles whose diamond can reach the rectangle (raised tiles reach higher),
+    // one diagonal row at a time, back to front, so nearer tiles cover the ones
+    // behind them. Within a row, tiles that look the same go in one path: a few
+    // fills per row instead of one per tile.
+    const dMin = Math.max(0, Math.floor(2 * v0) - 2);
+    const dMax = Math.min(2 * n - 2, Math.ceil(2 * (v0 + vh + this.elevPad)) + 2);
+    for (let d = dMin; d <= dMax; d++) {
+      const ground = new Map(); // look -> { path, style | f + z }
+      const overlay = new Map(); // light and canopy, painted over the ground
+      const add = (layer, key, init, x, y, z) => {
+        let g = layer.get(key);
+        if (!g) layer.set(key, (g = { path: new Path2D(), ...init() }));
+        diamond(g.path, x, y, z);
+      };
+      const xMin = Math.max(0, d - n + 1, Math.ceil((d + u0 - 1) / 2));
+      const xMax = Math.min(d, n - 1, Math.floor((d + u0 + uw + 1) / 2));
+      for (let x = xMin; x <= xMax; x++) {
         const y = d - x;
         const i = y * n + x;
         const id = terrain[i];
-        if (!rgb.has(id)) rgb.set(id, hexToRgb(TERRAIN_COLORS[legend[id]?.category] ?? TERRAIN_COLORS.grass));
+        const ez = e(x, y);
+        const z = ez * ELEVATION_UNITS;
         // Light comes from the top of the screen: slopes facing it are brighter.
         const slope = (e(x - 1, y) + e(x, y - 1) - e(x + 1, y) - e(x, y + 1)) / 2;
-        const light = 1 + e(x, y) * 0.03 + slope * 0.09 + (hash(i) - 0.5) * 0.07;
-        const z = e(x, y) * ELEVATION_UNITS;
-        const px = (u) => (u + n) * k;
-        const py = (v) => (v + this.elevPad) * k;
-        ctx.beginPath();
-        ctx.moveTo(px(x - y), py((x + y) / 2 - z)); // top
-        ctx.lineTo(px(x + 1 - y), py((x + 1 + y) / 2 - z)); // right
-        ctx.lineTo(px(x - y), py((x + y + 2) / 2 - z)); // bottom
-        ctx.lineTo(px(x - y - 1), py((x + y + 1) / 2 - z)); // left
-        ctx.closePath();
-        const color = shade(rgb.get(id), light);
-        ctx.fillStyle = color;
-        ctx.strokeStyle = color; // hides seams between diamonds
-        ctx.lineWidth = 1;
-        ctx.fill();
-        ctx.stroke();
+        const f = fillFor(id);
+        if (!f.pattern) {
+          const q = Math.round((1 + ez * 0.03 + slope * 0.09 + (hash(i) - 0.5) * 0.07) * 50) / 50;
+          add(ground, `${id}|${q}`, () => ({ style: shade(f.color, q) }), x, y, z);
+          continue;
+        }
+        add(ground, `${id}|${z}`, () => ({ f, z }), x, y, z);
+        if (canopy && legend[id]?.category === 'forest') {
+          const q = Math.round((0.85 + hash(i) * 0.4 + slope * 0.09) * 20) / 20;
+          add(overlay, `c${q}`, () => ({ style: shade(CANOPY_RGB, q), stroke: true }), x, y, z);
+          continue;
+        }
+        const light = Math.round((ez * 0.03 + slope * 0.09) * 100) / 100;
+        if (light !== 0) {
+          add(overlay, `l${light}`, () => ({
+            style: light > 0 ? `rgba(255,255,255,${light})` : `rgba(0,0,0,${-light})`,
+          }), x, y, z);
+        }
+      }
+      for (const g of ground.values()) {
+        let style = g.style;
+        if (g.f) {
+          if (g.f.z !== g.z) {
+            // Texture space (texels) -> world tiles -> this canvas.
+            const a = k * g.f.unit;
+            g.f.pattern.setTransform(new DOMMatrix([a, a / 2, -a, a / 2, -u0 * k, -(g.z + v0) * k]));
+            g.f.z = g.z;
+          }
+          style = g.f.pattern;
+        }
+        ctx.fillStyle = style;
+        ctx.strokeStyle = style; // hides seams between diamonds
+        ctx.fill(g.path);
+        ctx.stroke(g.path);
+      }
+      for (const g of overlay.values()) {
+        ctx.fillStyle = g.style;
+        ctx.fill(g.path);
+        if (g.stroke) {
+          ctx.strokeStyle = g.style;
+          ctx.stroke(g.path);
+        }
       }
     }
-    return layer;
+  }
+
+  // Close up, the base layer is too coarse: draw cached chunks at the zoom's resolution.
+  #drawGroundDetail() {
+    this.pending = false;
+    if (!this.textures) return;
+    const scale = this.cam.scale;
+    const devicePx = scale * this.dpr;
+    if (devicePx <= this.k * 1.5) return;
+    const k = Math.min(MAX_CHUNK_K, 2 ** Math.ceil(Math.log2(devicePx)));
+    const span = CHUNK_PX / k; // (u, v) units per chunk
+    const { clientWidth: w, clientHeight: h } = this.canvas;
+    const uA = this.cam.u - w / 2 / scale;
+    const uB = this.cam.u + w / 2 / scale;
+    const vA = this.cam.v - h / 2 / scale;
+    const vB = this.cam.v + h / 2 / scale;
+    let budget = CHUNKS_PER_FRAME;
+    const ctx = this.ctx;
+    ctx.imageSmoothingEnabled = true;
+    for (let cv = Math.floor(vA / span); cv <= Math.floor(vB / span); cv++) {
+      for (let cu = Math.floor(uA / span); cu <= Math.floor(uB / span); cu++) {
+        const key = `${k}:${cu}:${cv}`;
+        let chunk = this.chunks.get(key);
+        if (chunk) {
+          this.chunks.delete(key); // re-inserted below: most recently used goes last
+        } else if (budget > 0) {
+          budget--;
+          chunk = document.createElement('canvas');
+          chunk.width = CHUNK_PX;
+          chunk.height = CHUNK_PX;
+          this.#paintTerrain(chunk.getContext('2d'), k, cu * span, cv * span, span, span);
+        } else {
+          this.pending = true; // the base layer shows through until it is drawn
+          continue;
+        }
+        this.chunks.set(key, chunk);
+        // Snap edges to whole pixels so neighbouring chunks never leave a gap.
+        const [x0, y0] = this.uvToScreen(cu * span, cv * span);
+        const [x1, y1] = this.uvToScreen((cu + 1) * span, (cv + 1) * span);
+        const sx = Math.floor(x0);
+        const sy = Math.floor(y0);
+        ctx.drawImage(chunk, sx, sy, Math.ceil(x1) - sx, Math.ceil(y1) - sy);
+      }
+    }
+    while (this.chunks.size > MAX_CHUNKS) this.chunks.delete(this.chunks.keys().next().value);
   }
 
   // ---------- camera ----------
@@ -237,7 +400,7 @@ export class Renderer {
     this.cam.u += (this.target.u - this.cam.u) * a;
     this.cam.v += (this.target.v - this.cam.v) * a;
     this.cam.scale += (this.target.scale - this.cam.scale) * a;
-    return moved;
+    return moved || this.pending;
   }
 
   #aim(x, y) {
@@ -273,8 +436,9 @@ export class Renderer {
     ctx.fillRect(0, 0, w, h);
 
     const [bx, by] = this.uvToScreen(-this.size, -this.elevPad);
-    ctx.imageSmoothingEnabled = false;
+    ctx.imageSmoothingEnabled = !!this.textures;
     ctx.drawImage(this.base, bx, by, (this.base.width / this.k) * s, (this.base.height / this.k) * s);
+    this.#drawGroundDetail();
 
     const b = this.#visibleBounds();
     const inView = (x, y) => x >= b.x0 && x <= b.x1 && y >= b.y0 && y <= b.y1;
@@ -425,13 +589,16 @@ export class Renderer {
 
     if (this.replay.objectName(b.typeId) === 'Farm') {
       // Farms are flat plots: tilled soil with a player-colored border.
-      poly([top, right, bottom, left], progress < 1 ? '#8a6a3c' : '#9c7a3c');
+      const soil = this.#farmFill(z);
+      if (soil && progress < 1) ctx.globalAlpha *= 0.4 + progress * 0.6;
+      poly([top, right, bottom, left], soil ?? (progress < 1 ? '#8a6a3c' : '#9c7a3c'));
+      ctx.globalAlpha = this.#alpha(b.player, state);
       ctx.strokeStyle = this.playerColor(b.player);
       ctx.lineWidth = Math.max(1, s / 16);
       ctx.stroke();
       ctx.strokeStyle = 'rgba(60,40,20,0.35)';
       ctx.lineWidth = 1;
-      for (let i = 1; i < 4; i++) {
+      for (let i = 1; i < (soil ? 0 : 4); i++) {
         const k = i / 4;
         const a1 = [top[0] + (left[0] - top[0]) * k, top[1] + (left[1] - top[1]) * k];
         const a2 = [right[0] + (bottom[0] - right[0]) * k, right[1] + (bottom[1] - right[1]) * k];
@@ -466,6 +633,18 @@ export class Renderer {
       poly([t2, r2, b2, l2], shade(rgb, 1.1));
     }
     ctx.globalAlpha = 1;
+  }
+
+  // The game's farm texture, laid on the ground in screen space (null if not loaded).
+  #farmFill(z) {
+    const tex = this.textures?.get(FARM_TERRAIN);
+    if (!tex) return null;
+    this.farmPattern ??= this.ctx.createPattern(this.#scaledTexture(tex, 32), 'repeat');
+    const s = this.cam.scale;
+    const { clientWidth: w, clientHeight: h } = this.canvas;
+    const a = s / 32;
+    this.farmPattern.setTransform(new DOMMatrix([a, a / 2, -a, a / 2, w / 2 - this.cam.u * s, h / 2 - (z + this.cam.v) * s]));
+    return this.farmPattern;
   }
 
   #drawPath(u, state) {

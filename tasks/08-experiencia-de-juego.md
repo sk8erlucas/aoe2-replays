@@ -32,7 +32,10 @@ Elegido: **B1** con un subconjunto (edificios y unidades principales, por arquit
 - [x] Subconjunto inicial: 19 edificios por civilización y edad (incluido el centro urbano por partes), aldeanos, explorador y unidades comunes (quietos y caminando), árboles, minas, arbustos, reliquias y animales
 - [x] Animaciones de trabajo de los aldeanos: talar, minar oro y piedra, recolectar bayas y construir (y caminar con la herramienta), según la actividad que estima el motor
 - [x] Granjeros: quien construye una granja la trabaja hasta su próxima orden (como en el juego); las granjas se dibujan debajo de las unidades
-- [ ] Animaciones de cazador (la caza no se simula) y de ataque; granjas con su gráfico del juego (otro formato)
+- [ ] Animaciones de cazador (la caza no se simula) y de ataque
+- [x] Granjas con la textura de granja del juego
+- [x] Terreno con las texturas del juego (`tools/sprites/terrain.py`): proyectadas en isométrico, en bloques cacheados a la resolución del zoom; de lejos, los bosques con color de copa porque los árboles no se dibujan
+- [ ] Transiciones suaves entre terrenos (el juego usa máscaras de mezcla, `terrain/blends`) y agua animada
 - [x] Generar atlas WebP + JSON (cuadros, anclas, 8 direcciones) en `apps/web/public/sprites/`, registrados en `CREDITS.md`
 - [x] Teñir con el color del jugador usando la máscara (en el navegador, por color)
 - [x] Cargar los atlas en `render.js` (`SpriteSet`, carga por página) con las formas actuales como respaldo
