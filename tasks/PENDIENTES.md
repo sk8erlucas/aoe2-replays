@@ -5,6 +5,16 @@ Separados entre lo que necesita una decisión o acción tuya y lo que se puede a
 ## Repo abierto
 El repo es público desde octubre de 2026. Lo que queda de seguridad e infraestructura está en [11-apertura-publica](./11-apertura-publica.md); la migración a Next 16 en [12-next-16](./12-next-16.md).
 
+## Próxima sesión
+Quedó a medio revisar o detectado al cerrar la sesión del 29/10/2026:
+- [ ] **Capturas desactualizadas**: las de `docs/screenshots`, `public/images/visor`, `og.jpg` y la vista previa de GitHub son de antes de las texturas de terreno. Rehacerlas desde la web con la partida de demo anonimizada (necesita Docker con la base local).
+- [ ] **GitHub**: subir la imagen de Settings → Social preview y publicar un primer Release (por ejemplo `v0.1.0`).
+- [ ] **Muros**: confirmar en una partida que las formas 0 y 1 (diagonales) no están invertidas, y revisar una línea oscura que apareció junto a una empalizada.
+- [ ] **Tipo de unidad mal asignado**: los IDs nuevos se vinculan con la unidad más vieja del jugador, así que a veces un elefante figura como aldeano (y se lo ve atacando como aldeano). Mejorar la vinculación según el tipo de orden.
+- [ ] **Centro urbano del sudeste asiático**: piezas negras en el suelo (capa `0x04` del SLD, hoy ignorada).
+- [ ] **`manifest.json` de sprites pesa 5,5 MB** (con las animaciones de ataque): partirlo por civilización o comprobar que se sirve comprimido.
+- [ ] Migración a Next 16 ([12](./12-next-16.md)).
+
 ## Manual (necesita tu decisión o acción)
 | Tema | Qué hace falta | Bloquea |
 |---|---|---|
