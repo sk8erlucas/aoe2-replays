@@ -15,6 +15,13 @@ updates:
       # TypeScript 7 (native port) is not supported by Next.js 15 yet.
       - dependency-name: "typescript"
         update-types: ["version-update:semver-major"]
+      # Next 16 and ESLint 10 are a manual migration: tasks/12-next-16.md
+      - dependency-name: "next"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "eslint-config-next"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "eslint"
+        update-types: ["version-update:semver-major"]
   - package-ecosystem: pip
     directory: /services/parser
     schedule: { interval: weekly }
