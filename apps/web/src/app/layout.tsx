@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Cinzel, Montserrat } from "next/font/google";
+import localFont from "next/font/local";
 import { cookies, headers } from "next/headers";
 import Link from "next/link";
 import { LanguageSwitcher } from "@/components/LanguageSwitcher";
@@ -9,9 +9,20 @@ import { MESSAGES, REPO_URL, pickLocale } from "@/i18n/messages";
 import { SITE_URL } from "@/lib/site";
 import "./globals.css";
 
-// Self-hosted at build time by next/font; both are SIL Open Font License.
-const cinzel = Cinzel({ subsets: ["latin"], weight: ["600", "700"], variable: "--font-cinzel" });
-const montserrat = Montserrat({ subsets: ["latin"], weight: ["400", "500", "600", "700"], variable: "--font-montserrat" });
+// Variable fonts (latin subset) kept in the repo, so the build never depends on
+// Google Fonts answering. Both SIL Open Font License (src/fonts/OFL-*.txt).
+const cinzel = localFont({
+  src: "../fonts/cinzel-latin.woff2",
+  weight: "400 900",
+  variable: "--font-cinzel",
+  display: "swap",
+});
+const montserrat = localFont({
+  src: "../fonts/montserrat-latin.woff2",
+  weight: "100 900",
+  variable: "--font-montserrat",
+  display: "swap",
+});
 
 // The user's choice (cookie) wins over the browser's languages.
 async function currentLocale() {
