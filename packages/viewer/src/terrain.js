@@ -39,12 +39,16 @@ export class TerrainSet {
   #image(name, file) {
     let p = this.images.get(name);
     if (!p) {
-      p = new Promise((resolve) => {
+      // Up to three tries: a flaky download should not leave the ground flat.
+      const attempt = (left) => new Promise((resolve) => {
         const img = new Image();
         img.onload = () => resolve(img);
-        img.onerror = () => resolve(null);
+        img.onerror = () => resolve(left > 0
+          ? new Promise((r) => setTimeout(r, 800)).then(() => attempt(left - 1))
+          : null);
         img.src = `${this.base}/${file}`;
       });
+      p = attempt(2);
       this.images.set(name, p);
     }
     return p;

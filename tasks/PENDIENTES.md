@@ -9,9 +9,12 @@ El repo es público desde octubre de 2026. Lo que queda de seguridad e infraestr
 Quedó a medio revisar o detectado al cerrar la sesión del 29/10/2026:
 - [ ] **Capturas desactualizadas**: las de `docs/screenshots`, `public/images/visor`, `og.jpg` y la vista previa de GitHub son de antes de las texturas de terreno. Rehacerlas desde la web con la partida de demo anonimizada (necesita Docker con la base local).
 - [ ] **GitHub**: subir la imagen de Settings → Social preview y publicar un primer Release (por ejemplo `v0.1.0`).
-- [ ] **Muros**: confirmar en una partida que las formas 0 y 1 (diagonales) no están invertidas, y revisar una línea oscura que apareció junto a una empalizada.
+- [x] **Muros**: las diagonales estaban invertidas (corregido), los tramos escalonados se ven continuos y las puertas reemplazan los tramos de muro que tapan.
+- [ ] **Puertas**: en `long.json` una puerta "n" (673) cae en un muro horizontal en pantalla; revisar si la orientación de las puertas (`ne`, `se`, `e`, `n`) coincide con la del juego.
 - [ ] **Tipo de unidad mal asignado**: los IDs nuevos se vinculan con la unidad más vieja del jugador, así que a veces un elefante figura como aldeano (y se lo ve atacando como aldeano). Mejorar la vinculación según el tipo de orden.
-- [ ] **Centro urbano del sudeste asiático**: piezas negras en el suelo (capa `0x04` del SLD, hoy ignorada).
+- [x] **Centro urbano incompleto / piezas negras**: los anexos se ubicaban sobre el eje equivocado (corregido: el anexo `(dx, dy)` va en `(-dx, +dy)`).
+- [x] Ovejas con dueño dibujadas como milicia (ahora usan su sprite de animal con el color del jugador).
+- [x] Si una página del atlas o una textura falla al bajar, se reintenta (antes el edificio quedaba invisible).
 - [ ] **`manifest.json` de sprites pesa 5,5 MB** (con las animaciones de ataque): partirlo por civilización o comprobar que se sirve comprimido.
 - [ ] Migración a Next 16 ([12](./12-next-16.md)).
 

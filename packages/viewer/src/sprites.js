@@ -5,6 +5,7 @@
 
 // Built town centers use a different id than the starting one.
 const BUILDING_ALIASES = { 621: 109 };
+const RETRIES = 4;
 
 export class SpriteSet {
   static async load(baseUrl) {
@@ -39,6 +40,12 @@ export class SpriteSet {
       img.onload = () => {
         page[slot] = img;
         this.onLoad?.();
+      };
+      // A failed download (flaky network) is retried on a later frame, a bit later each time.
+      img.onerror = () => {
+        const tries = (page.tries ?? 0) + 1;
+        page.tries = tries;
+        if (tries <= RETRIES) setTimeout(() => page.requested.delete(slot), 1000 * tries);
       };
       img.src = `${this.base}/${file}`;
     };

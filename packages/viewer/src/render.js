@@ -16,7 +16,7 @@ const VILLAGER_JOBS = {
   hunt: 'hunter', shepherd: 'shepherd',
 };
 // Wall sprites have one frame per shape; which one depends on the neighbouring wall tiles.
-const WALL_SHAPE = { x: 0, y: 1, pillar: 2, horizontal: 3, vertical: 4 };
+const WALL_SHAPE = { x: 1, y: 0, pillar: 2, horizontal: 3, vertical: 4 };
 const VILLAGER_TYPES = new Set([83, 293]);
 
 const CLASS_STAND_IN = {
@@ -796,12 +796,17 @@ export class Renderer {
     const x = Math.round(b.x);
     const y = Math.round(b.y);
     const has = (dx, dy) => this.walls.has(`${b.player}:${x + dx},${y + dy}`);
-    const dirs = [];
-    if (has(1, 0) || has(-1, 0)) dirs.push('x');
-    if (has(0, 1) || has(0, -1)) dirs.push('y');
-    if (has(1, -1) || has(-1, 1)) dirs.push('horizontal');
-    if (has(1, 1) || has(-1, -1)) dirs.push('vertical');
-    return WALL_SHAPE[dirs.length === 1 ? dirs[0] : 'pillar'];
+    const alongX = has(1, 0) || has(-1, 0);
+    const alongY = has(0, 1) || has(0, -1);
+    // A corner between the two axes is a pillar; on a stepped line the axis wins,
+    // so the wall reads as one run instead of a row of towers.
+    if (alongX && alongY) return WALL_SHAPE.pillar;
+    if (alongX) return WALL_SHAPE.x;
+    if (alongY) return WALL_SHAPE.y;
+    const horizontal = has(1, -1) || has(-1, 1);
+    const vertical = has(1, 1) || has(-1, -1);
+    if (horizontal !== vertical) return horizontal ? WALL_SHAPE.horizontal : WALL_SHAPE.vertical;
+    return WALL_SHAPE.pillar;
   }
 
   #drawPath(u, state) {
@@ -905,7 +910,8 @@ export class Renderer {
     // Foundations show the finished building faded until construction ends.
     this.ctx.globalAlpha = this.#alpha(b.player, state) * (progress < 1 ? 0.4 + progress * 0.3 : 1);
     for (const [key, dx, dy, ox = 0, oy = 0] of parts) {
-      const [sx, sy] = this.toScreen(b.x + dx, b.y + dy);
+      // Annex offsets (town center parts) run along the other diagonal: (dx, dy) is world (-dx, +dy).
+      const [sx, sy] = this.toScreen(b.x - dx, b.y + dy);
       this.#blit(keyOf(key), sx, sy, color, ox, oy);
     }
     this.ctx.globalAlpha = 1;
@@ -945,6 +951,13 @@ export class Renderer {
           this.ctx.globalAlpha = 1;
           if (ok) return true;
         }
+      }
+      // Herdables a player took (sheep, turkeys...) keep their animal sprite, in the player's colour.
+      const herd = unit.typeId != null && !this.sprites.unit(civ, unit.typeId) && this.sprites.gaia(unit.typeId);
+      if (herd?.length) {
+        ok = this.#blit(herd[this.#angleIndex(unit, { t: state.t }, herd.length)], sx, sy, color);
+        this.ctx.globalAlpha = 1;
+        return ok;
       }
       const unitClass = this.replay.game?.units?.[unit.typeId]?.class;
       const set = this.sprites.unit(civ, unit.typeId ?? 83)

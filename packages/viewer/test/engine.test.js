@@ -355,3 +355,21 @@ test('herded animals follow orders but never attack', () => {
   const r = skirmish([{ t: 0, type: 'ORDER', player: 1, object_ids: [401], target_id: 302, x: 20, y: 30 }]);
   assert.equal(r.unitById.get(401).activityAt(5_000), null);
 });
+
+test('a gate replaces the wall segments under it, without rubble', () => {
+  const r = new Replay({
+    game: { duration_ms: 60_000, players: [{ number: 1, name: 'A', color_id: 0, team_id: 2, start: { x: 5, y: 5 } }] },
+    map: { size: 30, terrain: [], elevation: [] },
+    initial_objects: [],
+    timeline: [
+      { t: 0, type: 'WALL', player: 1, building_id: 117, x: 10, y: 10, x_end: 18, y_end: 10, object_ids: [] },
+      { t: 10_000, type: 'BUILD', player: 1, building_id: 665, x: 14, y: 10, object_ids: [] },
+    ],
+    chat: [],
+    legend: { objects: { 117: { name: 'Stone Wall', category: 'building' }, 665: { name: 'Gate', category: 'building' } } },
+  });
+  const later = r.stateAt(20_000);
+  const walls = later.buildings.filter((b) => b.building.typeId === 117).map((b) => b.building.x);
+  assert.ok(!walls.includes(14) && walls.includes(10) && walls.includes(18), `walls left: ${walls}`);
+  assert.equal(later.ruins.length, 0);
+});

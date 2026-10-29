@@ -406,6 +406,18 @@ export class Replay {
 
   #build(e) {
     const building = this.#addBuilding({ player: e.player, typeId: e.building_id, x: e.x, y: e.y, t: e.t });
+    // A gate goes on top of the player's wall and replaces those segments (no rubble).
+    if (/Gate/.test(this.objectName(e.building_id))) {
+      const reach = building.size / 2;
+      for (const w of this.buildings) {
+        if (w === building || w.player !== e.player || w.size > 1 || w.removedAt <= e.t) continue;
+        if (!/Wall/.test(this.objectName(w.typeId))) continue;
+        if (Math.abs(w.x - e.x) <= reach && Math.abs(w.y - e.y) <= reach) {
+          w.removedAt = e.t;
+          w.replaced = true;
+        }
+      }
+    }
     this.log.push({ t: e.t, player: e.player, kind: 'build', name: this.objectName(e.building_id) });
     return building;
   }
@@ -510,7 +522,7 @@ export class Replay {
     for (const b of this.buildings) {
       if (b.t > t) continue;
       if (b.removedAt <= t) {
-        ruins.push(b);
+        if (!b.replaced) ruins.push(b);
         continue;
       }
       const progress = b.buildTime > 0 ? Math.min(1, (t - b.t) / b.buildTime) : 1;

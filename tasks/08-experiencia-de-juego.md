@@ -44,7 +44,8 @@ Elegido: **B1** con un subconjunto (edificios y unidades principales, por arquit
 - [x] Muros con su forma según los tramos vecinos (diagonales, horizontal, vertical, pilar)
 - [x] Edificios y unidades borrados por su dueño (`DELETE`): desaparecen y los edificios dejan escombros del juego
 - [ ] Puertas abiertas/cerradas y edificios destruidos en combate (no están en el replay)
-- [ ] Revisar las piezas negras del suelo del centro urbano del sudeste asiático (capa `0x04` del SLD que hoy se ignora)
+- [x] Centro urbano armado con sus anexos en el eje correcto (también resolvía las piezas negras del sudeste asiático)
+- [x] Puertas sobre muros: reemplazan los tramos que ocupan
 - [x] Todos los edificios construibles del juego (puertas, trampas de peces, edificios únicos); los gráficos contenedores incluyen su propio gráfico (arreglaba la herrería de varias civilizaciones)
 - [ ] Granjas: usan otro formato de gráfico (no SLD); hoy se dibujan planas
 - [x] Unidades militares: el motor vincula los edificios construidos durante la partida con los IDs que usan las colas (según dónde se entrena cada unidad, del archivo de datos del juego), así las unidades salen del edificio correcto con su tipo, tiempo de entrenamiento y velocidad reales
