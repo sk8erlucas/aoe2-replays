@@ -46,6 +46,8 @@ WALK_FRAMES = 6  # frames kept per direction of a walk cycle
 ANGLES_KEPT = 16
 TREE_VARIANTS = 4
 TASK_FRAMES = 5  # frames kept per direction of a work animation
+ATTACK_FRAMES = 5  # frames kept per direction of an attack animation
+WALL_SHAPES = 5  # wall graphics: one "angle" per shape (two diagonals, pillar, horizontal, vertical)
 # Villager jobs: role -> graphic name part. Stone miners reuse the gold miner's work animation.
 VILLAGER_ROLES = {
     'lumberjack': 'lumberjack',
@@ -55,6 +57,7 @@ VILLAGER_ROLES = {
     'farmer': 'farmer',
     'builder': 'builder',
     'hunter': 'hunter',
+    'shepherd': 'shepherd',
 }
 
 
@@ -253,11 +256,13 @@ def main():
     building_ids = sorted(set(BUILDINGS) | buildable)
     print(f'{len(building_ids)} building types', flush=True)
 
+    by_name = {g.file_name: g for g in dat.graphics if g and g.file_name}
     civs = {}
     for civ_id, civ in enumerate(dat.civs):
         if civ_id == 0:
             continue
         buildings = {}
+        rubble = {}
         for bid in building_ids:
             ages = {}
             base = civ.units[bid] if bid < len(civ.units) else None
@@ -276,12 +281,24 @@ def main():
                     if part is None:
                         continue
                     for stem, ox, oy in layers_of(part.standing_graphic[0]):
-                        key = col.add(stem, 0)
+                        g = by_name.get(stem)
+                        if g and '_wall_' in stem and g.angle_count == WALL_SHAPES:
+                            fc = max(1, g.frame_count)
+                            shapes = [col.add(stem, a * fc) for a in range(WALL_SHAPES)]
+                            key = shapes if all(shapes) else None
+                        else:
+                            key = col.add(stem, 0)
                         if key:
                             # Tile offset of the part, then pixel offset of the sub-graphic (exported scale).
                             frames.append([key, dx, dy, round(ox * args.scale, 1), round(oy * args.scale, 1)])
                 if frames:
                     ages[age] = frames
+                # What it leaves when destroyed or deleted.
+                dead = civ.units[unit.dead_unit_id] if 0 <= unit.dead_unit_id < len(civ.units) else None
+                stem = stem_of(dead.standing_graphic[0]) if dead else None
+                key = col.add(stem, 0) if stem else None
+                if key:
+                    rubble.setdefault(bid, {})[age] = key
             if ages:
                 buildings[bid] = ages
         units = {}
@@ -303,12 +320,19 @@ def main():
                 keys = [[col.add(walk.file_name, a * fc + f) for f in range(0, fc, step)] for a in range(ac)]
                 if all(all(k) for k in keys):
                     entry['walk'] = keys
+            attack = graphic(dat, unit.type_50.attack_graphic) if unit.type_50 else None
+            if attack and attack.file_name:
+                fc, ac = max(1, attack.frame_count), max(1, attack.angle_count)
+                step = max(1, fc // ATTACK_FRAMES)
+                keys = [[col.add(attack.file_name, a * fc + f) for f in range(0, fc, step)][:ATTACK_FRAMES]
+                        for a in range(ac)]
+                if all(all(k) for k in keys):
+                    entry['attack'] = keys
             if entry:
                 units[uid] = entry
-        civs[civ_id] = {'name': civ.name, 'buildings': buildings, 'units': units}
+        civs[civ_id] = {'name': civ.name, 'buildings': buildings, 'units': units, 'rubble': rubble}
 
     # Villager jobs: work and walk-with-tool animations, by sex and role.
-    by_name = {g.file_name: g for g in dat.graphics if g and g.file_name}
 
     def animation(stem, frames_kept):
         g = by_name.get(stem)
@@ -360,7 +384,7 @@ def main():
     for civ in civs.values():
         for bid, ages in list(civ['buildings'].items()):
             for age, parts in list(ages.items()):
-                parts[:] = [p for p in parts if p[0] in ok]
+                parts[:] = [p for p in parts if all(k in ok for k in (p[0] if isinstance(p[0], list) else [p[0]]))]
                 if not parts:
                     del ages[age]
             if not ages:
@@ -368,10 +392,15 @@ def main():
         for uid, entry in list(civ['units'].items()):
             if 'idle' in entry and not all(k in ok for k in entry['idle']):
                 del entry['idle']
-            if 'walk' in entry and not all(k in ok for frames in entry['walk'] for k in frames):
-                del entry['walk']
+            for kind in ('walk', 'attack'):
+                if kind in entry and not all(k in ok for frames in entry[kind] for k in frames):
+                    del entry[kind]
             if not entry:
                 del civ['units'][uid]
+        for bid, ages in list(civ['rubble'].items()):
+            civ['rubble'][bid] = {age: k for age, k in ages.items() if k in ok}
+            if not civ['rubble'][bid]:
+                del civ['rubble'][bid]
     for roles in villagers.values():
         for role, entry in list(roles.items()):
             for kind in list(entry):
@@ -435,7 +464,8 @@ def main():
         'pages': [PAGE_FILES[name] for name in pages],
         # [page, x, y, w, h, anchor x, anchor y, has player mask]
         'frames': frames,
-        'civs': {cid: {'name': c['name'], 'buildings': ref(c['buildings']), 'units': ref(c['units'])}
+        'civs': {cid: {'name': c['name'], 'buildings': ref(c['buildings']), 'units': ref(c['units']),
+                       'rubble': ref(c['rubble'])}
                  for cid, c in civs.items()},
         'gaia': ref(gaia),
         'villagers': ref(villagers),

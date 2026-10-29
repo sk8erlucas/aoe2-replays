@@ -19,9 +19,14 @@ export class Unit {
   player: number;
   typeId: number | null;
   spawnT: number;
+  /** When its owner deleted it (Infinity if never). */
+  removedAt: number;
   approx: boolean;
   positionAt(t: number): { x: number; y: number; moving: boolean; target: { x: number; y: number } | null };
-  /** What the unit is doing at t: a resource category ('tree', 'gold', 'stone', 'berries'), 'build', or null. Estimated. */
+  /**
+   * What the unit is doing at t, estimated: a resource category ('tree', 'gold', 'stone', 'berries'),
+   * 'build', 'farm', 'hunt', 'shepherd', 'attack', or null.
+   */
   activityAt(t: number): string | null;
 }
 
@@ -34,12 +39,16 @@ export interface Building {
   t: number;
   size: number;
   buildTime: number;
+  /** When its owner deleted it (Infinity if never). */
+  removedAt: number;
 }
 
 export interface State {
   t: number;
   units: Array<{ unit: Unit; x: number; y: number; moving: boolean; target: { x: number; y: number } | null }>;
   buildings: Array<{ building: Building; progress: number }>;
+  /** Buildings deleted by their owner: drawn as rubble. */
+  ruins: Building[];
   resigned: Set<number>;
 }
 

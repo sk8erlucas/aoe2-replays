@@ -112,6 +112,17 @@ export const GATHER_RATES = {
 // How far (tiles) a gatherer looks for the next resource of the same kind.
 export const RETARGET_RADIUS = 8;
 
+// Fighting. A replay says who was told to attack what, never who won or when the
+// target fell: an attacker walks up to its target and fights for this long, or
+// until its next order.
+export const ATTACK_HOLD_MS = 25_000;
+// Unit classes (game data) that fight from a distance, and where they stop (tiles).
+export const RANGED_CLASSES = new Set([0, 13, 18, 22, 36, 44, 51, 54, 55]);
+export const RANGED_STOP = 5;
+export const MELEE_STOP = 0.8;
+// Animals a villager herds (shepherd) rather than hunts.
+export const HERDABLE = /^(Sheep|Goose|Turkey|Llama|Cow|Pig|Water Buffalo|Goat)\b/;
+
 // Age techs: id -> [age it leads to, research time in game seconds].
 export const AGE_TECHS = {
   101: [2, 130],

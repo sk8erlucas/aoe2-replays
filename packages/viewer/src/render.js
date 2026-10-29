@@ -13,7 +13,10 @@ const ELEVATION_UNITS = 0.25; // height of one elevation level
 // What a villager is doing (engine activity) -> job animation in the sprites.
 const VILLAGER_JOBS = {
   tree: 'lumberjack', gold: 'miner_gold', stone: 'miner_stone', berries: 'forager', build: 'builder', farm: 'farmer',
+  hunt: 'hunter', shepherd: 'shepherd',
 };
+// Wall sprites have one frame per shape; which one depends on the neighbouring wall tiles.
+const WALL_SHAPE = { x: 0, y: 1, pillar: 2, horizontal: 3, vertical: 4 };
 const VILLAGER_TYPES = new Set([83, 293]);
 
 const CLASS_STAND_IN = {
@@ -36,9 +39,13 @@ const CAMERA_SPEED = 4; // higher = snappier camera
 const CHUNK_PX = 512;
 const MAX_CHUNKS = 64;
 const MAX_CHUNK_K = 32; // px per unit; beyond this chunks are scaled up
-const CHUNKS_PER_FRAME = 2; // render budget, so zooming never stalls a frame
+const CHUNKS_PER_FRAME = 1; // render budget, so zooming never stalls a frame
 const FARM_TERRAIN = 7; // the game's farm ground ("Farm1"), drawn under farm buildings
 const CANOPY_RGB = [38, 66, 30]; // forest seen from afar, where trees are not drawn
+const BLEND_RADIUS = 0.4; // soft edge between terrains, in tile heights
+const WATER_DRIFT = 0.12; // tiles per game second the water surface drifts
+const WATER_SHIMMER = 0.32; // opacity of the moving water layer
+const GAIA_TINT = '#d9d4c7'; // unowned herdables (sheep, geese): their player-colour layer
 
 function hexToRgb(hex) {
   const n = parseInt(hex.slice(1), 16);
@@ -93,6 +100,7 @@ export class Renderer {
     if (!textures.size) return;
     this.textures = textures;
     this.farmPattern = null;
+    this.water = null;
     this.scaledTextures.clear();
     this.chunks.clear();
     this.base = this.#buildBaseLayer();
@@ -166,6 +174,7 @@ export class Renderer {
   /**
    * Paints the ground inside a (u, v) rectangle into ctx at k px per unit:
    * canvas point = ((u - u0) * k, (v - v0) * k).
+   * `canopy`: zoomed-out look (forests coloured, no soft edges between terrains).
    */
   #paintTerrain(ctx, k, u0, v0, uw, vh, canopy = false) {
     const { size: n, elevation: elev } = this;
@@ -198,6 +207,13 @@ export class Renderer {
       path.closePath();
     };
     ctx.lineWidth = 1;
+    const areas = new Map(); // textured terrain id -> Path2D of its tiles, for blending
+    const overlay = new Map(); // light and canopy, painted over the ground at the end
+    const add = (layer, key, init, x, y, z) => {
+      let g = layer.get(key);
+      if (!g) layer.set(key, (g = { path: new Path2D(), ...init() }));
+      diamond(g.path, x, y, z);
+    };
 
     // Tiles whose diamond can reach the rectangle (raised tiles reach higher),
     // one diagonal row at a time, back to front, so nearer tiles cover the ones
@@ -207,12 +223,6 @@ export class Renderer {
     const dMax = Math.min(2 * n - 2, Math.ceil(2 * (v0 + vh + this.elevPad)) + 2);
     for (let d = dMin; d <= dMax; d++) {
       const ground = new Map(); // look -> { path, style | f + z }
-      const overlay = new Map(); // light and canopy, painted over the ground
-      const add = (layer, key, init, x, y, z) => {
-        let g = layer.get(key);
-        if (!g) layer.set(key, (g = { path: new Path2D(), ...init() }));
-        diamond(g.path, x, y, z);
-      };
       const xMin = Math.max(0, d - n + 1, Math.ceil((d + u0 - 1) / 2));
       const xMax = Math.min(d, n - 1, Math.floor((d + u0 + uw + 1) / 2));
       for (let x = xMin; x <= xMax; x++) {
@@ -229,7 +239,8 @@ export class Renderer {
           add(ground, `${id}|${q}`, () => ({ style: shade(f.color, q) }), x, y, z);
           continue;
         }
-        add(ground, `${id}|${z}`, () => ({ f, z }), x, y, z);
+        add(ground, id, () => ({ f, z: 0 }), x, y, z);
+        if (!canopy) add(areas, id, () => ({}), x, y, z);
         if (canopy && legend[id]?.category === 'forest') {
           const q = Math.round((0.85 + hash(i) * 0.4 + slope * 0.09) * 20) / 20;
           add(overlay, `c${q}`, () => ({ style: shade(CANOPY_RGB, q), stroke: true }), x, y, z);
@@ -248,7 +259,7 @@ export class Renderer {
           if (g.f.z !== g.z) {
             // Texture space (texels) -> world tiles -> this canvas.
             const a = k * g.f.unit;
-            g.f.pattern.setTransform(new DOMMatrix([a, a / 2, -a, a / 2, -u0 * k, -(g.z + v0) * k]));
+            g.f.pattern.setTransform(new DOMMatrix([a, a / 2, -a, a / 2, -u0 * k, -v0 * k]));
             g.f.z = g.z;
           }
           style = g.f.pattern;
@@ -258,24 +269,57 @@ export class Renderer {
         ctx.fill(g.path);
         ctx.stroke(g.path);
       }
-      for (const g of overlay.values()) {
-        ctx.fillStyle = g.style;
-        ctx.fill(g.path);
-        if (g.stroke) {
-          ctx.strokeStyle = g.style;
-          ctx.stroke(g.path);
-        }
+    }
+    if (areas.size > 1) this.#blendTerrains(ctx, k, u0, v0, areas, texels);
+    for (const g of overlay.values()) {
+      ctx.fillStyle = g.style;
+      ctx.fill(g.path);
+      if (g.stroke) {
+        ctx.strokeStyle = g.style;
+        ctx.stroke(g.path);
       }
     }
+  }
+
+  // Soft edges between terrains: each terrain is painted again through a blurred
+  // mask of its tiles, so it fades into its neighbours instead of a tile zigzag.
+  // The game uses blend masks per neighbour layout; this is a cheaper look-alike.
+  // Without canvas filters (older Safari) the edges simply stay hard.
+  #blendTerrains(ctx, k, u0, v0, areas, texels) {
+    const { width: w, height: h } = ctx.canvas;
+    if (!this.blendCanvas || this.blendCanvas.width !== w || this.blendCanvas.height !== h) {
+      this.blendCanvas = document.createElement('canvas');
+      this.blendCanvas.width = w;
+      this.blendCanvas.height = h;
+    }
+    const lctx = this.blendCanvas.getContext('2d');
+    if (!('filter' in lctx)) return;
+    const a = k / texels;
+    for (const [id, area] of areas) {
+      const tex = this.textures.get(id);
+      lctx.globalCompositeOperation = 'source-over';
+      lctx.clearRect(0, 0, w, h);
+      lctx.filter = `blur(${Math.max(1, k * BLEND_RADIUS)}px)`;
+      lctx.fillStyle = '#fff';
+      lctx.fill(area.path);
+      lctx.filter = 'none';
+      lctx.globalCompositeOperation = 'source-in';
+      const pattern = lctx.createPattern(this.#scaledTexture(tex, texels), 'repeat');
+      pattern.setTransform(new DOMMatrix([a, a / 2, -a, a / 2, -u0 * k, -v0 * k]));
+      lctx.fillStyle = pattern;
+      lctx.fillRect(0, 0, w, h);
+      ctx.drawImage(this.blendCanvas, 0, 0);
+    }
+    lctx.globalCompositeOperation = 'source-over';
   }
 
   // Close up, the base layer is too coarse: draw cached chunks at the zoom's resolution.
   #drawGroundDetail() {
     this.pending = false;
-    if (!this.textures) return;
+    if (!this.textures) return false;
     const scale = this.cam.scale;
     const devicePx = scale * this.dpr;
-    if (devicePx <= this.k * 1.5) return;
+    if (devicePx <= this.k * 1.5) return false;
     const k = Math.min(MAX_CHUNK_K, 2 ** Math.ceil(Math.log2(devicePx)));
     const span = CHUNK_PX / k; // (u, v) units per chunk
     const { clientWidth: w, clientHeight: h } = this.canvas;
@@ -312,6 +356,64 @@ export class Renderer {
       }
     }
     while (this.chunks.size > MAX_CHUNKS) this.chunks.delete(this.chunks.keys().next().value);
+    return true;
+  }
+
+  // Open water (not its shore, so the coast keeps its soft edge): the water
+  // texture again, drifting with game time, over the cached ground.
+  #drawWaterMotion(t) {
+    if (!this.water) {
+      const { terrain } = this.replay.data.map;
+      const legend = this.replay.legend.terrain ?? {};
+      const n = this.size;
+      // "Water, Shallow" is the game's ordinary water, though the parser files it under shallows.
+      const isWater = (x, y) => {
+        if (x < 0 || y < 0 || x >= n || y >= n) return true;
+        const t = legend[terrain[y * n + x]];
+        return t?.category === 'water' || t?.category === 'deep_water' || /^Water\b/.test(t?.name ?? '');
+      };
+      const tiles = [];
+      let tex = null;
+      for (let y = 0; y < n; y++) {
+        for (let x = 0; x < n; x++) {
+          if (!isWater(x, y)) continue;
+          tex ??= this.textures.get(terrain[y * n + x]) ?? null;
+          if (isWater(x - 1, y) && isWater(x + 1, y) && isWater(x, y - 1) && isWater(x, y + 1)) tiles.push(x, y);
+        }
+      }
+      this.water = { tiles, pattern: tex && this.ctx.createPattern(this.#scaledTexture(tex, 32), 'repeat') };
+    }
+    const { tiles, pattern } = this.water;
+    if (!pattern || !tiles.length) return;
+    const b = this.#visibleBounds(1);
+    const path = new Path2D();
+    let any = false;
+    for (let i = 0; i < tiles.length; i += 2) {
+      const x = tiles[i];
+      const y = tiles[i + 1];
+      if (x < b.x0 || x > b.x1 || y < b.y0 || y > b.y1) continue;
+      const top = this.toScreen(x, y);
+      const right = this.toScreen(x + 1, y);
+      const bottom = this.toScreen(x + 1, y + 1);
+      const left = this.toScreen(x, y + 1);
+      path.moveTo(top[0], top[1]);
+      path.lineTo(right[0], right[1]);
+      path.lineTo(bottom[0], bottom[1]);
+      path.lineTo(left[0], left[1]);
+      path.closePath();
+      any = true;
+    }
+    if (!any) return;
+    const s = this.cam.scale;
+    const { clientWidth: w, clientHeight: h } = this.canvas;
+    const a = s / 32;
+    const drift = (t / 1000) * WATER_DRIFT * 32; // in texels
+    pattern.setTransform(new DOMMatrix([a, a / 2, -a, a / 2, w / 2 - this.cam.u * s, h / 2 - this.cam.v * s])
+      .translate(drift, drift * 0.4));
+    this.ctx.globalAlpha = WATER_SHIMMER;
+    this.ctx.fillStyle = pattern;
+    this.ctx.fill(path);
+    this.ctx.globalAlpha = 1;
   }
 
   // ---------- camera ----------
@@ -438,7 +540,7 @@ export class Renderer {
     const [bx, by] = this.uvToScreen(-this.size, -this.elevPad);
     ctx.imageSmoothingEnabled = !!this.textures;
     ctx.drawImage(this.base, bx, by, (this.base.width / this.k) * s, (this.base.height / this.k) * s);
-    this.#drawGroundDetail();
+    if (this.#drawGroundDetail()) this.#drawWaterMotion(state.t);
 
     const b = this.#visibleBounds();
     const inView = (x, y) => x >= b.x0 && x <= b.x1 && y >= b.y0 && y <= b.y1;
@@ -460,10 +562,15 @@ export class Renderer {
       const flat = this.replay.objectName(bd.typeId) === 'Farm';
       items.push({ depth: flat ? -Infinity : bd.x + bd.y + bd.size / 2, draw: () => this.#drawBuilding(bd, it.progress, state) });
     }
+    for (const bd of state.ruins ?? []) {
+      if (!inView(bd.x, bd.y)) continue;
+      items.push({ depth: -Infinity, draw: () => this.#drawRuin(bd, state) });
+    }
     for (const u of state.units) {
       if (!inView(u.x, u.y)) continue;
       items.push({ depth: u.x + u.y, draw: () => this.#drawUnit(u, state, detail) });
     }
+    this.walls = null; // wall shapes depend on this frame's neighbours
     items.sort((a, z) => a.depth - z.depth);
 
     // Orders on the ground, under everything else.
@@ -647,6 +754,56 @@ export class Renderer {
     return this.farmPattern;
   }
 
+  // What a deleted building leaves: the game's rubble, or a low heap of stones.
+  #drawRuin(b, state) {
+    if (this.sprites && this.cam.scale >= DETAIL_SCALE) {
+      const civ = this.#civ(b.player);
+      const key = civ != null && this.sprites.rubble(civ, b.typeId, this.replay.ageAt(b.player, state.t));
+      if (key != null) {
+        if (!this.sprites.frame(key)) return; // atlas still loading
+        const [sx, sy] = this.toScreen(b.x, b.y);
+        this.#blit(key, sx, sy, null);
+        return;
+      }
+    }
+    const { ctx } = this;
+    const s = this.cam.scale;
+    const half = b.size / 2;
+    const pts = [[b.x - half, b.y - half], [b.x + half, b.y - half], [b.x + half, b.y + half], [b.x - half, b.y + half]]
+      .map(([x, y]) => this.toScreen(x, y));
+    ctx.fillStyle = 'rgba(70,60,50,0.55)';
+    ctx.beginPath();
+    pts.forEach(([x, y], i) => (i ? ctx.lineTo(x, y) : ctx.moveTo(x, y)));
+    ctx.closePath();
+    ctx.fill();
+    if (s < DETAIL_SCALE) return;
+    ctx.fillStyle = '#7a6d5e';
+    for (let i = 0; i < 4 * b.size; i++) {
+      const [x, y] = this.toScreen(b.x - half + hash(i * 7 + b.x * 31) * b.size, b.y - half + hash(i * 13 + b.y * 17) * b.size);
+      ctx.fillRect(x - s * 0.08, y - s * 0.06, s * 0.16, s * 0.12);
+    }
+  }
+
+  // Shape of a wall tile from the walls of the same player around it (this frame).
+  #wallShape(b, state) {
+    if (!this.walls) {
+      this.walls = new Map();
+      for (const it of state.buildings) {
+        const w = it.building;
+        if (w.size <= 1) this.walls.set(`${w.player}:${Math.round(w.x)},${Math.round(w.y)}`, w.typeId);
+      }
+    }
+    const x = Math.round(b.x);
+    const y = Math.round(b.y);
+    const has = (dx, dy) => this.walls.has(`${b.player}:${x + dx},${y + dy}`);
+    const dirs = [];
+    if (has(1, 0) || has(-1, 0)) dirs.push('x');
+    if (has(0, 1) || has(0, -1)) dirs.push('y');
+    if (has(1, -1) || has(-1, 1)) dirs.push('horizontal');
+    if (has(1, 1) || has(-1, -1)) dirs.push('vertical');
+    return WALL_SHAPE[dirs.length === 1 ? dirs[0] : 'pillar'];
+  }
+
   #drawPath(u, state) {
     const { ctx } = this;
     const [x1, y1] = this.toScreen(u.x, u.y);
@@ -740,13 +897,16 @@ export class Renderer {
     if (!parts) return false;
     // The sprite exists but its atlas is still downloading: draw nothing rather
     // than a placeholder box that would flash and look broken.
-    if (parts.some(([key]) => !this.sprites.frame(key))) return true;
+    // Wall parts carry one key per shape.
+    const shape = parts.some(([key]) => Array.isArray(key)) ? this.#wallShape(b, state) : 0;
+    const keyOf = (key) => (Array.isArray(key) ? key[shape] ?? key[0] : key);
+    if (parts.some(([key]) => !this.sprites.frame(keyOf(key)))) return true;
     const color = this.playerColor(b.player);
     // Foundations show the finished building faded until construction ends.
     this.ctx.globalAlpha = this.#alpha(b.player, state) * (progress < 1 ? 0.4 + progress * 0.3 : 1);
     for (const [key, dx, dy, ox = 0, oy = 0] of parts) {
       const [sx, sy] = this.toScreen(b.x + dx, b.y + dy);
-      this.#blit(key, sx, sy, color, ox, oy);
+      this.#blit(keyOf(key), sx, sy, color, ox, oy);
     }
     this.ctx.globalAlpha = 1;
     return true;
@@ -773,7 +933,7 @@ export class Renderer {
     let ok = false;
     if (unit.player === 0) {
       const keys = this.sprites.gaia(unit.typeId);
-      if (keys?.length) ok = this.#blit(keys[this.#angleIndex(unit, { t: state.t }, keys.length)], sx, sy, null);
+      if (keys?.length) ok = this.#blit(keys[this.#angleIndex(unit, { t: state.t }, keys.length)], sx, sy, GAIA_TINT);
     } else {
       const civ = this.#civ(unit.player);
       const job = this.#villagerJob(unit, state.t);
@@ -794,6 +954,9 @@ export class Renderer {
         if (u.moving && set.walk) {
           const frames = set.walk[this.#angleIndex(unit, { t: state.t }, set.walk.length)];
           ok = this.#blit(frames[Math.floor(state.t / 110) % frames.length], sx, sy, color);
+        } else if (set.attack && unit.activityAt(state.t) === 'attack') {
+          const frames = set.attack[this.#angleIndex(unit, { t: state.t }, set.attack.length)];
+          ok = this.#blit(frames[Math.floor(state.t / 140) % frames.length], sx, sy, color);
         } else if (set.idle) {
           ok = this.#blit(set.idle[this.#angleIndex(unit, { t: state.t }, set.idle.length)], sx, sy, color);
         }

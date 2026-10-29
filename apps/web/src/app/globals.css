@@ -581,14 +581,24 @@ button.primary:hover:not(:disabled), .button-primary:hover { border-color: var(-
 }
 
 .players, .log { list-style: none; margin: 0; padding: 0; }
-.players li {
+.players li { border-bottom: 1px dotted var(--rule); }
+.players .player-jump {
   display: grid;
   grid-template-columns: 12px minmax(0, 1fr) auto;
   gap: 8px;
   align-items: center;
+  width: 100%;
   padding: 4px 0;
-  border-bottom: 1px dotted var(--rule);
+  background: none;
+  border: 0;
+  border-radius: 0;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
 }
+.players .player-jump:hover .name,
+.players .player-jump:focus-visible .name { text-decoration: underline; }
 .players li.resigned { opacity: 0.5; }
 .players .name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 600; }
 .players .meta { color: var(--ink-faint); font-size: 12px; }

@@ -28,7 +28,7 @@ And also:
 - **English and Spanish**, picked from your browser and switchable at any time.
 
 ### What's exact and what's estimated
-A replay stores **only the players' commands**: the game re-simulates everything with its closed-source engine. So commands, timings, what was built where, research, resignations and chat are **exact**; unit paths, gathering, tree felling, fights and age-up arrival times are **estimates**, and the app says so where it matters.
+A replay stores **only the players' commands**: the game re-simulates everything with its closed-source engine. So commands, timings, what was built where, research, resignations and chat are **exact**; unit paths, gathering, hunting, tree felling, fights (who attacks whom is exact, the outcome is not) and age-up arrival times are **estimates**, and the app says so where it matters.
 
 ## How it works
 

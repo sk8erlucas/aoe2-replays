@@ -6,10 +6,13 @@
 // that trained them, and buildings rise linearly over an estimated build time.
 // Resources are consumed by villagers told to gather them, at estimated rates;
 // when one runs out they move on to the nearest of the same kind, like in-game.
+// Orders on animals become hunting or herding, orders on enemies an attack of a
+// fixed length (the replay never says who won), and deleted objects disappear.
 
 import {
-  AGE_TECHS, BUILD_TIMES, DEFAULT_BUILD_TIME, DEFAULT_FOOTPRINT, DEFAULT_SPEED, DEFAULT_TRAIN_TIME,
-  FOOTPRINTS, GATHER_RATES, HIDDEN_OBJECT_TYPES, RESOURCE_AMOUNTS, RETARGET_RADIUS, SPEEDS, TRAIN_TIMES,
+  AGE_TECHS, ATTACK_HOLD_MS, BUILD_TIMES, DEFAULT_BUILD_TIME, DEFAULT_FOOTPRINT, DEFAULT_SPEED, DEFAULT_TRAIN_TIME,
+  FOOTPRINTS, GATHER_RATES, HERDABLE, HIDDEN_OBJECT_TYPES, MELEE_STOP, RANGED_CLASSES, RANGED_STOP,
+  RESOURCE_AMOUNTS, RETARGET_RADIUS, SPEEDS, TRAIN_TIMES,
 } from './palette.js';
 
 const MOVING_COMMANDS = new Set(['MOVE', 'ORDER', 'BUILD', 'WALL', 'GATHER_POINT']);
@@ -38,6 +41,7 @@ export class Unit {
     this.player = player;
     this.typeId = typeId;
     this.spawnT = t;
+    this.removedAt = Infinity; // deleted by its owner
     this.approx = approx;
     // Each segment starts at t0 in (x0, y0) and walks to (x1, y1).
     this.path = [{ t0: t, x0: x, y0: y, x1: x, y1: y, speed: DEFAULT_SPEED }];
@@ -179,6 +183,7 @@ export class Replay {
       size: known?.size || FOOTPRINTS[name] || DEFAULT_FOOTPRINT,
       buildTime: buildTime ?? (known?.buildTime ?? BUILD_TIMES[name] ?? DEFAULT_BUILD_TIME) * 1000,
       queueEnd: 0,
+      removedAt: Infinity, // deleted by its owner: leaves rubble
     };
     this.buildings.push(b);
     if (id != null) this.buildingById.set(id, b);
@@ -237,6 +242,12 @@ export class Replay {
           this.log.push({ t: e.t, player: e.player, kind: 'resign' });
         }
         continue;
+      } else if (e.type === 'DELETE') {
+        for (const id of ids) {
+          const gone = this.buildingById.get(id) ?? this.unitById.get(id);
+          if (gone && gone.player === e.player) gone.removedAt = Math.min(gone.removedAt, e.t);
+        }
+        continue;
       } else if (e.type === 'RESEARCH') {
         const age = AGE_TECHS[e.technology_id];
         if (age) {
@@ -264,6 +275,7 @@ export class Replay {
               unit.startActivity(e.t, target.category);
               return;
             }
+            if (e.type === 'ORDER' && this.#engage(unit, e, i)) return;
             const [ox, oy] = formationOffset(i);
             unit.moveTo(e.t, e.x + ox, e.y + oy);
             // Builders work until the building is done (or a new order comes);
@@ -281,6 +293,80 @@ export class Replay {
       this.log.push({ t: c.t, player: c.player, kind: 'chat', text: c.message });
     }
     this.log.sort((a, b) => a.t - b.t);
+  }
+
+  #isVillager(unit) {
+    if (unit.typeId == null) return true; // unknown trained units are almost always villagers
+    return this.game?.units?.[unit.typeId]?.class === 4 || this.objectName(unit.typeId) === 'Villager';
+  }
+
+  // Players without a team (team 1 or less) fight everyone.
+  #enemies(a, b) {
+    if (a === b || b <= 0) return false;
+    const ta = this.playerByNumber.get(a)?.team_id ?? 0;
+    const tb = this.playerByNumber.get(b)?.team_id ?? 0;
+    return ta <= 1 || tb <= 1 || ta !== tb;
+  }
+
+  // Walk toward a point and stop `stop` tiles short of it.
+  #approach(unit, t, at, stop, i) {
+    const from = unit.positionAt(t);
+    const dx = from.x - at.x;
+    const dy = from.y - at.y;
+    const d = Math.hypot(dx, dy);
+    if (d <= stop) {
+      unit.moveTo(t, from.x, from.y);
+      return;
+    }
+    const k = stop / d;
+    const [ox, oy] = formationOffset(i);
+    unit.moveTo(t, at.x + dx * k + ox * 0.4, at.y + dy * k + oy * 0.4);
+  }
+
+  /**
+   * An ORDER on a unit or building: hunt or herd an animal, attack an enemy,
+   * or help build an unfinished building of one's own side. False if it is
+   * none of these (the unit then just walks to the clicked point).
+   */
+  #engage(unit, e, i) {
+    const t = e.t;
+    const villager = this.#isVillager(unit);
+    const reach = RANGED_CLASSES.has(this.game?.units?.[unit.typeId]?.class) ? RANGED_STOP : MELEE_STOP;
+    const other = this.unitById.get(e.target_id);
+    if (other && other !== unit && other.removedAt > t) {
+      const animal = other.player === 0;
+      if (!animal && !this.#enemies(unit.player, other.player)) return false;
+      const herd = animal && villager && HERDABLE.test(this.objectName(other.typeId));
+      const kind = animal && villager ? (herd ? 'shepherd' : 'hunt') : 'attack';
+      this.#approach(unit, t, other.positionAt(t), villager ? MELEE_STOP : reach, i);
+      unit.startActivity(t, kind, kind === 'attack' ? t + ATTACK_HOLD_MS : Infinity);
+      return true;
+    }
+    const place = this.buildingById.get(e.target_id) ?? this.#bindClicked(e);
+    if (!place || place.removedAt <= t) return false;
+    if (this.#enemies(unit.player, place.player)) {
+      this.#approach(unit, t, place, place.size / 2 + (villager ? MELEE_STOP : reach), i);
+      unit.startActivity(t, 'attack', t + ATTACK_HOLD_MS);
+      return true;
+    }
+    const done = place.t + place.buildTime;
+    if (!villager || place.player !== unit.player || t >= done) return false;
+    this.#approach(unit, t, place, place.size / 2 + MELEE_STOP, i);
+    unit.startActivity(t, 'build', done);
+    if (this.objectName(place.typeId) === 'Farm') unit.queueActivity(done, 'farm');
+    return true;
+  }
+
+  // An order on a building placed during the game (no known ID yet): the clicked
+  // point falls inside its footprint, so that building gets the ID.
+  #bindClicked(e) {
+    if (e.target_id == null || e.x == null || this.unitById.has(e.target_id)) return null;
+    const hit = this.buildings.find((b) => b.id == null && b.t <= e.t && b.removedAt > e.t
+      && Math.abs(b.x - e.x) <= b.size / 2 + 0.5 && Math.abs(b.y - e.y) <= b.size / 2 + 0.5);
+    if (!hit) return null;
+    hit.id = e.target_id;
+    this.buildingById.set(hit.id, hit);
+    return hit;
   }
 
   // A building built during the game has no known ID until a command uses it.
@@ -415,17 +501,22 @@ export class Replay {
   stateAt(t) {
     const units = [];
     for (const u of this.units) {
-      if (u.spawnT > t) continue;
+      if (u.spawnT > t || u.removedAt <= t) continue;
       units.push({ unit: u, ...u.positionAt(t) });
     }
     const buildings = [];
+    const ruins = [];
     for (const b of this.buildings) {
       if (b.t > t) continue;
+      if (b.removedAt <= t) {
+        ruins.push(b);
+        continue;
+      }
       const progress = b.buildTime > 0 ? Math.min(1, (t - b.t) / b.buildTime) : 1;
       buildings.push({ building: b, progress });
     }
     const resigned = new Set([...this.resignedAt].filter(([, rt]) => rt <= t).map(([p]) => p));
-    return { t, units, buildings, resigned };
+    return { t, units, buildings, ruins, resigned };
   }
 
   /** Age (1 Dark .. 4 Imperial) a player is in at time t, estimated from age research. */

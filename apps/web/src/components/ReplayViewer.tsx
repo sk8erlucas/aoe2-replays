@@ -99,6 +99,15 @@ function ReplayStage({ data, actions, gameData }: ViewerProps & { gameData: Game
     dirty.current = true;
   }
 
+  // Close-up on a player's town (their starting town center), with the camera left free.
+  function goToTown(number: number) {
+    const r = renderer.current;
+    if (!r) return;
+    const home = replay.players.find((p) => p.number === number)?.start ?? replay.focusOf(number, time.current);
+    setFollow(null);
+    r.centerOn(home.x, home.y, { scale: r.closeScale() });
+  }
+
   function tooltipFor(state: State): Tooltip {
     const r = renderer.current;
     const at = pointer.current;
@@ -329,14 +338,14 @@ function ReplayStage({ data, actions, gameData }: ViewerProps & { gameData: Game
               const out = resigned.has(p.number);
               return (
                 <li key={p.number} className={out ? "resigned" : ""}>
-                  <span className="swatch" style={{ background: PLAYER_COLORS[p.color_id] ?? "#fff" }} />
-                  <span className="name" title={p.name}>
-                    {p.name}
-                  </span>
-                  <span className="meta">
-                    {p.civilization ?? `civ ${p.civilization_id}`} · {tr.viewer.team(p.team_id)}
-                    {out && tr.viewer.resignedAt(formatTime(replay.resignedAt.get(p.number) ?? 0))}
-                  </span>
+                  <button type="button" className="player-jump" title={tr.viewer.goToTown(p.name)} onClick={() => goToTown(p.number)}>
+                    <span className="swatch" style={{ background: PLAYER_COLORS[p.color_id] ?? "#fff" }} />
+                    <span className="name">{p.name}</span>
+                    <span className="meta">
+                      {p.civilization ?? `civ ${p.civilization_id}`} · {tr.viewer.team(p.team_id)}
+                      {out && tr.viewer.resignedAt(formatTime(replay.resignedAt.get(p.number) ?? 0))}
+                    </span>
+                  </button>
                 </li>
               );
             })}

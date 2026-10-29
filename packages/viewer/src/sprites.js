@@ -85,7 +85,15 @@ export class SpriteSet {
     return null;
   }
 
-  /** { idle: [key per angle], walk: [[keys per angle]] } */
+  /** Rubble left by a building of a civilization at an age, or null. */
+  rubble(civId, typeId, age) {
+    const ages = this.m.civs[civId]?.rubble?.[BUILDING_ALIASES[typeId] ?? typeId];
+    if (!ages) return null;
+    for (let a = age; a >= 1; a--) if (ages[a] != null) return ages[a];
+    return null;
+  }
+
+  /** { idle: [key per angle], walk: [[keys per angle]], attack: [[keys per angle]] } */
   unit(civId, typeId) {
     return this.m.civs[civId]?.units?.[typeId] ?? null;
   }

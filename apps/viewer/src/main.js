@@ -85,11 +85,19 @@ function renderPlayers(state) {
     .map((p) => {
       const resignT = replay.resignedAt.get(p.number);
       const status = state.resigned.has(p.number) ? ` · abandonó ${formatTime(resignT)}` : '';
-      return el('li', { className: state.resigned.has(p.number) ? 'resigned' : '' }, [
+      const li = el('li', { className: state.resigned.has(p.number) ? 'resigned' : '', title: `Ir a la ciudad de ${p.name}` }, [
         el('span', { className: 'swatch', style: `background:${PLAYER_COLORS[p.color_id] ?? '#fff'}` }),
-        el('span', { className: 'name', textContent: p.name, title: p.name }),
+        el('span', { className: 'name', textContent: p.name }),
         el('span', { className: 'meta', textContent: `${p.civilization ?? `civ ${p.civilization_id}`} · E${p.team_id}${status}` }),
       ]);
+      // Close-up on the player's town, camera left free.
+      li.style.cursor = 'pointer';
+      li.addEventListener('click', () => {
+        const home = p.start ?? replay.focusOf(p.number, t);
+        renderer.setFollow(null);
+        renderer.centerOn(home.x, home.y, { scale: renderer.closeScale() });
+      });
+      return li;
     });
   els.players.replaceChildren(...rows);
 }

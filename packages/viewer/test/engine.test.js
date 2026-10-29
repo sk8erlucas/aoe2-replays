@@ -252,3 +252,101 @@ test('an order before the farm is done cancels the farming that would follow', (
   const v = r.unitById.get(101);
   assert.equal(v.activityAt(100_000), null);
 });
+
+// Two teams: players 1 and 2 against 3.
+function skirmish(timeline) {
+  return new Replay({
+    game: {
+      duration_ms: 120_000,
+      players: [
+        { number: 1, name: 'A', color_id: 0, team_id: 2, start: { x: 10, y: 10 } },
+        { number: 2, name: 'B', color_id: 1, team_id: 2, start: { x: 30, y: 10 } },
+        { number: 3, name: 'C', color_id: 2, team_id: 3, start: { x: 10, y: 30 } },
+      ],
+    },
+    map: { size: 40, terrain: [], elevation: [] },
+    initial_objects: [
+      { id: 101, player: 1, type_id: 83, x: 12, y: 10 },
+      { id: 102, player: 1, type_id: 74, x: 12, y: 12 },
+      { id: 201, player: 2, type_id: 74, x: 30, y: 12 },
+      { id: 301, player: 3, type_id: 74, x: 12, y: 30 },
+      { id: 302, player: 3, type_id: 70, x: 20, y: 30 },
+      { id: 401, player: 0, type_id: 594, x: 14, y: 14 },
+      { id: 402, player: 0, type_id: 1060, x: 16, y: 10 },
+    ],
+    timeline,
+    chat: [],
+    legend: {
+      objects: {
+        83: { name: 'Villager', category: 'unit' },
+        74: { name: 'Militia', category: 'unit' },
+        70: { name: 'House', category: 'building' },
+        594: { name: 'Sheep', category: 'animal' },
+        1060: { name: 'Deer', category: 'animal' },
+      },
+    },
+  });
+}
+
+test('villagers herd sheep and hunt deer until their next order', () => {
+  const r = skirmish([
+    { t: 0, type: 'ORDER', player: 1, object_ids: [101], target_id: 401, x: 14, y: 14 },
+    { t: 30_000, type: 'ORDER', player: 1, object_ids: [101], target_id: 402, x: 16, y: 10 },
+    { t: 90_000, type: 'MOVE', player: 1, object_ids: [101], x: 5, y: 5 },
+  ]);
+  const v = r.unitById.get(101);
+  assert.equal(v.activityAt(10_000), 'shepherd');
+  assert.equal(v.activityAt(60_000), 'hunt');
+  assert.equal(v.activityAt(95_000), null);
+  // Next to the deer, not on top of it.
+  const at = v.positionAt(89_000);
+  const d = Math.hypot(at.x - 16, at.y - 10);
+  assert.ok(d > 0.3 && d < 1.5, `distance ${d}`);
+});
+
+test('an order on an enemy is an attack of fixed length; allies are not attacked', () => {
+  const r = skirmish([
+    { t: 0, type: 'ORDER', player: 1, object_ids: [102], target_id: 301, x: 12, y: 30 },
+    { t: 0, type: 'ORDER', player: 2, object_ids: [201], target_id: 102, x: 12, y: 12 },
+  ]);
+  const m = r.unitById.get(102);
+  assert.equal(m.activityAt(10_000), 'attack');
+  assert.equal(m.activityAt(30_000), null);
+  assert.ok(Math.hypot(m.positionAt(60_000).x - 12, m.positionAt(60_000).y - 30) < 1.5);
+  assert.equal(r.unitById.get(201).activityAt(10_000), null);
+});
+
+test('enemy buildings are attacked from outside their footprint', () => {
+  const r = skirmish([{ t: 0, type: 'ORDER', player: 1, object_ids: [102], target_id: 302, x: 20, y: 30 }]);
+  const m = r.unitById.get(102);
+  assert.equal(m.activityAt(5_000), 'attack');
+  const at = m.positionAt(60_000);
+  assert.ok(Math.hypot(at.x - 20, at.y - 30) >= 1, 'stops at the wall, not inside');
+});
+
+test('villagers sent to an unfinished building of their own help build it', () => {
+  const r = skirmish([
+    { t: 0, type: 'BUILD', player: 1, building_id: 70, object_ids: [102], x: 20, y: 12 },
+    // The new house has no known id: the clicked point binds it.
+    { t: 1_000, type: 'ORDER', player: 1, object_ids: [101], target_id: 999, x: 20.3, y: 11.8 },
+  ]);
+  assert.equal(r.buildingById.get(999)?.typeId, 70);
+  const v = r.unitById.get(101);
+  assert.equal(v.activityAt(5_000), 'build');
+  assert.equal(v.activityAt(50_000), null); // House: 40 s default build time here
+});
+
+test('deleted units disappear and deleted buildings become ruins', () => {
+  const r = skirmish([{ t: 5_000, type: 'DELETE', player: 3, object_ids: [301, 302] }]);
+  const before = r.stateAt(4_000);
+  const after = r.stateAt(6_000);
+  assert.ok(before.units.some((u) => u.unit.id === 301));
+  assert.ok(!after.units.some((u) => u.unit.id === 301));
+  assert.ok(!after.buildings.some((b) => b.building.id === 302));
+  assert.deepEqual(after.ruins.map((b) => b.id), [302]);
+});
+
+test('only the owner can delete', () => {
+  const r = skirmish([{ t: 5_000, type: 'DELETE', player: 1, object_ids: [301] }]);
+  assert.ok(r.stateAt(6_000).units.some((u) => u.unit.id === 301));
+});

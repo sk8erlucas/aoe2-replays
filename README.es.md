@@ -28,7 +28,7 @@ Y además:
 - **Español e inglés**, según tu navegador, con cambio de idioma en cualquier momento.
 
 ### Qué es exacto y qué es estimado
-Un replay guarda **solo las órdenes de los jugadores**: el juego vuelve a simular todo con su motor, que es cerrado. Por eso las órdenes, los tiempos, qué se construyó y dónde, las investigaciones, los abandonos y el chat son **exactos**; los recorridos de las unidades, la recolección, la tala, los combates y la llegada a cada edad son **estimaciones**, y la web lo aclara donde importa.
+Un replay guarda **solo las órdenes de los jugadores**: el juego vuelve a simular todo con su motor, que es cerrado. Por eso las órdenes, los tiempos, qué se construyó y dónde, las investigaciones, los abandonos y el chat son **exactos**; los recorridos de las unidades, la recolección, la caza, la tala, los combates (quién ataca a quién es exacto, el resultado no) y la llegada a cada edad son **estimaciones**, y la web lo aclara donde importa.
 
 ## Cómo está hecho
 

@@ -32,14 +32,19 @@ Elegido: **B1** con un subconjunto (edificios y unidades principales, por arquit
 - [x] Subconjunto inicial: 19 edificios por civilización y edad (incluido el centro urbano por partes), aldeanos, explorador y unidades comunes (quietos y caminando), árboles, minas, arbustos, reliquias y animales
 - [x] Animaciones de trabajo de los aldeanos: talar, minar oro y piedra, recolectar bayas y construir (y caminar con la herramienta), según la actividad que estima el motor
 - [x] Granjeros: quien construye una granja la trabaja hasta su próxima orden (como en el juego); las granjas se dibujan debajo de las unidades
-- [ ] Animaciones de cazador (la caza no se simula) y de ataque
+- [x] Caza, pastoreo y ataque (estimados): una orden sobre un animal es caza o pastoreo si la da un aldeano; sobre una unidad o edificio de otro equipo, un ataque de duración fija (`ATTACK_HOLD_MS`, el replay no dice quién ganó). Animaciones de cazador, pastor y ataque de cada unidad
+- [x] Ayudar a construir: una orden sobre un edificio propio sin terminar; los edificios puestos durante la partida se identifican por el punto donde se hizo clic
+- [ ] Muertes en combate: no están en el replay; se podría estimar con vida y daño de los datos del juego
 - [x] Granjas con la textura de granja del juego
 - [x] Terreno con las texturas del juego (`tools/sprites/terrain.py`): proyectadas en isométrico, en bloques cacheados a la resolución del zoom; de lejos, los bosques con color de copa porque los árboles no se dibujan
-- [ ] Transiciones suaves entre terrenos (el juego usa máscaras de mezcla, `terrain/blends`) y agua animada
+- [x] Transiciones suaves entre terrenos (cada terreno se repinta con una máscara difuminada; el juego usa máscaras por vecinos en `terrain/blends`, que quedarían más fieles) y agua que se mueve con el tiempo de juego
 - [x] Generar atlas WebP + JSON (cuadros, anclas, 8 direcciones) en `apps/web/public/sprites/`, registrados en `CREDITS.md`
 - [x] Teñir con el color del jugador usando la máscara (en el navegador, por color)
 - [x] Cargar los atlas en `render.js` (`SpriteSet`, carga por página) con las formas actuales como respaldo
-- [ ] Muros con su orientación, puertas, edificios destruidos y escombros
+- [x] Muros con su forma según los tramos vecinos (diagonales, horizontal, vertical, pilar)
+- [x] Edificios y unidades borrados por su dueño (`DELETE`): desaparecen y los edificios dejan escombros del juego
+- [ ] Puertas abiertas/cerradas y edificios destruidos en combate (no están en el replay)
+- [ ] Revisar las piezas negras del suelo del centro urbano del sudeste asiático (capa `0x04` del SLD que hoy se ignora)
 - [x] Todos los edificios construibles del juego (puertas, trampas de peces, edificios únicos); los gráficos contenedores incluyen su propio gráfico (arreglaba la herrería de varias civilizaciones)
 - [ ] Granjas: usan otro formato de gráfico (no SLD); hoy se dibujan planas
 - [x] Unidades militares: el motor vincula los edificios construidos durante la partida con los IDs que usan las colas (según dónde se entrena cada unidad, del archivo de datos del juego), así las unidades salen del edificio correcto con su tipo, tiempo de entrenamiento y velocidad reales
