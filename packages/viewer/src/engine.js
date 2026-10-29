@@ -330,6 +330,7 @@ export class Replay {
    */
   #engage(unit, e, i) {
     const t = e.t;
+    if (unit.player <= 0) return false; // herded animals move with their herder's orders, they never fight
     const villager = this.#isVillager(unit);
     const reach = RANGED_CLASSES.has(this.game?.units?.[unit.typeId]?.class) ? RANGED_STOP : MELEE_STOP;
     const other = this.unitById.get(e.target_id);

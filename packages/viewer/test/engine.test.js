@@ -350,3 +350,8 @@ test('only the owner can delete', () => {
   const r = skirmish([{ t: 5_000, type: 'DELETE', player: 1, object_ids: [301] }]);
   assert.ok(r.stateAt(6_000).units.some((u) => u.unit.id === 301));
 });
+
+test('herded animals follow orders but never attack', () => {
+  const r = skirmish([{ t: 0, type: 'ORDER', player: 1, object_ids: [401], target_id: 302, x: 20, y: 30 }]);
+  assert.equal(r.unitById.get(401).activityAt(5_000), null);
+});
