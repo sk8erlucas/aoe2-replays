@@ -3,6 +3,7 @@
 aocref has no published license, so its data is used only as an installed
 dependency at parse time and never copied into this repo.
 """
+
 import json
 import pkgutil
 from functools import cache
@@ -17,10 +18,16 @@ TERRAIN_KEYWORDS = [
     ('shallow', 'shallows'),
     ('deep water', 'deep_water'),
     ('water', 'water'),
-    ('forest', 'forest'), ('jungle', 'forest'), ('bamboo', 'forest'), ('palm', 'forest'),
-    ('ice', 'snow'), ('snow', 'snow'),
+    ('forest', 'forest'),
+    ('jungle', 'forest'),
+    ('bamboo', 'forest'),
+    ('palm', 'forest'),
+    ('ice', 'snow'),
+    ('snow', 'snow'),
     ('road', 'road'),
-    ('beach', 'sand'), ('desert', 'sand'), ('sand', 'sand'),
+    ('beach', 'sand'),
+    ('desert', 'sand'),
+    ('sand', 'sand'),
     ('farm', 'farm'),
     ('rock', 'rock'),
 ]
@@ -28,7 +35,9 @@ TERRAIN_KEYWORDS = [
 OBJECT_KEYWORDS = [
     ('gold mine', 'gold'),
     ('stone mine', 'stone'),
-    ('forage', 'berries'), ('berry', 'berries'), ('fruit', 'berries'),
+    ('forage', 'berries'),
+    ('berry', 'berries'),
+    ('fruit', 'berries'),
     ('relic', 'relic'),
     ('tree', 'tree'),
 ]

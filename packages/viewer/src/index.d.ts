@@ -63,6 +63,8 @@ export interface GameData {
 }
 
 export class Replay {
+  /** The busiest place (most positioned orders, recent ones weigh more) in the last seconds of game time. */
+  hotspot(t: number, options?: { windowMs?: number; radius?: number }): { x: number; y: number; score: number } | null;
   constructor(data: ReplayData, options?: { gameData?: GameData | null });
   game: GameData | null;
   data: ReplayData;
@@ -154,7 +156,11 @@ export interface PlayerAnalysis {
   /** Actions per bucket of `bucketMs`. */
   activity: number[];
   buildOrder: BuildOrderItem[];
-  trained: Array<{ name: string; amount: number }>;
+  /** Units queued, by type: 'economy' (villagers, fishing, trade, transport) or 'military'. */
+  trained: Array<{ name: string; amount: number; kind: 'economy' | 'military' }>;
+  /** Totals queued of each kind (queued, not necessarily trained: cancellations are not in a replay). */
+  economy: number;
+  military: number;
   ageUps: AgeUp[];
 }
 

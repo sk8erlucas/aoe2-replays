@@ -11,7 +11,7 @@ requires-python = ">=3.11"
 dependencies = ["mgz==1.8.51", "fastapi>=0.115,<1", "uvicorn>=0.30,<1", "python-multipart>=0.0.9"]
 
 [project.optional-dependencies]
-dev = ["pytest>=8", "httpx>=0.27"]
+dev = ["pytest>=8", "httpx>=0.27", "ruff>=0.14,<0.15"]
 
 [project.scripts]
 aoe2-parser = "aoe2_parser.__main__:main"
@@ -24,3 +24,19 @@ where = ["src"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+
+[tool.ruff]
+line-length = 120
+target-version = "py311"
+# Patched copy of mgz: kept close to upstream, not reformatted.
+extend-exclude = ["src/aoe2_parser/vendor"]
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "B", "UP"]
+
+[tool.ruff.format]
+quote-style = "single"
+
+[tool.ruff.lint.flake8-bugbear]
+# FastAPI declares request parameters as defaults: File(...) is not a mutable default.
+extend-immutable-calls = ["fastapi.File"]

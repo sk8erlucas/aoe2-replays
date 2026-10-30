@@ -1,4 +1,5 @@
 """AoE2 Replays parser: .aoe2record -> normalized JSON."""
+
 from aoe2_parser.parse import (
     SCHEMA_VERSION,
     CorruptReplay,

@@ -84,6 +84,7 @@ function ReplayStage({ data, actions, gameData }: ViewerProps & { gameData: Game
   const [tooltip, setTooltip] = useState<Tooltip>(null);
   const [tab, setTab] = useState<"events" | "chat" | "analysis" | "ai">("events");
   const [shareNotice, setShareNotice] = useState<string | null>(null);
+  const [logPlayer, setLogPlayer] = useState<number | null>(null); // events of one player, or all
 
   // Link to this match at the current second. The #fragment is left out: on a
   // private upload it carries the management token.
@@ -269,7 +270,10 @@ function ReplayStage({ data, actions, gameData }: ViewerProps & { gameData: Game
   const log = replay.logUntil(t);
   const logKey = log.length;
   const resigned = new Set([...replay.resignedAt].filter(([, rt]) => rt <= t).map(([p]) => p));
-  const logItems = useMemo(() => log.slice(-200).reverse(), [logKey]); // eslint-disable-line react-hooks/exhaustive-deps
+  const logItems = useMemo(
+    () => (logPlayer == null ? log : log.filter((e) => e.player === logPlayer)).slice(-200).reverse(),
+    [logKey, logPlayer], // eslint-disable-line react-hooks/exhaustive-deps
+  );
   const players = useMemo(
     () => [...replay.players].sort((a, b) => a.team_id - b.team_id || a.number - b.number),
     [replay],
@@ -385,6 +389,22 @@ function ReplayStage({ data, actions, gameData }: ViewerProps & { gameData: Game
           {tab === "analysis" && <AnalysisPanel data={data} onSeek={seek} />}
           {tab === "ai" && <AiContextPanel data={data} />}
           {tab === "chat" && <ChatPanel data={data} t={t} onSeek={seek} />}
+          {tab === "events" && (
+            <label className="log-filter">
+              <span className="sr-only">{tr.viewer.eventsOf}</span>
+              <select
+                value={logPlayer ?? ""}
+                onChange={(e) => setLogPlayer(e.target.value === "" ? null : Number(e.target.value))}
+              >
+                <option value="">{tr.viewer.allPlayers}</option>
+                {players.map((p) => (
+                  <option key={p.number} value={p.number}>
+                    {p.name}
+                  </option>
+                ))}
+              </select>
+            </label>
+          )}
           <ol className="log" hidden={tab !== "events"}>
             {logItems.map((e: LogEntry, i: number) => (
               <li key={`${e.t}-${i}`}>

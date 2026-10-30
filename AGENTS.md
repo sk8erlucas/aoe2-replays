@@ -27,6 +27,7 @@ Flujos:
 # Parser (desde services/parser)
 python -m venv .venv && .venv/Scripts/python -m pip install -e ".[dev]"   # Linux/macOS: .venv/bin/python
 .venv/Scripts/python -m pytest
+.venv/Scripts/python -m ruff check . && .venv/Scripts/python -m ruff format --check .   # lint y formato
 .venv/Scripts/python -m uvicorn aoe2_parser.api:app --port 8000
 .venv/Scripts/python -m aoe2_parser ../../fixtures/<replay>.aoe2record -o out.json --pretty
 
@@ -42,7 +43,7 @@ npm test                          # tests del motor del visor (node --test)
 npm run lint -w apps/web && npm run typecheck -w apps/web
 npm run build -w apps/web
 ```
-Antes de dar algo por terminado: tests del parser, `npm test`, lint, typecheck y build de la web. El CI (`.github/workflows/ci.yml`) corre lo mismo y además construye las imágenes de Docker.
+Antes de dar algo por terminado: tests y `ruff` del parser, `npm test`, lint, typecheck y build de la web. El CI (`.github/workflows/ci.yml`) corre lo mismo y además construye las imágenes de Docker.
 
 ## Reglas
 **Contrato JSON.** El JSON del parser es la interfaz entre servicios. Si cambia:

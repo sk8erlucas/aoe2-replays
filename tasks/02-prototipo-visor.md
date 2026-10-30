@@ -14,11 +14,13 @@ Objetivo: ver una partida "jugándose" con gráficos simples. Primero con el JSO
 - [x] Separar el motor de reproducción de la capa gráfica, para poder cambiar los sprites sin tocar la lógica
 
 ## Siguientes
-- [ ] Probar con una partida completa (la de ejemplo dura 51 s)
+- [x] Probar con una partida completa (`fixtures/long.json`, 48 min, 8 jugadores)
 - [x] Vista isométrica 2:1 con relieve, objetos con volumen ordenados por profundidad
 - [x] Cámara: zoom cercano por defecto, seguimiento automático de la acción o de un jugador, modo libre, minimapa con clic
-- [ ] Cámara: suavizar los saltos del modo auto (hoy mantiene el objetivo 4 s)
-- [ ] Sprites pixel art propios por tipo de unidad y edificio (reemplazan los `#draw*` de `render.js`; ver `tasks/07-diseno.md`)
-- [ ] Marcar recursos agotados y árboles talados (no se sabe con exactitud; evaluar heurística)
-- [ ] Puntos de reunión (GATHER_POINT) y muros de piedra
-- [ ] Seguir a un jugador / filtrar eventos por jugador
+- [x] Cámara: el modo auto va al punto caliente (más órdenes en los últimos 20 s), lo sostiene 3,5 s reales a cualquier velocidad y solo viaja si la acción se movió lejos (a 16×: de 195 a 15 viajes largos por minuto)
+- [x] ~~Sprites pixel art propios~~: se usan los sprites del juego ([08](./08-experiencia-de-juego.md)); las formas propias quedan de respaldo
+- [x] Marcar recursos agotados y árboles talados (estimación según las órdenes de recolección)
+- [x] Muros de piedra y puertas; los puntos de reunión sobre un recurso mandan a recolectar a las unidades nuevas
+- [ ] Mostrar la bandera del punto de reunión de cada edificio
+- [x] Seguir a un jugador (cámara) e ir a su ciudad con un clic
+- [x] Filtrar eventos por jugador (selector en la pestaña Eventos)

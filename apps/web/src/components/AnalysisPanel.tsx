@@ -142,9 +142,18 @@ export function AnalysisPanel({ data, onSeek }: { data: ReplayData; onSeek: (ms:
         ))}
       </select>
       {selectedStats && selectedStats.trained.length > 0 && (
-        <p className="muted small">
-          {t.analysis.queued} {selectedStats.trained.map((t) => `${t.amount}× ${t.name}`).join(", ")}
-        </p>
+        <div className="muted small queued">
+          {(["economy", "military"] as const).map((kind) => {
+            const units = selectedStats.trained.filter((u) => u.kind === kind);
+            if (!units.length) return null;
+            return (
+              <p key={kind}>
+                <strong>{t.analysis.queuedKind[kind](selectedStats[kind])}</strong>{" "}
+                {units.map((u) => `${u.amount}× ${u.name}`).join(", ")}
+              </p>
+            );
+          })}
+        </div>
       )}
       <ol className="log build-order">
         {selectedStats?.buildOrder.length === 0 && <li className="muted">{t.analysis.nothing}</li>}

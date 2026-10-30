@@ -2,6 +2,7 @@
 
 Run: uvicorn aoe2_parser.api:app --port 8000
 """
+
 import asyncio
 import os
 from concurrent.futures import ProcessPoolExecutor

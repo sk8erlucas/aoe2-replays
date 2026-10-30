@@ -14,6 +14,7 @@
    npm test
    npm run lint -w apps/web && npm run typecheck -w apps/web && npm run build -w apps/web
    cd services/parser && .venv/Scripts/python -m pytest
+   .venv/Scripts/python -m ruff check . && .venv/Scripts/python -m ruff format --check .
    ```
 3. Si cambiás el formato JSON del parser, actualizá `services/parser/README.md`, `packages/shared/src/index.d.ts` y los tests.
 4. Si cambiás la base de datos, incluí la migración de Prisma.

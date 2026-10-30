@@ -9,7 +9,7 @@ function game(timeline, duration = 600_000) {
     game: { duration_ms: duration, players: [{ number: 1 }, { number: 2 }] },
     timeline,
     legend: {
-      objects: { 83: { name: 'Villager' }, 70: { name: 'House' } },
+      objects: { 83: { name: 'Villager' }, 70: { name: 'House' }, 74: { name: 'Militia' }, 13: { name: 'Fishing Ship' } },
       technologies: { 101: 'Feudal Age', 22: 'Loom' },
     },
   };
@@ -54,7 +54,7 @@ test('build order, trained units and age-up estimate', () => {
   assert.deepEqual(p1.buildOrder.map((b) => [b.kind, b.name]), [
     ['queue', 'Villager'], ['build', 'House'], ['research', 'Loom'], ['queue', 'Villager'], ['age', 'Feudal Age'],
   ]);
-  assert.deepEqual(p1.trained, [{ name: 'Villager', amount: 4 }]);
+  assert.deepEqual(p1.trained, [{ name: 'Villager', amount: 4, kind: 'economy' }]);
   assert.deepEqual(p1.ageUps, [{ key: 'feudal', label: 'Feudal', clickedAt: 500_000, reachedAt: 630_000 }]);
 });
 
@@ -72,4 +72,16 @@ test('sample replay', { skip: !existsSync(SAMPLE) && 'missing fixtures/sample.js
   assert.equal(p7.apm, null); // resigned at 0:01
   const p1 = r.players.find((p) => p.number === 1);
   assert.ok(p1.buildOrder.some((b) => b.name === 'Loom'));
+});
+
+test('queued units are split into economy and army', () => {
+  const r = analyze(game([
+    { t: 1000, type: 'DE_QUEUE', player: 1, unit_id: 83, amount: 5 },
+    { t: 2000, type: 'DE_QUEUE', player: 1, unit_id: 13, amount: 2 },
+    { t: 3000, type: 'DE_QUEUE', player: 1, unit_id: 74, amount: 4 },
+  ]));
+  const p1 = r.players[0];
+  assert.equal(p1.economy, 7);
+  assert.equal(p1.military, 4);
+  assert.equal(p1.trained.find((u) => u.name === 'Militia').kind, 'military');
 });

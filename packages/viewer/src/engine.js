@@ -568,6 +568,38 @@ export class Replay {
     return found ?? { t: 0, player, ...(this.playerByNumber.get(player)?.start ?? { x: 0, y: 0 }) };
   }
 
+  /**
+   * Where the action is: the place with the most positioned orders in the last
+   * `windowMs` of game time (recent ones weigh more), from players still in the
+   * game. Null if nobody gave a positioned order in that window.
+   */
+  hotspot(t, { windowMs = 20_000, radius = 12 } = {}) {
+    const recent = [];
+    for (const f of this.focusPoints) {
+      if (f.t > t) break;
+      if (f.t < t - windowMs) continue;
+      const resigned = this.resignedAt.get(f.player);
+      if (resigned == null || resigned > t) recent.push(f);
+    }
+    if (!recent.length) return null;
+    const weight = (f) => 0.3 + 0.7 * (1 - (t - f.t) / windowMs);
+    let best = null;
+    for (const f of recent) {
+      let score = 0;
+      let x = 0;
+      let y = 0;
+      for (const g of recent) {
+        if (Math.abs(g.x - f.x) > radius || Math.abs(g.y - f.y) > radius) continue;
+        const w = weight(g);
+        score += w;
+        x += g.x * w;
+        y += g.y * w;
+      }
+      if (!best || score > best.score) best = { score, x: x / score, y: y / score };
+    }
+    return { x: best.x, y: best.y, score: best.score };
+  }
+
   /** Most recent positioned order by a player still in the game. */
   latestFocus(t) {
     let found = null;

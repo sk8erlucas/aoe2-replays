@@ -1,4 +1,5 @@
 """Parse a .aoe2record into the normalized JSON contract (schema_version 1)."""
+
 import io
 import json
 import struct
@@ -46,9 +47,9 @@ def _parse_header(data):
     except RuntimeError as e:
         raise CorruptReplay(f'could not parse header: {e}') from e
     if header['de'] is None:
-        raise UnsupportedVersion(f"only Definitive Edition replays are supported (got {header['version']})")
+        raise UnsupportedVersion(f'only Definitive Edition replays are supported (got {header["version"]})')
     if header['save_version'] < MIN_SAVE:
-        raise UnsupportedVersion(f"save version {header['save_version']} is older than {MIN_SAVE}")
+        raise UnsupportedVersion(f'save version {header["save_version"]} is older than {MIN_SAVE}')
     return header
 
 
@@ -60,17 +61,19 @@ def _players(header):
         if p['number'] < 1:
             continue
         start = positions.get(p['number'], {}).get('position')
-        players.append({
-            'number': p['number'],
-            'name': _text(p['name']),
-            'profile_id': p['profile_id'] if p['profile_id'] not in (0, 0xFFFFFFFF) else None,
-            'civilization_id': p['civilization_id'],
-            'civilization': reference.civilization_name(p['civilization_id']),
-            'color_id': p['color_id'],
-            'team_id': p['team_id'],
-            'is_ai': bool(p['ai_name']),
-            'start': {'x': start['x'], 'y': start['y']} if start else None,
-        })
+        players.append(
+            {
+                'number': p['number'],
+                'name': _text(p['name']),
+                'profile_id': p['profile_id'] if p['profile_id'] not in (0, 0xFFFFFFFF) else None,
+                'civilization_id': p['civilization_id'],
+                'civilization': reference.civilization_name(p['civilization_id']),
+                'color_id': p['color_id'],
+                'team_id': p['team_id'],
+                'is_ai': bool(p['ai_name']),
+                'start': {'x': start['x'], 'y': start['y']} if start else None,
+            }
+        )
     return players
 
 
@@ -91,14 +94,16 @@ def _initial_objects(header):
     objects = []
     for p in header['players']:
         for o in p.get('objects', []):
-            objects.append({
-                'id': o['instance_id'],
-                'player': p['number'],
-                'type_id': o['object_id'],
-                'class_id': o['class_id'],
-                'x': o['position']['x'],
-                'y': o['position']['y'],
-            })
+            objects.append(
+                {
+                    'id': o['instance_id'],
+                    'player': p['number'],
+                    'type_id': o['object_id'],
+                    'class_id': o['class_id'],
+                    'x': o['position']['x'],
+                    'y': o['position']['y'],
+                }
+            )
     return objects
 
 
@@ -138,12 +143,14 @@ def _parse_body(data, offset):
                 msg = json.loads(payload)
             except ValueError:
                 continue
-            chat.append({
-                't': t,
-                'player': msg.get('player'),
-                'channel': msg.get('channel'),
-                'message': msg.get('message', ''),
-            })
+            chat.append(
+                {
+                    't': t,
+                    'player': msg.get('player'),
+                    'channel': msg.get('channel'),
+                    'message': msg.get('message', ''),
+                }
+            )
         elif op_type is fast.Operation.POSTGAME:
             postgame = payload
     return t, timeline, chat, postgame
@@ -166,7 +173,7 @@ def parse_replay(data: bytes) -> dict:
     """Parse raw replay bytes into the normalized contract."""
     if len(data) < 8:
         raise CorruptReplay('file is too small to be a replay')
-    header_len, = struct.unpack_from('<I', data)
+    (header_len,) = struct.unpack_from('<I', data)
     if not 8 < header_len <= len(data):
         raise CorruptReplay('header length points outside the file')
 

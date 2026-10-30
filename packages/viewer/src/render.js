@@ -33,7 +33,9 @@ const CLASS_STAND_IN = {
 const CLOSE_TILE_PX = 64; // tile width on screen at the default close zoom
 const MAX_TILE_PX = 160;
 const DETAIL_SCALE = 5; // from this scale on, trees and resources are drawn as objects
-const AUTO_HOLD_MS = 4000; // auto camera keeps a target at least this long (game time)
+const AUTO_HOLD_MS = 3500; // auto camera keeps a target at least this long (real time, any speed)
+const AUTO_MIN_MOVE = 8; // tiles: a new hotspot closer than this only nudges the camera
+const AUTO_RESEEK_MS = 15_000; // game time: a jump in the timeline picks a new target right away
 const CAMERA_SPEED = 4; // higher = snappier camera
 // Close-up ground is drawn in square chunks at the zoom's resolution and cached.
 const CHUNK_PX = 512;
@@ -485,10 +487,24 @@ export class Renderer {
   /** Move the camera toward its target. dtMs is real time; t is game time. */
   update(dtMs, t) {
     if (this.follow === 'auto') {
-      const latest = this.replay.latestFocus(t);
-      const held = this.autoFocus && t - this.autoFocus.since < AUTO_HOLD_MS && t >= this.autoFocus.since;
-      if (latest && !held && latest.t !== this.autoFocus?.t) {
-        this.autoFocus = { ...latest, since: t };
+      // Stay on the busiest place for a few real seconds, then look again; only
+      // travel when the action has really moved elsewhere.
+      const auto = this.autoFocus;
+      const seeked = auto && Math.abs(t - auto.t) > AUTO_RESEEK_MS;
+      if (auto && !seeked) auto.held += dtMs;
+      if (!auto || seeked || auto.held >= AUTO_HOLD_MS) {
+        const spot = this.replay.hotspot(t);
+        if (spot) {
+          const far = !auto || seeked || Math.hypot(spot.x - auto.x, spot.y - auto.y) >= AUTO_MIN_MOVE;
+          this.autoFocus = far
+            ? { x: spot.x, y: spot.y, t, held: 0 }
+            : { ...auto, x: auto.x + (spot.x - auto.x) * 0.5, y: auto.y + (spot.y - auto.y) * 0.5, t, held: 0 };
+        } else if (auto) {
+          auto.held = 0;
+          auto.t = t;
+        }
+      } else {
+        auto.t = t;
       }
       const f = this.autoFocus ?? this.replay.focusOf(this.replay.players[0]?.number, t);
       if (f) this.#aim(f.x, f.y);

@@ -1,9 +1,8 @@
 import pytest
 from fastapi.testclient import TestClient
+from test_parse import SAMPLE
 
 from aoe2_parser.api import app
-
-from test_parse import SAMPLE
 
 client = TestClient(app)
 

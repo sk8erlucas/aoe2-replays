@@ -581,6 +581,16 @@ button.primary:hover:not(:disabled), .button-primary:hover { border-color: var(-
 }
 
 .players, .log { list-style: none; margin: 0; padding: 0; }
+.log-filter { display: block; margin: 0 0 8px; }
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+.log-filter select { width: 100%; }
 .players li { border-bottom: 1px dotted var(--rule); }
 .players .player-jump {
   display: grid;

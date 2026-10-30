@@ -410,3 +410,14 @@ test('an unknown id ordered to attack binds to a trained soldier, not a villager
   }, { gameData });
   assert.equal(r.unitById.get(5000)?.typeId, 74);
 });
+
+test('hotspot is where most recent orders are, not the last one', () => {
+  const moves = [
+    ...Array.from({ length: 6 }, (_, i) => ({ t: 10_000 + i * 1000, type: 'MOVE', player: 1, object_ids: [101], x: 50 + i * 0.5, y: 50 })),
+    { t: 17_000, type: 'MOVE', player: 1, object_ids: [101], x: 5, y: 5 },
+  ];
+  const r = replay(moves, { map: { size: 80, terrain: [], elevation: [] } });
+  const spot = r.hotspot(17_500);
+  assert.ok(Math.abs(spot.x - 51) < 2 && Math.abs(spot.y - 50) < 1, JSON.stringify(spot));
+  assert.equal(r.hotspot(60_000), null); // nothing in the last 20 s
+});

@@ -41,7 +41,7 @@ Quedó a medio revisar o detectado al cerrar la sesión del 29/10/2026:
 - [ ] Cola de parseo y estados `pending` / `ready` / `failed` (cuando haga falta)
 - [ ] Tests de la API de la web (subida, permisos, expiración)
 - [x] CI de GitHub Actions (tests, lint, build y build de imágenes Docker)
-- [ ] Lint y formato para Python (ruff)
+- [x] Lint y formato para Python (ruff, en el CI)
 - [x] Análisis básico: build order, APM, edades y actividad por jugador
 - [x] Vista isométrica del mapa y cámara
 - [x] Estilo pergamino aplicado a la web

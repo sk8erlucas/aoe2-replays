@@ -4,9 +4,13 @@
 // Estimated: when an age was reached (click time + research time; queues,
 // cancellations and missing resources are not visible in a replay).
 
-// Commands that are not deliberate player actions, or whose meaning is unclear
-// (DE_TRANSFORM shows up dozens of times in the first second, targeting trees).
+// Commands that are not deliberate player actions: GAME is game settings (speed,
+// pause) and DE_TRANSFORM comes in bursts on trees (the same tree many times in
+// one millisecond, all game long), so it is not the player either.
 const NOT_ACTIONS = new Set(['GAME', 'RESIGN', 'DE_TRANSFORM']);
+
+// Units that work rather than fight; everything else trained counts as army.
+const ECONOMY_UNITS = /^(Villager|Fishing Ship|Trade Cart|Trade Cog|Transport Ship)\b/;
 
 // Research time in game seconds, keyed by the tech name in the legend.
 export const AGES = [
@@ -30,6 +34,8 @@ function objectName(data, typeId) {
 function techName(data, techId) {
   return data.legend?.technologies?.[techId] ?? `tech #${techId}`;
 }
+
+const sum = (entries) => entries.reduce((total, [, amount]) => total + amount, 0);
 
 export function analyze(data) {
   const duration = data.game.duration_ms;
@@ -78,7 +84,11 @@ export function analyze(data) {
       apm: end >= 30_000 ? Math.round((actions.length / end) * 60_000) : null,
       activity,
       buildOrder,
-      trained: [...trained].map(([name, amount]) => ({ name, amount })).sort((a, b) => b.amount - a.amount),
+      trained: [...trained]
+        .map(([name, amount]) => ({ name, amount, kind: ECONOMY_UNITS.test(name) ? 'economy' : 'military' }))
+        .sort((a, b) => b.amount - a.amount),
+      economy: sum([...trained].filter(([name]) => ECONOMY_UNITS.test(name))),
+      military: sum([...trained].filter(([name]) => !ECONOMY_UNITS.test(name))),
       ageUps,
     };
   });
