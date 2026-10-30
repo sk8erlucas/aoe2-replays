@@ -8,7 +8,7 @@ Upload a replay or search for any player, and play their match back on the map w
 
 [**Open the app →**](https://aoe2replays.sitemaster.com.ar/) · [Español](README.es.md) · [Contributing](CONTRIBUTING.md)
 
-![The viewer in Imperial Age: a Central Asian city, a Japanese castle and an army, with the analysis panel open](docs/screenshots/viewer-analysis.webp)
+![The viewer in Imperial Age: a Portuguese town with its castle, farms and market, with the analysis panel open](docs/screenshots/viewer-analysis.webp)
 
 </div>
 
@@ -16,8 +16,8 @@ Upload a replay or search for any player, and play their match back on the map w
 
 | | |
 |---|---|
-| ![Villagers farming next to a Cuman base](docs/screenshots/farms.webp) | **Watch it like in the game.** Isometric view with the game's sprites: buildings by civilization and age, villagers chopping, mining, farming and building, trained units coming out of the right building, trees falling as they're cut. The camera follows the action on its own, or follows the player you pick. |
-| ![Whole map of an 8-player match](docs/screenshots/map.webp) | **The whole map at a glance.** Zoom out to see how the map is split, jump anywhere with the minimap and anywhere in time with the timeline. Share a moment with `?t=<seconds>`. |
+| ![Khmer farms and town center, with villagers at work](docs/screenshots/farms.webp) | **Watch it like in the game.** Isometric view with the game's sprites: buildings by civilization and age, villagers chopping, mining, farming and building, trained units coming out of the right building, trees falling as they're cut. The camera follows the action on its own, or follows the player you pick. |
+| ![Whole map of an 8-player match](docs/screenshots/map.webp) | **The whole map at a glance.** Zoom out to see how the map is split, jump anywhere with the minimap and anywhere in time with the timeline. Share any moment with one click (a link with `?t=<seconds>`). |
 | ![Home page with player search](docs/screenshots/home.webp) | **Online matches, no upload needed.** Search any player (autocomplete), see their ratings and recent matches, and open any of them: the replay is fetched from Microsoft's public replay service. |
 
 And also:

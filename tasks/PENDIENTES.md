@@ -5,10 +5,13 @@ Separados entre lo que necesita una decisión o acción tuya y lo que se puede a
 ## Repo abierto
 El repo es público desde octubre de 2026. Lo que queda de seguridad e infraestructura está en [11-apertura-publica](./11-apertura-publica.md); la migración a Next 16 en [12-next-16](./12-next-16.md).
 
+## Plan nuevo: cuentas
+Login opcional (Steam, Discord, Google), vincular el perfil de AoE2, favoritos de jugadores, partidas y momentos, y "Mis replays": [13-cuentas](./13-cuentas.md). Antes de empezar hay que decidir los proveedores de login y si los replays de cuentas expiran.
+
 ## Próxima sesión
 Quedó a medio revisar o detectado al cerrar la sesión del 29/10/2026:
-- [ ] **Capturas desactualizadas**: las de `docs/screenshots`, `public/images/visor`, `og.jpg` y la vista previa de GitHub son de antes de las texturas de terreno. Rehacerlas desde la web con la partida de demo anonimizada (necesita Docker con la base local).
-- [ ] **GitHub**: subir la imagen de Settings → Social preview y publicar un primer Release (por ejemplo `v0.1.0`).
+- [x] **Capturas desactualizadas** (rehechas el 30/10/2026 con el terreno nuevo): las de `docs/screenshots`, `public/images/visor`, `og.jpg` y la vista previa de GitHub son de antes de las texturas de terreno. Rehacerlas desde la web con la partida de demo anonimizada (necesita Docker con la base local).
+- [ ] **GitHub**: subir la imagen de Settings → Social preview (nueva, con el terreno) y publicar un primer Release (por ejemplo `v0.1.0`).
 - [x] **Muros**: las diagonales estaban invertidas (corregido), los tramos escalonados se ven continuos y las puertas reemplazan los tramos de muro que tapan.
 - [ ] **Puertas**: en `long.json` una puerta "n" (673) cae en un muro horizontal en pantalla; revisar si la orientación de las puertas (`ne`, `se`, `e`, `n`) coincide con la del juego.
 - [~] **Tipo de unidad mal asignado**: los IDs nuevos se vinculan con la unidad más vieja del jugador. Ya se usa el tipo de orden como pista (construir/recolectar → aldeano, atacar → militar) y barcos pesqueros y carretas no atacan, pero si la primera orden es un `MOVE` no hay pista. Siguiente paso: usar el orden de los IDs (el juego los asigna en orden de creación) para emparejarlos con el orden de entrenamiento.

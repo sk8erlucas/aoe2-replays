@@ -12,7 +12,7 @@
 - [~] Errores con mensaje claro (hecho); estados `pending`/`ready`/`failed` llegan con la cola
 - [x] Página del replay `/r/<id>` con el visor
 - [x] Privacidad: privado por defecto (404 si no tenés el token); enlace público con id de 128 bits
-- [ ] Auth.js: registro y login opcionales
+- [ ] Auth.js: registro y login opcionales (plan completo en [13-cuentas](./13-cuentas.md))
 - [~] "Tus replays en este navegador" sin cuenta (hecho); "Mis replays" con cuenta, pendiente
 - [ ] Reclamar un replay anónimo al registrarse
 - [~] Contenedores y compose para Dokploy con migraciones automáticas (escritos; falta el primer deploy real, ver `docs/DEPLOY.md`)

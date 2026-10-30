@@ -8,7 +8,7 @@ Subí un replay o buscá a cualquier jugador, y reproducí su partida en el mapa
 
 [**Abrir la web →**](https://aoe2replays.sitemaster.com.ar/) · [English](README.md) · [Cómo colaborar](CONTRIBUTING.md)
 
-![El visor en Edad Imperial: una ciudad centroasiática, un castillo japonés y un ejército, con el panel de análisis abierto](docs/screenshots/viewer-analysis.webp)
+![El visor en Edad Imperial: una ciudad portuguesa con su castillo, granjas y mercado, con el panel de análisis abierto](docs/screenshots/viewer-analysis.webp)
 
 </div>
 
@@ -16,8 +16,8 @@ Subí un replay o buscá a cualquier jugador, y reproducí su partida en el mapa
 
 | | |
 |---|---|
-| ![Aldeanos cultivando junto a una base cumana](docs/screenshots/farms.webp) | **Mirala como en el juego.** Vista isométrica con los sprites del juego: edificios por civilización y edad, aldeanos talando, minando, cultivando y construyendo, unidades que salen del edificio correcto, árboles que caen a medida que se talan. La cámara sigue la acción sola, o al jugador que elijas. |
-| ![Mapa completo de una partida de 8 jugadores](docs/screenshots/map.webp) | **Todo el mapa de un vistazo.** Alejate para ver cómo se reparte el mapa, saltá a cualquier lugar con el minimapa y a cualquier momento con la línea de tiempo. Compartí un momento con `?t=<segundos>`. |
+| ![Granjas y centro urbano jemer, con aldeanos trabajando](docs/screenshots/farms.webp) | **Mirala como en el juego.** Vista isométrica con los sprites del juego: edificios por civilización y edad, aldeanos talando, minando, cultivando y construyendo, unidades que salen del edificio correcto, árboles que caen a medida que se talan. La cámara sigue la acción sola, o al jugador que elijas. |
+| ![Mapa completo de una partida de 8 jugadores](docs/screenshots/map.webp) | **Todo el mapa de un vistazo.** Alejate para ver cómo se reparte el mapa, saltá a cualquier lugar con el minimapa y a cualquier momento con la línea de tiempo. Compartí cualquier momento con un clic (un enlace con `?t=<segundos>`). |
 | ![Portada con el buscador de jugadores](docs/screenshots/home.webp) | **Partidas online sin subir nada.** Buscá a cualquier jugador (con autocompletado), mirá sus rankings y partidas recientes y abrí cualquiera: el replay se descarga del servicio público de replays de Microsoft. |
 
 Y además:
