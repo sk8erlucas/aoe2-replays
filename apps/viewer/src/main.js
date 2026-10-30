@@ -49,8 +49,10 @@ async function load(data) {
   // Handy for debugging from the browser console.
   window.viewerDebug = { replay, renderer };
   const current = renderer;
-  spritesReady.then((sprites) => {
-    if (!sprites || renderer !== current) return;
+  spritesReady.then(async (sprites) => {
+    if (!sprites) return;
+    await sprites.loadCivs(data.game.players.map((p) => p.civilization_id));
+    if (renderer !== current) return;
     sprites.onLoad = () => render();
     renderer.setSprites(sprites);
     render();

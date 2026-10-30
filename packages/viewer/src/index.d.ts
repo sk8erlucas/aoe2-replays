@@ -115,6 +115,8 @@ export class TerrainSet {
 /** Game sprites from the atlases in apps/web/public/sprites (made by tools/sprites). */
 export class SpriteSet {
   static load(baseUrl: string): Promise<SpriteSet>;
+  /** Fetches the sprite lists of these civilizations (only the ones a match uses). */
+  loadCivs(civIds: Array<number | null | undefined>): Promise<void>;
   /** Called whenever an atlas page finishes loading (redraw then). */
   onLoad: (() => void) | null;
 }

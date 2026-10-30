@@ -211,6 +211,21 @@ def group_of(stem):
     return 'gaia'
 
 
+def write_manifest(out: Path, manifest: dict):
+    """manifest.json without the civilizations, plus civs/<id>.json each: a match
+    only downloads the civilizations it has (most of the data is per civilization)."""
+    civ_dir = out / 'civs'
+    civ_dir.mkdir(exist_ok=True)
+    for old in civ_dir.glob('*.json'):
+        old.unlink()
+    core = {k: v for k, v in manifest.items() if k != 'civs'}
+    core['version'] = 3
+    core['civs'] = sorted(manifest['civs'], key=int)
+    for cid, civ in manifest['civs'].items():
+        (civ_dir / f'{cid}.json').write_text(json.dumps(civ, separators=(',', ':')), encoding='utf-8')
+    (out / 'manifest.json').write_text(json.dumps(core, separators=(',', ':')), encoding='utf-8')
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument('--game', required=True, type=Path)
@@ -470,8 +485,8 @@ def main():
         'gaia': ref(gaia),
         'villagers': ref(villagers),
     }
-    (args.out / 'manifest.json').write_text(json.dumps(manifest, separators=(',', ':')), encoding='utf-8')
-    total = sum(f.stat().st_size for f in args.out.iterdir())
+    write_manifest(args.out, manifest)
+    total = sum(f.stat().st_size for f in args.out.rglob('*') if f.is_file())
     print(f'{len(entries)} frames, {total / 1024 / 1024:.1f} MB in {args.out}')
 
 

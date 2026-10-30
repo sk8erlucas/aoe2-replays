@@ -135,8 +135,10 @@ function ReplayStage({ data, actions, gameData }: ViewerProps & { gameData: Game
     const startAt = Number(new URLSearchParams(location.search).get("t"));
     if (startAt > 0) time.current = Math.min(replay.duration, startAt * 1000);
     dirty.current = true;
-    loadSprites().then((sprites) => {
-      if (!sprites || renderer.current !== r) return;
+    loadSprites().then(async (sprites) => {
+      if (!sprites) return;
+      await sprites.loadCivs(replay.players.map((p) => p.civilization_id));
+      if (renderer.current !== r) return;
       sprites.onLoad = () => {
         dirty.current = true;
       };

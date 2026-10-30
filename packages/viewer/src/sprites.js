@@ -15,8 +15,45 @@ export class SpriteSet {
     return new SpriteSet(await res.json(), baseUrl);
   }
 
+  /**
+   * Fetches the sprite lists of these civilizations (civs/<id>.json), once each.
+   * A match only needs its own civilizations; the rest stay on the server.
+   */
+  async loadCivs(civIds) {
+    if (!Array.isArray(this.m.civs)) return; // older manifest: everything is inline
+    await Promise.all([...new Set(civIds)].map((id) => this.#loadCiv(id)));
+  }
+
+  #loadCiv(id) {
+    if (id == null || !this.m.civs.includes(String(id))) return null;
+    this.civLoads[id] ??= fetch(`${this.base}/civs/${id}.json`, { cache: 'no-cache' })
+      .then((res) => {
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        return res.json();
+      })
+      .then((civ) => {
+        this.civs[id] = civ;
+        this.onLoad?.();
+      })
+      .catch(() => {
+        // Flaky network: allow another try a little later.
+        setTimeout(() => delete this.civLoads[id], 2000);
+      });
+    return this.civLoads[id];
+  }
+
+  // A civilization's sprite lists; if not here yet, start fetching them (redraw on arrival).
+  #civ(id) {
+    const civ = this.civs[id];
+    if (!civ && Array.isArray(this.m.civs)) this.#loadCiv(id);
+    return civ;
+  }
+
   constructor(manifest, baseUrl) {
     this.m = manifest;
+    // Version 3 lists civilization ids and keeps their data in civs/<id>.json.
+    this.civs = Array.isArray(manifest.civs) ? {} : manifest.civs;
+    this.civLoads = {};
     this.base = baseUrl;
     this.tilePx = manifest.tilePx;
     this.pages = new Map();
@@ -86,7 +123,7 @@ export class SpriteSet {
 
   /** [[frame index, dx, dy], ...] for a building of a civilization at an age (1-4). */
   building(civId, typeId, age) {
-    const ages = this.m.civs[civId]?.buildings?.[BUILDING_ALIASES[typeId] ?? typeId];
+    const ages = this.#civ(civId)?.buildings?.[BUILDING_ALIASES[typeId] ?? typeId];
     if (!ages) return null;
     for (let a = age; a >= 1; a--) if (ages[a]) return ages[a];
     return null;
@@ -94,7 +131,7 @@ export class SpriteSet {
 
   /** Rubble left by a building of a civilization at an age, or null. */
   rubble(civId, typeId, age) {
-    const ages = this.m.civs[civId]?.rubble?.[BUILDING_ALIASES[typeId] ?? typeId];
+    const ages = this.#civ(civId)?.rubble?.[BUILDING_ALIASES[typeId] ?? typeId];
     if (!ages) return null;
     for (let a = age; a >= 1; a--) if (ages[a] != null) return ages[a];
     return null;
@@ -102,7 +139,7 @@ export class SpriteSet {
 
   /** { idle: [key per angle], walk: [[keys per angle]], attack: [[keys per angle]] } */
   unit(civId, typeId) {
-    return this.m.civs[civId]?.units?.[typeId] ?? null;
+    return this.#civ(civId)?.units?.[typeId] ?? null;
   }
 
   /** Villager job animations: { task: [[keys per angle]], walk: [[keys per angle]] }. */

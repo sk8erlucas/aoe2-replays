@@ -15,7 +15,7 @@ Quedó a medio revisar o detectado al cerrar la sesión del 29/10/2026:
 - [x] **Centro urbano incompleto / piezas negras**: los anexos se ubicaban sobre el eje equivocado (corregido: el anexo `(dx, dy)` va en `(-dx, +dy)`).
 - [x] Ovejas con dueño dibujadas como milicia (ahora usan su sprite de animal con el color del jugador).
 - [x] Si una página del atlas o una textura falla al bajar, se reintenta (antes el edificio quedaba invisible).
-- [ ] **`manifest.json` de sprites pesa 5,5 MB** (con las animaciones de ataque): partirlo por civilización o comprobar que se sirve comprimido.
+- [x] **`manifest.json` de sprites pesaba 5,5 MB**: partido en núcleo + `civs/<id>.json`; una partida de 8 jugadores baja ~390 KB comprimidos en vez de 1,7 MB.
 - [ ] Migración a Next 16 ([12](./12-next-16.md)).
 
 ## Manual (necesita tu decisión o acción)
