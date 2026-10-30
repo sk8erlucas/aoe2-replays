@@ -193,14 +193,18 @@ export class Replay {
   // Units trained during the game have IDs the header never mentions. The first
   // time a player commands an unknown ID, bind it to the oldest unit that player
   // trained and that is still unbound; if there is none, spawn it at their start.
-  #resolveUnit(id, player, t) {
+  // `want` ('villager' or 'military', from the kind of order) picks among them
+  // first, so an army sent to attack does not take over the newest villagers.
+  #resolveUnit(id, player, t, want = null) {
     const known = this.unitById.get(id);
     if (known) return known;
     if (this.buildingById.has(id)) return null;
     // Prefer units already out of their building; IDs grow in creation order.
-    const pending = this.units
+    const unbound = this.units
       .filter((u) => u.id == null && u.player === player)
-      .sort((a, b) => (a.spawnT > t) - (b.spawnT > t) || a.spawnT - b.spawnT)[0];
+      .sort((a, b) => (a.spawnT > t) - (b.spawnT > t) || a.spawnT - b.spawnT);
+    const fits = want && unbound.find((u) => u.spawnT <= t && this.#isVillager(u) === (want === 'villager'));
+    const pending = fits ?? unbound[0];
     if (pending) {
       pending.id = id;
       if (pending.spawnT > t) {
@@ -264,7 +268,8 @@ export class Replay {
       }
 
       if (MOVING_COMMANDS.has(e.type) && e.x != null && e.type !== 'GATHER_POINT') {
-        ids.map((id) => this.#resolveUnit(id, e.player, e.t))
+        const want = this.#orderWants(e);
+        ids.map((id) => this.#resolveUnit(id, e.player, e.t, want))
           .filter(Boolean)
           .forEach((unit, i) => {
             const target = e.type === 'ORDER' ? this.resourceById.get(e.target_id) : null;
@@ -293,6 +298,18 @@ export class Replay {
       this.log.push({ t: c.t, player: c.player, kind: 'chat', text: c.message });
     }
     this.log.sort((a, b) => a.t - b.t);
+  }
+
+  // What kind of unit an order is most likely for, to bind unknown IDs.
+  #orderWants(e) {
+    if (e.type === 'BUILD' || e.type === 'WALL') return 'villager';
+    if (e.type !== 'ORDER' || e.target_id == null) return null;
+    if (this.resourceById.has(e.target_id)) return 'villager';
+    const other = this.unitById.get(e.target_id);
+    if (other) return other.player === 0 ? null : this.#enemies(e.player, other.player) ? 'military' : null;
+    const place = this.buildingById.get(e.target_id);
+    if (place) return this.#enemies(e.player, place.player) ? 'military' : 'villager';
+    return null;
   }
 
   #isVillager(unit) {
@@ -331,6 +348,8 @@ export class Replay {
   #engage(unit, e, i) {
     const t = e.t;
     if (unit.player <= 0) return false; // herded animals move with their herder's orders, they never fight
+    // Fishing, trade and transport: their orders on fish, markets or docks are not attacks.
+    if (/Fishing|Trade|Transport/.test(this.objectName(unit.typeId))) return false;
     const villager = this.#isVillager(unit);
     const reach = RANGED_CLASSES.has(this.game?.units?.[unit.typeId]?.class) ? RANGED_STOP : MELEE_STOP;
     const other = this.unitById.get(e.target_id);

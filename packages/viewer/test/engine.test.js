@@ -373,3 +373,40 @@ test('a gate replaces the wall segments under it, without rubble', () => {
   assert.ok(!walls.includes(14) && walls.includes(10) && walls.includes(18), `walls left: ${walls}`);
   assert.equal(later.ruins.length, 0);
 });
+
+test('an unknown id ordered to attack binds to a trained soldier, not a villager', () => {
+  const gameData = {
+    units: { 83: { speed: 0.8, class: 4, train: [[109, 25]] }, 74: { speed: 0.9, class: 6, train: [[12, 21]] } },
+    buildings: {},
+  };
+  const r = new Replay({
+    game: {
+      duration_ms: 200_000,
+      players: [
+        { number: 1, name: 'A', color_id: 0, team_id: 2, start: { x: 10, y: 10 } },
+        { number: 2, name: 'B', color_id: 1, team_id: 3, start: { x: 30, y: 30 } },
+      ],
+    },
+    map: { size: 40, terrain: [], elevation: [] },
+    initial_objects: [
+      { id: 100, player: 1, type_id: 109, x: 10, y: 10 },
+      { id: 110, player: 1, type_id: 12, x: 14, y: 10 },
+      { id: 200, player: 2, type_id: 74, x: 30, y: 30 },
+    ],
+    timeline: [
+      { t: 0, type: 'DE_QUEUE', player: 1, object_ids: [100], unit_id: 83, amount: 1 },
+      { t: 1_000, type: 'DE_QUEUE', player: 1, object_ids: [110], unit_id: 74, amount: 1 },
+      { t: 60_000, type: 'ORDER', player: 1, object_ids: [5000], target_id: 200, x: 30, y: 30 },
+    ],
+    chat: [],
+    legend: {
+      objects: {
+        109: { name: 'Town Center', category: 'building' },
+        12: { name: 'Barracks', category: 'building' },
+        83: { name: 'Villager', category: 'unit' },
+        74: { name: 'Militia', category: 'unit' },
+      },
+    },
+  }, { gameData });
+  assert.equal(r.unitById.get(5000)?.typeId, 74);
+});
