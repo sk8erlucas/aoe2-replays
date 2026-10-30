@@ -83,6 +83,21 @@ function ReplayStage({ data, actions, gameData }: ViewerProps & { gameData: Game
   const [follow, setFollowState] = useState<FollowMode>("auto");
   const [tooltip, setTooltip] = useState<Tooltip>(null);
   const [tab, setTab] = useState<"events" | "chat" | "analysis" | "ai">("events");
+  const [shareNotice, setShareNotice] = useState<string | null>(null);
+
+  // Link to this match at the current second. The #fragment is left out: on a
+  // private upload it carries the management token.
+  async function shareMoment() {
+    const seconds = Math.floor(time.current / 1000);
+    const url = `${location.origin}${location.pathname}?t=${seconds}`;
+    try {
+      await navigator.clipboard.writeText(url);
+      setShareNotice(tr.viewer.momentCopied(formatTime(seconds * 1000)));
+      setTimeout(() => setShareNotice(null), 3000);
+    } catch {
+      window.prompt(tr.common.copyPrompt, url);
+    }
+  }
 
   playingRef.current = playing;
   speedRef.current = speed;
@@ -393,6 +408,14 @@ function ReplayStage({ data, actions, gameData }: ViewerProps & { gameData: Game
         <button type="button" className="play" onClick={togglePlay} aria-label={playing ? tr.viewer.pause : tr.viewer.play}>
           {playing ? "❚❚" : "▶"}
         </button>
+        <button type="button" className="share-moment" onClick={shareMoment} title={tr.viewer.shareMomentHint}>
+          {tr.viewer.shareMoment}
+        </button>
+        {shareNotice && (
+          <span className="share-notice" role="status">
+            {shareNotice}
+          </span>
+        )}
         <span className="clock">
           {formatTime(t)} / {formatTime(replay.duration)}
         </span>

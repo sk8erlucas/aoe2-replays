@@ -695,8 +695,9 @@ button.link:hover { color: var(--bronze); }
 .controls {
   position: relative;
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
-  gap: 12px;
+  gap: 8px 12px;
   padding: 10px 16px;
   background: var(--charcoal);
   color: var(--charcoal-ink);
@@ -727,8 +728,9 @@ button.link:hover { color: var(--bronze); }
   background: linear-gradient(180deg, var(--bronze), var(--bronze-dark));
   color: var(--paper);
 }
-.controls .seek { flex: 1; min-width: 0; accent-color: var(--bronze-light); }
+.controls .seek { flex: 1 1 180px; min-width: 0; accent-color: var(--bronze-light); }
 .controls .clock { font-variant-numeric: tabular-nums; min-width: 96px; }
+.controls .share-notice { color: var(--ink-faint); font-size: 12px; white-space: nowrap; }
 .zoom-buttons { display: flex; gap: 4px; }
 .zoom-buttons button { min-width: 32px; }
 

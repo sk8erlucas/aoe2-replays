@@ -28,7 +28,7 @@ Hoy las páginas de jugador (`/p/<id>`) y de partida (`/m/<id>`) se arman en el 
   - Cacheadas por partida y por jugador.
 - [ ] Botones de compartir: copiar enlace (ya), WhatsApp, X, Reddit, Telegram; en móvil, el menú nativo (`navigator.share`)
 - [x] Abrir en un momento: `?t=<segundos>` en `/m/` y `/r/`
-- [ ] Compartir **un momento** desde el visor (botón) y opción "compartir este momento" en el visor
+- [x] Compartir **un momento** desde el visor: botón "Compartir momento" que copia el enlace con `?t=` (sin el `#k=` de gestión)
 - [ ] Vista previa de Discord bien armada (Discord usa Open Graph; probar color de tema y tamaño de imagen)
 - [ ] Insertar el visor en otros sitios (`<iframe>` con versión compacta), con enlace de vuelta
 - [ ] Clips: exportar un fragmento a video o GIF para redes (se apoya en la fase 5)
