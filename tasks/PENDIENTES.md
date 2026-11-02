@@ -8,6 +8,9 @@ El repo es público desde octubre de 2026. Lo que queda de seguridad e infraestr
 ## Plan nuevo: cuentas
 Login opcional (Steam, Discord, Google), vincular el perfil de AoE2, favoritos de jugadores, partidas y momentos, y "Mis replays": [13-cuentas](./13-cuentas.md). Antes de empezar hay que decidir los proveedores de login y si los replays de cuentas expiran.
 
+## Plan nuevo: calidad gráfica
+Selector Alta / Media / Baja / Automática: en media, sprites de edificios compartidos para todas las civilizaciones y terreno sin transiciones; en baja, sin terreno. No es urgente: [14-calidad-grafica](./14-calidad-grafica.md).
+
 ## Próxima sesión
 Quedó a medio revisar o detectado al cerrar la sesión del 29/10/2026:
 - [x] **Capturas desactualizadas** (rehechas el 30/10/2026 con el terreno nuevo): las de `docs/screenshots`, `public/images/visor`, `og.jpg` y la vista previa de GitHub son de antes de las texturas de terreno. Rehacerlas desde la web con la partida de demo anonimizada (necesita Docker con la base local).
@@ -28,7 +31,7 @@ Quedó a medio revisar o detectado al cerrar la sesión del 29/10/2026:
 | Logo e ilustraciones | Decidir si se encargan o se hacen propios (estilo grabado, ver [DESIGN](../docs/DESIGN.md)) | Portada final |
 | Nombre del proyecto | Las reglas de Microsoft piden no usar el nombre del juego en el título; evaluar un nombre propio ([LEGAL](../docs/LEGAL.md)) | Lanzamiento público |
 | Publicidad | Confirmar si las reglas de Microsoft permiten anuncios en un sitio propio | Activar anuncios |
-| GitHub | Campo "Website" del repo, protección de `main`, secret scanning y reporte privado de vulnerabilidades | Colaboradores |
+| GitHub | Protección de `main`, secret scanning, reporte privado de vulnerabilidades, etiquetas `good first issue`, imagen de vista previa y primer Release | Colaboradores |
 | Replays de prueba | Pasar 2-3 replays: partida completa, 1v1, versión 66/67 | Probar el visor de verdad y los parches |
 | Docker local | El build de imágenes falla por certificados SSL en esta máquina (antivirus o proxy que intercepta HTTPS). Postgres local sí funciona | Probar las imágenes antes del deploy |
 | Legal | Leer reglas de contenido de fans de Microsoft ([LEGAL](../docs/LEGAL.md)) | Publicidad, lanzamiento |
@@ -50,7 +53,7 @@ Quedó a medio revisar o detectado al cerrar la sesión del 29/10/2026:
 - [x] Pestaña "IA" en el visor: resumen y detalle completo en texto para pegar en una IA, y descarga del JSON
 - [x] Búsqueda de jugadores, perfiles y partidas online `/m/<matchId>` ([09](./09-partidas-online.md))
 - [x] Portada con hero, contenido y capturas; README público y CONTRIBUTING
-- [x] Plantillas de issue y pull request, código de conducta ([06](./06-comunidad.md))
+- [x] Plantillas de issue y pull request, código de conducta ([06](./06-comunidad-completed.md))
 - [ ] Música de fondo en el visor ([08](./08-experiencia-de-juego.md))
 - [x] Interfaz en español e inglés
 - [ ] SEO y compartir en redes: vistas previas por partida y jugador (hechos: metadatos generales, imagen, robots y sitemap) ([10](./10-seo-y-redes.md))

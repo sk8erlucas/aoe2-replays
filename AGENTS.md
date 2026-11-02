@@ -5,7 +5,7 @@ Guía para agentes de código (Claude Code, Codex, Copilot, etc.) que trabajan e
 ## Qué es
 AoE2 Replays: subís un replay de Age of Empires II: DE (`.aoe2record`), se convierte a JSON y se reproduce en un mapa en el navegador. Proyecto de fans, open source (MIT), no afiliado a Microsoft.
 
-Contexto y decisiones: [`docs/CONTEXT.md`](docs/CONTEXT.md), [`docs/DECISIONS.md`](docs/DECISIONS.md), [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md). Tareas: [`tasks/`](tasks/), empezando por [`tasks/PENDIENTES.md`](tasks/PENDIENTES.md).
+Contexto y decisiones: [`docs/CONTEXT.md`](docs/CONTEXT.md), [`docs/DECISIONS.md`](docs/DECISIONS.md), [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md). Tareas: [`tasks/`](tasks/), empezando por [`tasks/PENDIENTES.md`](tasks/PENDIENTES.md). Los planes terminados llevan `-completed` en el nombre (`tasks/00-preparacion-completed.md`) y no se tocan más; lo que surja después va a un plan nuevo o a `PENDIENTES.md`.
 
 ## Estructura (monorepo)
 | Carpeta | Qué es | Stack |

@@ -19,8 +19,10 @@ export class Unit {
   player: number;
   typeId: number | null;
   spawnT: number;
-  /** When its owner deleted it (Infinity if never). */
+  /** When it left the game: deleted by its owner, eaten, or estimated fallen (Infinity if never). */
   removedAt: number;
+  /** removedAt is an estimated death in a fight. */
+  fell: boolean;
   approx: boolean;
   positionAt(t: number): { x: number; y: number; moving: boolean; target: { x: number; y: number } | null };
   /**
@@ -45,7 +47,15 @@ export interface Building {
 
 export interface State {
   t: number;
-  units: Array<{ unit: Unit; x: number; y: number; moving: boolean; target: { x: number; y: number } | null }>;
+  units: Array<{
+    unit: Unit;
+    x: number;
+    y: number;
+    moving: boolean;
+    target: { x: number; y: number } | null;
+    /** 1 → 0 while a fallen unit fades out. */
+    fading?: number;
+  }>;
   buildings: Array<{ building: Building; progress: number }>;
   /** Buildings deleted by their owner: drawn as rubble. */
   ruins: Building[];
@@ -64,6 +74,8 @@ export interface GameData {
 
 export class Replay {
   /** The busiest place (most positioned orders, recent ones weigh more) in the last seconds of game time. */
+  /** A building's gather point at time t (exact), or null. */
+  rallyAt(building: Building, t: number): { x: number; y: number } | null;
   hotspot(t: number, options?: { windowMs?: number; radius?: number }): { x: number; y: number; score: number } | null;
   constructor(data: ReplayData, options?: { gameData?: GameData | null });
   game: GameData | null;
@@ -99,7 +111,8 @@ export class Renderer {
   pan(dx: number, dy: number): void;
   /** Glide the camera; returns true while it is still moving. */
   update(dtMs: number, t: number): boolean;
-  draw(state: State): void;
+  /** `pointer` (CSS px): the building under it shows its rally flag. */
+  draw(state: State, options?: { pointer?: { x: number; y: number } | null }): void;
   drawMinimap(canvas: HTMLCanvasElement, state: State): void;
   minimapToWorld(canvas: HTMLCanvasElement, mx: number, my: number): [number, number];
   pick(state: State, sx: number, sy: number): Hit | null;

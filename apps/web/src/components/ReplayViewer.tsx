@@ -195,7 +195,7 @@ function ReplayStage({ data, actions, gameData }: ViewerProps & { gameData: Game
       if (playingRef.current || moving || dirty.current) {
         dirty.current = false;
         const state = replay.stateAt(time.current);
-        r.draw(state);
+        r.draw(state, { pointer: pointer.current });
         if (minimap.current) r.drawMinimap(minimap.current, state);
         const tip = tooltipFor(state);
         const key = tip ? `${tip.text}@${tip.x},${tip.y}` : "";

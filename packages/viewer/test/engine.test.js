@@ -421,3 +421,84 @@ test('hotspot is where most recent orders are, not the last one', () => {
   assert.ok(Math.abs(spot.x - 51) < 2 && Math.abs(spot.y - 50) < 1, JSON.stringify(spot));
   assert.equal(r.hotspot(60_000), null); // nothing in the last 20 s
 });
+
+test('a unit last sent to attack and never ordered again falls, and fades out', () => {
+  const r = skirmish([
+    { t: 0, type: 'ORDER', player: 1, object_ids: [102], target_id: 301, x: 12, y: 30 },
+    // Player 1 keeps playing for minutes without ordering the militia again.
+    { t: 200_000, type: 'MOVE', player: 1, object_ids: [101], x: 5, y: 5 },
+  ]);
+  const m = r.unitById.get(102);
+  assert.ok(m.fell);
+  assert.equal(m.removedAt, 25_000);
+  const fading = r.stateAt(26_000).units.find((u) => u.unit === m);
+  assert.ok(fading && fading.fading > 0 && fading.fading < 1);
+  assert.ok(!r.stateAt(30_000).units.some((u) => u.unit === m));
+});
+
+test('hunted animals disappear when their food runs out', () => {
+  const r = skirmish([{ t: 0, type: 'ORDER', player: 1, object_ids: [101], target_id: 402, x: 16, y: 10 }]);
+  const deer = r.unitById.get(402);
+  assert.ok(deer.removedAt > 300_000 && deer.removedAt < 400_000, `deer gone at ${deer.removedAt}`);
+  assert.equal(r.unitById.get(101).activityAt(deer.removedAt + 1000), null);
+});
+
+test('a player who resigns loses every unit and building', () => {
+  const r = skirmish([{ t: 50_000, type: 'RESIGN', player: 3, object_ids: [] }]);
+  const after = r.stateAt(60_000);
+  assert.ok(!after.units.some((u) => u.unit.player === 3));
+  assert.ok(!after.buildings.some((b) => b.building.player === 3));
+  assert.ok(after.ruins.some((b) => b.player === 3));
+});
+
+test('units over the population limit are taken as fallen, army first', () => {
+  const data = {
+    game: { duration_ms: 400_000, population_limit: 2, players: [{ number: 1, name: 'A', color_id: 0, team_id: 2, start: { x: 10, y: 10 } }] },
+    map: { size: 40, terrain: [], elevation: [] },
+    initial_objects: [
+      { id: 100, player: 1, type_id: 109, x: 10, y: 10 },
+      { id: 101, player: 1, type_id: 83, x: 12, y: 10 },
+      { id: 102, player: 1, type_id: 74, x: 12, y: 12 },
+    ],
+    timeline: [{ t: 0, type: 'DE_QUEUE', player: 1, object_ids: [100], unit_id: 83, amount: 1 }],
+    chat: [],
+    legend: { objects: { 109: { name: 'Town Center', category: 'building' }, 83: { name: 'Villager', category: 'unit' }, 74: { name: 'Militia', category: 'unit' } } },
+  };
+  const r = new Replay(data);
+  const militia = r.unitById.get(102);
+  assert.ok(militia.fell, 'the soldier goes before the villager');
+  assert.equal(r.unitById.get(101).fell, false);
+  assert.equal(r.stateAt(100_000).units.filter((u) => u.unit.player === 1).length, 2);
+});
+
+test('an unknown id binds to the unit trained when that id was created', () => {
+  const gameData = { units: { 83: { speed: 0.8, class: 4, train: [[109, 25]] } }, buildings: {} };
+  const r = new Replay({
+    game: { duration_ms: 300_000, players: [{ number: 1, name: 'A', color_id: 0, team_id: 2, start: { x: 10, y: 10 } }] },
+    map: { size: 40, terrain: [], elevation: [] },
+    initial_objects: [{ id: 100, player: 1, type_id: 109, x: 10, y: 10 }, { id: 101, player: 1, type_id: 83, x: 12, y: 10 }],
+    timeline: [
+      { t: 0, type: 'DE_QUEUE', player: 1, object_ids: [100], unit_id: 83, amount: 3 }, // out at 25, 50 and 75 s
+      { t: 60_000, type: 'BUILD', player: 1, building_id: 70, object_ids: [101], x: 20, y: 20 },
+      // The house gets id 5003 by being clicked: something created at 60 s.
+      { t: 70_000, type: 'ORDER', player: 1, object_ids: [101], target_id: 5003, x: 20, y: 20 },
+      // 5004 was created after 60 s: the villager out at 75 s, not the older ones.
+      { t: 100_000, type: 'MOVE', player: 1, object_ids: [5004], x: 5, y: 5 },
+    ],
+    chat: [],
+    legend: { objects: { 109: { name: 'Town Center', category: 'building' }, 83: { name: 'Villager', category: 'unit' }, 70: { name: 'House', category: 'building' } } },
+  }, { gameData });
+  assert.equal(r.buildingById.get(5003)?.typeId, 70);
+  assert.equal(r.unitById.get(5004)?.spawnT, 75_000);
+});
+
+test('gather points are kept over time for each building', () => {
+  const r = replay([
+    { t: 1_000, type: 'GATHER_POINT', player: 1, object_ids: [100], x: 14, y: 12 },
+    { t: 9_000, type: 'GATHER_POINT', player: 1, object_ids: [100], x: 6, y: 7 },
+  ]);
+  const tc = r.buildingById.get(100);
+  assert.equal(r.rallyAt(tc, 500), null);
+  assert.deepEqual(r.rallyAt(tc, 5_000), { x: 14, y: 12 });
+  assert.deepEqual(r.rallyAt(tc, 20_000), { x: 6, y: 7 });
+});

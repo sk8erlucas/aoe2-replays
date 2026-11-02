@@ -545,7 +545,8 @@ export class Renderer {
     };
   }
 
-  draw(state) {
+  /** Draws the frame; `pointer` (CSS px) shows the rally flag of the building under it. */
+  draw(state, { pointer = null } = {}) {
     const { ctx } = this;
     const s = this.cam.scale;
     const { clientWidth: w, clientHeight: h } = this.canvas;
@@ -595,10 +596,55 @@ export class Renderer {
     }
     for (const it of items) it.draw();
     ctx.globalAlpha = 1;
+    if (pointer) {
+      const hit = this.pick(state, pointer.x, pointer.y);
+      if (hit?.kind === 'building') this.#drawRally(hit.building, state);
+    }
   }
 
-  #alpha(player, state) {
-    return state.resigned.has(player) ? 0.4 : 1;
+  // Like selecting a building in the game: a dashed line to its gather point and a flag.
+  #drawRally(b, state) {
+    const at = this.replay.rallyAt(b, state.t);
+    if (!at) return;
+    const { ctx } = this;
+    const s = this.cam.scale;
+    const color = this.playerColor(b.player);
+    const [x0, y0] = this.toScreen(b.x, b.y);
+    const [x1, y1] = this.toScreen(at.x, at.y);
+    ctx.save();
+    ctx.strokeStyle = color;
+    ctx.globalAlpha = 0.8;
+    ctx.lineWidth = Math.max(1, s / 20);
+    ctx.setLineDash([Math.max(3, s / 5), Math.max(3, s / 5)]);
+    ctx.beginPath();
+    ctx.moveTo(x0, y0);
+    ctx.lineTo(x1, y1);
+    ctx.stroke();
+    ctx.setLineDash([]);
+    // Pole and pennant.
+    const h = Math.max(14, s * 1.1);
+    ctx.globalAlpha = 1;
+    ctx.strokeStyle = '#3b2a1a';
+    ctx.lineWidth = Math.max(1.5, s / 16);
+    ctx.beginPath();
+    ctx.moveTo(x1, y1);
+    ctx.lineTo(x1, y1 - h);
+    ctx.stroke();
+    ctx.fillStyle = color;
+    ctx.beginPath();
+    ctx.moveTo(x1, y1 - h);
+    ctx.lineTo(x1 + h * 0.55, y1 - h * 0.8);
+    ctx.lineTo(x1, y1 - h * 0.6);
+    ctx.closePath();
+    ctx.fill();
+    ctx.strokeStyle = 'rgba(0,0,0,0.5)';
+    ctx.lineWidth = 1;
+    ctx.stroke();
+    ctx.restore();
+  }
+
+  #alpha(player, state, fading = 1) {
+    return (state.resigned.has(player) ? 0.4 : 1) * fading;
   }
 
   #drawResource(r, detail) {
@@ -848,7 +894,7 @@ export class Renderer {
     const [x, y] = this.toScreen(u.x, u.y);
     const gaia = u.unit.player === 0;
     const color = this.playerColor(u.unit.player);
-    ctx.globalAlpha = this.#alpha(u.unit.player, state);
+    ctx.globalAlpha = this.#alpha(u.unit.player, state, u.fading ?? 1);
     if (!detail) {
       const r = gaia ? 1.5 : 2.5;
       ctx.fillStyle = color;
@@ -951,7 +997,7 @@ export class Renderer {
     const unit = u.unit;
     const color = unit.player > 0 ? this.playerColor(unit.player) : null;
     const [sx, sy] = this.toScreen(u.x, u.y);
-    this.ctx.globalAlpha = this.#alpha(unit.player, state);
+    this.ctx.globalAlpha = this.#alpha(unit.player, state, u.fading ?? 1);
     let ok = false;
     if (unit.player === 0) {
       const keys = this.sprites.gaia(unit.typeId);

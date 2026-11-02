@@ -120,6 +120,20 @@ export const ATTACK_HOLD_MS = 25_000;
 export const RANGED_CLASSES = new Set([0, 13, 18, 22, 36, 44, 51, 54, 55]);
 export const RANGED_STOP = 5;
 export const MELEE_STOP = 0.8;
+// Food in a hunted or herded animal, and how fast one villager takes it (per
+// game second, walks included). The animal disappears when its food runs out.
+export const ANIMAL_FOOD = { Sheep: 100, Goose: 100, Turkey: 100, Llama: 100, Pig: 100, Cow: 150, 'Water Buffalo': 150, Goat: 100, Deer: 140, Zebra: 140, Ostrich: 140, Boar: 340, Elephant: 340, Rhinoceros: 340 };
+export const DEFAULT_ANIMAL_FOOD = 140;
+export const MEAT_RATE = 0.4;
+// A unit whose last order was an attack, and that its player never ordered again
+// though they kept playing this long, is taken as fallen in that fight.
+export const FALLEN_AFTER_MS = 60_000;
+// The same for a unit last sent this close to an enemy building or base (tiles).
+export const ENEMY_BUILDING_REACH = 6;
+export const ENEMY_BASE_RADIUS = 18;
+// How long a fallen unit takes to fade out.
+export const FADE_MS = 2_000;
+
 // Animals a villager herds (shepherd) rather than hunts.
 export const HERDABLE = /^(Sheep|Goose|Turkey|Llama|Cow|Pig|Water Buffalo|Goat)\b/;
 

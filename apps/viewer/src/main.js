@@ -154,7 +154,7 @@ function renderTooltip(state) {
 function render() {
   if (!replay) return;
   const state = replay.stateAt(t);
-  renderer.draw(state);
+  renderer.draw(state, { pointer });
   els.clock.textContent = `${formatTime(t)} / ${formatTime(replay.duration)}`;
   els.seek.value = String(t);
   renderPlayers(state);

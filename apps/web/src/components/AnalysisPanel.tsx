@@ -77,7 +77,13 @@ export function AnalysisPanel({ data, onSeek }: { data: ReplayData; onSeek: (ms:
   const byNumber = new Map(analysis.players.map((p) => [p.number, p]));
   const max = Math.max(0, ...analysis.players.flatMap((p) => p.activity));
   const [selected, setSelected] = useState(players[0]?.number ?? 1);
-  const selectedStats = byNumber.get(selected);
+  const [compareWith, setCompareWith] = useState<number | null>(null);
+  const shown = [selected, ...(compareWith != null && compareWith !== selected ? [compareWith] : [])];
+  const colorOf = (n: number) => PLAYER_COLORS[players.find((p) => p.number === n)?.color_id ?? -1] ?? "#888";
+  // One timeline: the chosen player's build order, merged with the compared one.
+  const items = shown
+    .flatMap((n) => (byNumber.get(n)?.buildOrder ?? []).map((b) => ({ ...b, player: n })))
+    .sort((a, b) => a.t - b.t);
 
   return (
     <div className="analysis">
@@ -134,35 +140,61 @@ export function AnalysisPanel({ data, onSeek }: { data: ReplayData; onSeek: (ms:
       })}
 
       <h2>{t.analysis.buildOrder}</h2>
-      <select value={selected} onChange={(e) => setSelected(Number(e.target.value))} aria-label={t.analysis.player}>
-        {players.map((p) => (
-          <option key={p.number} value={p.number}>
-            {p.name}
-          </option>
-        ))}
-      </select>
-      {selectedStats && selectedStats.trained.length > 0 && (
-        <div className="muted small queued">
-          {(["economy", "military"] as const).map((kind) => {
-            const units = selectedStats.trained.filter((u) => u.kind === kind);
-            if (!units.length) return null;
-            return (
-              <p key={kind}>
-                <strong>{t.analysis.queuedKind[kind](selectedStats[kind])}</strong>{" "}
-                {units.map((u) => `${u.amount}× ${u.name}`).join(", ")}
-              </p>
-            );
-          })}
-        </div>
-      )}
+      <div className="build-order-pick">
+        <select value={selected} onChange={(e) => setSelected(Number(e.target.value))} aria-label={t.analysis.player}>
+          {players.map((p) => (
+            <option key={p.number} value={p.number}>
+              {p.name}
+            </option>
+          ))}
+        </select>
+        <label>
+          <span className="sr-only">{t.analysis.compareWith}</span>
+          <select
+            value={compareWith ?? ""}
+            onChange={(e) => setCompareWith(e.target.value === "" ? null : Number(e.target.value))}
+          >
+            <option value="">{t.analysis.compareNone}</option>
+            {players
+              .filter((p) => p.number !== selected)
+              .map((p) => (
+                <option key={p.number} value={p.number}>
+                  {t.analysis.compareOption(p.name)}
+                </option>
+              ))}
+          </select>
+        </label>
+      </div>
+      {shown.map((n) => {
+        const stats = byNumber.get(n);
+        if (!stats || !stats.trained.length) return null;
+        return (
+          <div key={n} className="muted small queued">
+            {(["economy", "military"] as const).map((kind) => {
+              const units = stats.trained.filter((u) => u.kind === kind);
+              if (!units.length) return null;
+              return (
+                <p key={kind}>
+                  {shown.length > 1 && <span className="swatch" style={{ background: colorOf(n) }} aria-hidden="true" />}
+                  <strong>{t.analysis.queuedKind[kind](stats[kind])}</strong>{" "}
+                  {units.map((u) => `${u.amount}× ${u.name}`).join(", ")}
+                </p>
+              );
+            })}
+          </div>
+        );
+      })}
       <ol className="log build-order">
-        {selectedStats?.buildOrder.length === 0 && <li className="muted">{t.analysis.nothing}</li>}
-        {selectedStats?.buildOrder.map((b, i) => (
+        {items.length === 0 && <li className="muted">{t.analysis.nothing}</li>}
+        {items.map((b, i) => (
           <li key={i}>
             <button type="button" className="time link" onClick={() => onSeek(b.t)} title={t.analysis.seek}>
               {formatTime(b.t)}
             </button>
             <span className={b.kind}>
+              {shown.length > 1 && (
+                <span className="swatch" style={{ background: colorOf(b.player) }} aria-hidden="true" />
+              )}
               {t.analysis.kinds[b.kind]} {b.amount && b.amount > 1 ? `${b.amount}× ` : ""}
               {b.name}
             </span>

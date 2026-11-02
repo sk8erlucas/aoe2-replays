@@ -240,6 +240,9 @@ const es = {
     actionsLabel: (name: string, s: number) => `Acciones de ${name} cada ${s} segundos`,
     buildOrder: "Build order",
     queued: "Encolado:",
+    compareWith: "Comparar con",
+    compareNone: "Sin comparar",
+    compareOption: (name: string) => `Comparar con ${name}`,
     queuedKind: {
       economy: (n: number) => `Economía (${n}):`,
       military: (n: number) => `Ejército (${n}):`,
@@ -507,6 +510,9 @@ const en: Messages = {
     actionsLabel: (name: string, s: number) => `${name}'s actions every ${s} seconds`,
     buildOrder: "Build order",
     queued: "Queued:",
+    compareWith: "Compare with",
+    compareNone: "No comparison",
+    compareOption: (name: string) => `Compare with ${name}`,
     queuedKind: {
       economy: (n: number) => `Economy (${n}):`,
       military: (n: number) => `Army (${n}):`,

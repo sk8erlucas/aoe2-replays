@@ -21,6 +21,6 @@ Objetivo: ver una partida "jugándose" con gráficos simples. Primero con el JSO
 - [x] ~~Sprites pixel art propios~~: se usan los sprites del juego ([08](./08-experiencia-de-juego.md)); las formas propias quedan de respaldo
 - [x] Marcar recursos agotados y árboles talados (estimación según las órdenes de recolección)
 - [x] Muros de piedra y puertas; los puntos de reunión sobre un recurso mandan a recolectar a las unidades nuevas
-- [ ] Mostrar la bandera del punto de reunión de cada edificio
+- [x] Bandera del punto de reunión: al pasar el mouse sobre un edificio, línea punteada hasta su bandera (como al seleccionarlo en el juego)
 - [x] Seguir a un jugador (cámara) e ir a su ciudad con un clic
 - [x] Filtrar eventos por jugador (selector en la pestaña Eventos)
