@@ -47,6 +47,11 @@ ANGLES_KEPT = 16
 TREE_VARIANTS = 4
 TASK_FRAMES = 5  # frames kept per direction of a work animation
 ATTACK_FRAMES = 5  # frames kept per direction of an attack animation
+# Every other trainable unit (unique units, elephants, ships...) gets a lighter
+# set: 8 directions, short walk and attack cycles. Hero/campaign units are left out.
+EXTRA_ANGLE_STEP = 2
+EXTRA_WALK_FRAMES = 3
+EXTRA_ATTACK_FRAMES = 2
 WALL_SHAPES = 5  # wall graphics: one "angle" per shape (two diagonals, pillar, horizontal, vertical)
 # Villager jobs: role -> graphic name part. Stone miners reuse the gold miner's work animation.
 VILLAGER_ROLES = {
@@ -220,7 +225,7 @@ def write_manifest(out: Path, manifest: dict):
         old.unlink()
     core = {k: v for k, v in manifest.items() if k != 'civs'}
     core['version'] = 3
-    core['civs'] = sorted(manifest['civs'], key=int)
+    core['civs'] = sorted((str(cid) for cid in manifest['civs']), key=int)  # ids as strings, like JSON keys
     for cid, civ in manifest['civs'].items():
         (civ_dir / f'{cid}.json').write_text(json.dumps(civ, separators=(',', ':')), encoding='utf-8')
     (out / 'manifest.json').write_text(json.dumps(core, separators=(',', ':')), encoding='utf-8')
@@ -272,6 +277,13 @@ def main():
     print(f'{len(building_ids)} building types', flush=True)
 
     by_name = {g.file_name: g for g in dat.graphics if g and g.file_name}
+    core_units = set(UNITS)
+    extra_units = sorted({
+        u.id for c in dat.civs[1:] for u in c.units
+        if u is not None and u.type == 70 and u.creatable and not u.creatable.hero_mode
+        and any(t.unit_id >= 0 for t in u.creatable.train_locations)
+    } - core_units)
+    print(f'{len(UNITS)} core units, {len(extra_units)} more trainable units', flush=True)
     civs = {}
     for civ_id, civ in enumerate(dat.civs):
         if civ_id == 0:
@@ -317,31 +329,36 @@ def main():
             if ages:
                 buildings[bid] = ages
         units = {}
-        for uid in UNITS:
+        for uid in UNITS + extra_units:
             unit = civ.units[uid] if uid < len(civ.units) else None
             if unit is None:
                 continue
+            full = uid in core_units
+            angle_step = 1 if full else EXTRA_ANGLE_STEP
+
+            def cycle(g, frames_kept):
+                fc, ac = max(1, g.frame_count), max(1, g.angle_count)
+                step = max(1, fc // frames_kept)
+                angles = range(0, ac, angle_step if ac >= 8 else 1)
+                keys = [[col.add(g.file_name, a * fc + f) for f in range(0, fc, step)][:frames_kept] for a in angles]
+                return keys if all(all(k) for k in keys) else None
+
             entry = {}
             idle = graphic(dat, unit.standing_graphic[0])
             if idle and idle.file_name:
                 fc, ac = max(1, idle.frame_count), max(1, idle.angle_count)
-                keys = [col.add(idle.file_name, a * fc) for a in range(ac)]
+                keys = [col.add(idle.file_name, a * fc) for a in range(0, ac, angle_step if ac >= 8 else 1)]
                 if all(keys):
                     entry['idle'] = keys
             walk = graphic(dat, unit.dead_fish.walking_graphic) if unit.dead_fish else None
             if walk and walk.file_name:
-                fc, ac = max(1, walk.frame_count), max(1, walk.angle_count)
-                step = max(1, fc // WALK_FRAMES)
-                keys = [[col.add(walk.file_name, a * fc + f) for f in range(0, fc, step)] for a in range(ac)]
-                if all(all(k) for k in keys):
+                keys = cycle(walk, WALK_FRAMES if full else EXTRA_WALK_FRAMES)
+                if keys:
                     entry['walk'] = keys
             attack = graphic(dat, unit.type_50.attack_graphic) if unit.type_50 else None
             if attack and attack.file_name:
-                fc, ac = max(1, attack.frame_count), max(1, attack.angle_count)
-                step = max(1, fc // ATTACK_FRAMES)
-                keys = [[col.add(attack.file_name, a * fc + f) for f in range(0, fc, step)][:ATTACK_FRAMES]
-                        for a in range(ac)]
-                if all(all(k) for k in keys):
+                keys = cycle(attack, ATTACK_FRAMES if full else EXTRA_ATTACK_FRAMES)
+                if keys:
                     entry['attack'] = keys
             if entry:
                 units[uid] = entry

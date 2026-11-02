@@ -25,7 +25,7 @@ export class SpriteSet {
   }
 
   #loadCiv(id) {
-    if (id == null || !this.m.civs.includes(String(id))) return null;
+    if (id == null || !this.m.civs.some((c) => String(c) === String(id))) return null;
     this.civLoads[id] ??= fetch(`${this.base}/civs/${id}.json`, { cache: 'no-cache' })
       .then((res) => {
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
