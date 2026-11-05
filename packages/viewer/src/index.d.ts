@@ -89,6 +89,8 @@ export class Replay {
   focusOf(player: number, t: number): { t: number; player: number; x: number; y: number };
   /** Age (1 Dark .. 4 Imperial) of a player at time t, estimated from age research. */
   ageAt(player: number, t: number): number;
+  /** Estimated age arrivals (2 Feudal .. 4 Imperial) within the match, sorted by time. */
+  ageMarks(): Array<{ player: number; age: number; t: number }>;
   latestFocus(t: number): { t: number; player: number; x: number; y: number } | null;
   stateAt(t: number): State;
   logUntil(t: number): LogEntry[];

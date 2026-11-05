@@ -184,6 +184,20 @@ test('age is estimated from age research plus its research time', () => {
   assert.equal(r.ageAt(2, 500_000), 1);
 });
 
+test('age marks list arrivals within the match, not after a resign', () => {
+  const r = replay([
+    { t: 1_000, type: 'RESEARCH', player: 1, object_ids: [100], technology_id: 101 },
+    { t: 1_000, type: 'RESEARCH', player: 1, object_ids: [100], technology_id: 101 },
+  ], { game: { duration_ms: 600_000, players: [{ number: 1, name: 'A', color_id: 1, team_id: 1, start: { x: 10, y: 10 } }] } });
+  assert.deepEqual(r.ageMarks(), [{ player: 1, age: 2, t: 131_000 }]);
+
+  const resigned = replay([
+    { t: 1_000, type: 'RESEARCH', player: 1, object_ids: [100], technology_id: 101 },
+    { t: 50_000, type: 'RESIGN', player: 1 },
+  ]);
+  assert.deepEqual(resigned.ageMarks(), []);
+});
+
 test('units queued in a building built during the game come out of it (with game data)', () => {
   const gameData = {
     units: { 38: { speed: 1.35, class: 12, train: [[101, 30]] } },

@@ -17,7 +17,7 @@ Quedó a medio revisar o detectado al cerrar la sesión del 29/10/2026:
 - [ ] **GitHub**: subir la imagen de Settings → Social preview (nueva, con el terreno) y publicar un primer Release (por ejemplo `v0.1.0`).
 - [x] **Muros**: las diagonales estaban invertidas (corregido), los tramos escalonados se ven continuos y las puertas reemplazan los tramos de muro que tapan.
 - [ ] **Puertas**: en `long.json` una puerta "n" (673) cae en un muro horizontal en pantalla; revisar si la orientación de las puertas (`ne`, `se`, `e`, `n`) coincide con la del juego.
-- [~] **Tipo de unidad mal asignado**: los IDs nuevos se vinculan con la unidad más vieja del jugador. Ya se usa el tipo de orden como pista (construir/recolectar → aldeano, atacar → militar) y barcos pesqueros y carretas no atacan, pero si la primera orden es un `MOVE` no hay pista. Siguiente paso: usar el orden de los IDs (el juego los asigna en orden de creación) para emparejarlos con el orden de entrenamiento.
+- [x] **Tipo de unidad mal asignado**: los IDs nuevos se vinculan con la unidad entrenada cuando se creó ese ID (el juego los asigna en orden de creación; los IDs conocidos acotan la ventana de tiempo), y el tipo de orden desempata (construir/recolectar → aldeano, atacar → militar). Hecho en `ee72b67`; si aparecen casos raros, revisar con partidas completas.
 - [x] **Centro urbano incompleto / piezas negras**: los anexos se ubicaban sobre el eje equivocado (corregido: el anexo `(dx, dy)` va en `(-dx, +dy)`).
 - [x] Ovejas con dueño dibujadas como milicia (ahora usan su sprite de animal con el color del jugador).
 - [x] Si una página del atlas o una textura falla al bajar, se reintenta (antes el edificio quedaba invisible).

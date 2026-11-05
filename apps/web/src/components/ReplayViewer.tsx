@@ -20,6 +20,11 @@ import { ChatPanel } from "@/components/ChatPanel";
 import { useI18n } from "@/i18n/I18nProvider";
 
 const SPEEDS = [1, 2, 4, 8, 16];
+// Range thumb width (px, see .controls .seek), min gap between flags in a row, rows before overlapping.
+const THUMB = 16;
+const FLAG_GAP = 9;
+const MAX_FLAG_ROWS = 4;
+const AGE_KEYS: Record<number, "feudal" | "castle" | "imperial"> = { 2: "feudal", 3: "castle", 4: "imperial" };
 
 // Loaded once per page; if it fails the viewer keeps drawing plain shapes.
 let spritesPromise: Promise<SpriteSet | null> | null = null;
@@ -278,6 +283,28 @@ function ReplayStage({ data, actions, gameData }: ViewerProps & { gameData: Game
     () => [...replay.players].sort((a, b) => a.team_id - b.team_id || a.number - b.number),
     [replay],
   );
+  // Age flags over the timeline, stacked in rows where they would overlap.
+  const seekTrack = useRef<HTMLDivElement>(null);
+  const [trackWidth, setTrackWidth] = useState(0);
+  useEffect(() => {
+    const el = seekTrack.current;
+    if (!el) return;
+    const observer = new ResizeObserver(() => setTrackWidth(el.clientWidth));
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, []);
+  const ageFlags = useMemo(() => {
+    const ends: number[] = []; // right edge (px) of the last flag in each row
+    const flags = replay.ageMarks().map((m) => {
+      const at = m.t / Math.max(1, replay.duration);
+      const x = THUMB / 2 + (trackWidth - THUMB) * at;
+      let row = ends.findIndex((end) => end <= x);
+      if (row < 0) row = ends.length < MAX_FLAG_ROWS ? ends.length : ends.indexOf(Math.min(...ends));
+      ends[row] = x + FLAG_GAP;
+      return { ...m, at, row };
+    });
+    return { flags, rows: Math.max(1, ends.length) };
+  }, [replay, trackWidth]);
 
   const drag = useRef<{ x: number; y: number } | null>(null);
   const logText = (e: LogEntry) => {
@@ -439,16 +466,35 @@ function ReplayStage({ data, actions, gameData }: ViewerProps & { gameData: Game
         <span className="clock">
           {formatTime(t)} / {formatTime(replay.duration)}
         </span>
-        <input
-          className="seek"
-          type="range"
-          min={0}
-          max={replay.duration}
-          step={100}
-          value={t}
-          aria-label={tr.viewer.time}
-          onChange={(e) => seek(Number(e.target.value))}
-        />
+        <div className="seek-track" ref={seekTrack} style={{ "--rows": ageFlags.rows } as React.CSSProperties}>
+          {ageFlags.flags.map((m) => {
+            const age = tr.analysis.ages[AGE_KEYS[m.age] ?? "feudal"];
+            const label = tr.viewer.ageFlag(playerName(m.player), age, formatTime(m.t));
+            return (
+              <button
+                key={`${m.player}-${m.age}`}
+                type="button"
+                className="age-flag"
+                style={{ "--at": m.at, "--row": m.row } as React.CSSProperties}
+                title={label}
+                aria-label={label}
+                onClick={() => seek(m.t)}
+              >
+                <span className="swatch" style={{ background: playerColor(m.player) ?? "#fff" }} />
+              </button>
+            );
+          })}
+          <input
+            className="seek"
+            type="range"
+            min={0}
+            max={replay.duration}
+            step={100}
+            value={t}
+            aria-label={tr.viewer.time}
+            onChange={(e) => seek(Number(e.target.value))}
+          />
+        </div>
         <label>
           {tr.viewer.speed}{" "}
           <select value={speed} onChange={(e) => setSpeed(Number(e.target.value))}>

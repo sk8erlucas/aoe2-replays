@@ -720,6 +720,20 @@ export class Replay {
     return age;
   }
 
+  /**
+   * Every estimated age arrival (2 Feudal .. 4 Imperial), sorted by time: for
+   * flags on the timeline. Arrivals after the end of the match or after the
+   * player resigned are left out (the research never finished).
+   */
+  ageMarks() {
+    const marks = [];
+    for (const [player, list] of this.ageUps) {
+      const end = Math.min(this.duration, this.resignedAt.get(player) ?? Infinity);
+      for (const a of list) if (a.t <= end) marks.push({ player, age: a.age, t: a.t });
+    }
+    return marks.sort((a, b) => a.t - b.t || a.player - b.player);
+  }
+
   /** Last place a player gave an order at or before t, else their start. */
   focusOf(player, t) {
     let found = null;

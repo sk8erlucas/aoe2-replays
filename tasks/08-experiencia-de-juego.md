@@ -34,7 +34,7 @@ Elegido: **B1** con un subconjunto (edificios y unidades principales, por arquit
 - [x] Granjeros: quien construye una granja la trabaja hasta su próxima orden (como en el juego); las granjas se dibujan debajo de las unidades
 - [x] Caza, pastoreo y ataque (estimados): una orden sobre un animal es caza o pastoreo si la da un aldeano; sobre una unidad o edificio de otro equipo, un ataque de duración fija (`ATTACK_HOLD_MS`, el replay no dice quién ganó). Animaciones de cazador, pastor y ataque de cada unidad
 - [x] Ayudar a construir: una orden sobre un edificio propio sin terminar; los edificios puestos durante la partida se identifican por el punto donde se hizo clic
-- [ ] Muertes en combate: no están en el replay; se podría estimar con vida y daño de los datos del juego
+- [~] Muertes en combate: no están en el replay. Hoy se estiman sin datos de vida ni daño: cae la unidad mandada a pelear (o a terreno enemigo) que no recibe más órdenes, la que sobra por el límite de población y todo lo de quien abandona. Falta: estimar con vida y daño de los datos del juego
 - [x] Granjas con la textura de granja del juego
 - [x] Terreno con las texturas del juego (`tools/sprites/terrain.py`): proyectadas en isométrico, en bloques cacheados a la resolución del zoom; de lejos, los bosques con color de copa porque los árboles no se dibujan
 - [x] Transiciones suaves entre terrenos (cada terreno se repinta con una máscara difuminada; el juego usa máscaras por vecinos en `terrain/blends`, que quedarían más fieles) y agua que se mueve con el tiempo de juego
@@ -50,27 +50,23 @@ Elegido: **B1** con un subconjunto (edificios y unidades principales, por arquit
 - [ ] Granjas: usan otro formato de gráfico (no SLD); hoy se dibujan planas
 - [x] Unidades militares: el motor vincula los edificios construidos durante la partida con los IDs que usan las colas (según dónde se entrena cada unidad, del archivo de datos del juego), así las unidades salen del edificio correcto con su tipo, tiempo de entrenamiento y velocidad reales
 - [x] Líneas militares completas, asedio, monjes y barcos en los sprites; las unidades únicas usan el sprite de una unidad común de su clase
-- [ ] Sprites propios de las unidades únicas de cada civilización
-- [ ] Investigar los formatos SLD/SMX de DE y librerías abiertas que los lean
-- [ ] Elegir la carpeta del juego con la File System Access API (Chrome/Edge) y leer solo lo necesario
-- [ ] Decodificar en un Web Worker y guardar en caché del navegador (IndexedDB)
-- [ ] Mapear id de unidad/edificio → gráfico, por civilización y edad
-- [ ] Interruptor "gráficos propios / gráficos de mi juego"
+- [x] Sprites propios de las unidades únicas de cada civilización (todas las unidades entrenables, 8 direcciones y menos cuadros fuera de las 45 comunes)
+- Camino B2 (descartado por ahora, se eligió B1): leer los gráficos de la instalación del usuario con la File System Access API, decodificar en un Web Worker con caché en IndexedDB e interruptor "gráficos propios / de mi juego". El formato SLD ya lo resuelve `tools/sprites`.
 
 ### Etapa 4: simulación más fiel
-- [ ] Actualizar el home con imagenes del nuevo motor grafico
+- [x] Actualizar el home con imágenes del nuevo motor gráfico (capturas rehechas el 30/10/2026)
 - [ ] Recorridos alrededor de obstáculos (pathfinding en la grilla de tiles) en vez de línea recta
 - [ ] Viajes a depositar recursos (aldeano ↔ campamento / centro urbano)
 - [ ] Recolección con más fuentes: punto de reunión en recursos (hecho), órdenes a granjas, caza de animales
 - [ ] Usar la cola de producción real (cancelaciones, investigaciones que bloquean el centro urbano)
 - [ ] Edificios: tiempo de construcción según cantidad de constructores
-- [ ] Destrucción de edificios y muerte de unidades cuando hay evidencia (DELETE, ataques a edificios que dejan de recibir órdenes)
+- [~] Destrucción de edificios y muerte de unidades cuando hay evidencia: `DELETE` y muertes estimadas de unidades (hecho); falta estimar edificios destruidos por ataques
 - [ ] Revisar `DE_TRANSFORM` y `GAME` con partidas completas
 
 ### Etapa 5: interfaz de espectador
 - [ ] Barra de jugadores como la del juego: recursos estimados, población, edad, puntaje
 - [ ] Panel de producción: qué está entrenando/investigando cada uno
-- [ ] Banderas de avance de edad en la línea de tiempo
+- [x] Banderas de avance de edad en la línea de tiempo: una por jugador y edad en la llegada estimada (`Replay.ageMarks()`), apiladas en filas cuando se superponen; clic para ir a ese momento
 - [ ] Niebla de guerra opcional por jugador
 - [ ] **Música de fondo** como en el juego, mientras se mira una partida:
   - Pistas de la banda sonora del juego (bajo las Game Content Usage Rules, registradas en `CREDITS.md`) o música libre como alternativa.
