@@ -13,10 +13,10 @@ Revisión completa del código con estos puntos. Ya conocidos (hallazgos de desa
 ### Entradas y abuso
 - [x] ⚠️ **IP del cliente falsificable** (arreglado: se usa `X-Real-IP` o el último `X-Forwarded-For`, que agrega el proxy): `hashIp` toma el primer valor de `X-Forwarded-For`, que el cliente puede inventar para saltar los límites. Usar la IP que agrega el proxy de confianza (Traefik/Dokploy): último valor o `X-Real-IP`, y documentar la configuración de proxies confiables.
 - [ ] ⚠️ **Límites en memoria**: los rate limits y la caché de aoe2companion viven en memoria del proceso. Alcanza para una instancia; si se escala, pasarlos a Postgres o Redis.
-- [ ] Revisar todos los límites y dejarlos configurables por variable de entorno: subidas por hora, búsquedas por minuto, descargas de partidas por hora, y un **límite global** (no solo por IP) para las descargas de Microsoft.
+- [x] Revisar todos los límites y dejarlos configurables por variable de entorno: subidas por hora, búsquedas por minuto, descargas de partidas por hora, y un **límite global** (no solo por IP) para las descargas de Microsoft (`SEARCHES_PER_MINUTE`, `MATCH_IMPORTS_PER_HOUR`, `MATCH_IMPORTS_PER_HOUR_GLOBAL`; ver `docs/DEPLOY.md`).
 - [ ] ⚠️ **CAPTCHA** (Cloudflare Turnstile) en la subida anónima y en "Ver partida" si hay abuso. Necesita claves (manual).
-- [ ] Tamaño máximo del cuerpo de la petición también en el proxy (Traefik), no solo en la aplicación (hoy Next lee todo el formulario a memoria antes de validar).
-- [ ] Validar parámetros de todas las rutas (`/api/players/*`, `/api/matches/*`, `/api/replays/*`) con un esquema (zod o similar) y tests de entradas malformadas.
+- [ ] Tamaño máximo del cuerpo de la petición también en el proxy (Traefik). La subida ya rechaza un `Content-Length` grande antes de leer el formulario; falta el proxy para los cuerpos sin largo (chunked).
+- [x] Validar parámetros de todas las rutas (`/api/players/*`, `/api/matches/*`, `/api/replays/*`) y tests de entradas malformadas: formatos de id y token en `src/lib/validate.ts` (sin zod: son pocos campos), revisados antes de ir a la base, con tests en `apps/web/test`. Todas las rutas que usan la base responden 503 `unavailable` si está caída.
 
 ### Servicio de parseo
 - [x] ⚠️ **Tiempo límite que no corta** (arreglado: se matan los procesos del pool y se crea uno nuevo; probado): cuando un parseo supera el tiempo, la API responde 504 pero el proceso trabajador sigue ocupado. Matar el proceso (o reiniciar el pool) al vencer el tiempo.

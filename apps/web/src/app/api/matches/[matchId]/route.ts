@@ -2,8 +2,9 @@
 import { NextResponse } from "next/server";
 import { apiError, withErrors } from "@/lib/http";
 import { ImportError, findMatch, importMatch, isMatchId } from "@/lib/matches";
-import { allow } from "@/lib/ratelimit";
+import { allow, hasRoom } from "@/lib/ratelimit";
 import { hashIp } from "@/lib/replays";
+import { LIMITS } from "@/lib/validate";
 
 type Context = { params: Promise<{ matchId: string }> };
 
@@ -39,9 +40,15 @@ async function importRoute(request: Request, { params }: Context) {
   }
   const existing = await findMatch(matchId);
   if (existing) return NextResponse.json(meta(existing));
-  if (!allow(`import:${hashIp(request) ?? "local"}`, 20, 3600_000)) {
+  const hour = 3600_000;
+  // The global limit is checked first, so a full site does not use up anyone's own quota.
+  if (!hasRoom("import:all", LIMITS.importsPerHourGlobal, hour)) {
+    return apiError(503, "busy", "Too many match downloads on the site right now. Try again later.");
+  }
+  if (!allow(`import:${hashIp(request) ?? "local"}`, LIMITS.importsPerHour, hour)) {
     return apiError(429, "rate_limited", "Too many match downloads in the last hour. Try again later.");
   }
+  allow("import:all", LIMITS.importsPerHourGlobal, hour);
   try {
     await importMatch(matchId, profileId);
   } catch (err) {

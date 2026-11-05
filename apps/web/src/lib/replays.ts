@@ -3,9 +3,10 @@ import { createHash, createHmac, randomBytes, timingSafeEqual } from "node:crypt
 import { gzipSync } from "node:zlib";
 import type { ReplayData } from "@aoe2-replays/shared";
 import { db } from "@/lib/db";
+import { envInt, isManageToken, isReplayId } from "@/lib/validate";
 
-const TTL_DAYS = Number(process.env.REPLAY_TTL_DAYS ?? 30);
-const UPLOADS_PER_HOUR = Number(process.env.UPLOADS_PER_HOUR ?? 20);
+const TTL_DAYS = envInt("REPLAY_TTL_DAYS", 30);
+const UPLOADS_PER_HOUR = envInt("UPLOADS_PER_HOUR", 20);
 
 export const TOKEN_HEADER = "x-manage-token";
 
@@ -82,7 +83,7 @@ export function storedGame(data: ReplayData, raw: string) {
 }
 
 function tokenMatches(token: string | null, hash: string) {
-  if (!token) return false;
+  if (!token || !isManageToken(token)) return false;
   const a = Buffer.from(sha256(token), "hex");
   const b = Buffer.from(hash, "hex");
   return a.length === b.length && timingSafeEqual(a, b);
@@ -96,6 +97,7 @@ const notExpired = () => ({ OR: [{ expiresAt: null }, { expiresAt: { gt: new Dat
  * replay is indistinguishable from a missing one.
  */
 export async function findVisibleReplay(id: string, token: string | null) {
+  if (!isReplayId(id)) return null;
   const replay = await db().replay.findFirst({ where: { id, ...notExpired() }, omit: { data: true } });
   if (!replay) return null;
   const canManage = tokenMatches(token, replay.manageTokenHash);
@@ -110,6 +112,7 @@ export async function replayData(id: string) {
 }
 
 export async function findManagedReplay(id: string, token: string | null) {
+  if (!isReplayId(id)) return null;
   const replay = await db().replay.findFirst({ where: { id, ...notExpired() }, omit: { data: true } });
   if (!replay || !tokenMatches(token, replay.manageTokenHash)) return null;
   return replay;

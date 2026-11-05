@@ -9,7 +9,7 @@ const REPLAY_URL = "https://api.ageofempires.com/api/GameStats/AgeII/GetMatchRep
 const MAX_ZIP_BYTES = MAX_UPLOAD_BYTES;
 const MAX_REPLAY_BYTES = 60 * 1024 * 1024; // uncompressed, guards against zip bombs
 
-export const isMatchId = (v: string) => /^\d{1,12}$/.test(v);
+export { isMatchId } from "@/lib/validate";
 
 export class ImportError extends Error {
   constructor(

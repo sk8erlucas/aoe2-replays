@@ -1,10 +1,21 @@
 // POST: upload a .aoe2record. It is parsed, and only the resulting JSON is stored.
 import { NextResponse } from "next/server";
-import { apiError } from "@/lib/http";
+import { apiError, withErrors } from "@/lib/http";
 import { MAX_UPLOAD_BYTES, parseReplay } from "@/lib/parser";
 import { createReplay, deleteExpired, hashIp, uploadLimitReached, uploadsLastHour } from "@/lib/replays";
 
+// Room for the multipart boundaries and the other form fields.
+const FORM_OVERHEAD = 64 * 1024;
+
 export async function POST(request: Request) {
+  return withErrors(() => upload(request));
+}
+
+async function upload(request: Request) {
+  // Checked before reading the form, which Next keeps in memory. Bodies without
+  // a length (chunked) are still caught by the file size check below.
+  const length = Number(request.headers.get("content-length") ?? 0);
+  if (length > MAX_UPLOAD_BYTES + FORM_OVERHEAD) return apiError(413, "too_large", "The file is larger than 30 MB.");
   let form: FormData;
   try {
     form = await request.formData();

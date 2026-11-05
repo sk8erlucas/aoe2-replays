@@ -1,0 +1,58 @@
+// Input checks and rate limits of the API. Runs with Node's TypeScript type
+// stripping, so it can only load files without `@/` imports.
+import assert from "node:assert/strict";
+import { randomBytes } from "node:crypto";
+import { test } from "node:test";
+import { allow, hasRoom } from "../src/lib/ratelimit.ts";
+import { envInt, isManageToken, isMatchId, isReplayId } from "../src/lib/validate.ts";
+
+test("replay ids and tokens match what the server generates", () => {
+  for (let i = 0; i < 50; i++) {
+    assert.ok(isReplayId(randomBytes(16).toString("base64url")));
+    assert.ok(isManageToken(randomBytes(24).toString("base64url")));
+  }
+});
+
+test("malformed replay ids and tokens are rejected", () => {
+  for (const bad of ["", "short", "a".repeat(23), "Q2hYAqpboRVV1RGDGb7Ew/", "Q2hYAqpboRVV1RGDGb7Ew%", "../../etc/passwd", "Q2hYAqpboRVV1RGDGb7Ewg\n"]) {
+    assert.equal(isReplayId(bad), false, JSON.stringify(bad));
+  }
+  for (const bad of ["", "x".repeat(31), "x".repeat(33), `${"x".repeat(31)}=`, `${"x".repeat(31)} `]) {
+    assert.equal(isManageToken(bad), false, JSON.stringify(bad));
+  }
+});
+
+test("match and profile ids are short plain numbers", () => {
+  assert.ok(isMatchId("516586396"));
+  for (const bad of ["", "-1", "1.5", "1e9", "0x10", "1234567890123", "12 ", "１２"]) {
+    assert.equal(isMatchId(bad), false, JSON.stringify(bad));
+  }
+});
+
+test("limits from the environment fall back when unset or invalid", () => {
+  assert.equal(envInt("X", 7, {}), 7);
+  assert.equal(envInt("X", 7, { X: "" }), 7);
+  assert.equal(envInt("X", 7, { X: "abc" }), 7);
+  assert.equal(envInt("X", 7, { X: "-3" }), 7);
+  assert.equal(envInt("X", 7, { X: "2.5" }), 7);
+  assert.equal(envInt("X", 7, { X: " 12 " }), 12);
+  assert.equal(envInt("X", 7, { X: "0" }), 0);
+});
+
+test("rate limit: fixed window per key", () => {
+  const t0 = 1_000_000;
+  assert.ok(allow("t:a", 2, 1000, t0));
+  assert.ok(allow("t:a", 2, 1000, t0 + 10));
+  assert.equal(allow("t:a", 2, 1000, t0 + 20), false);
+  assert.ok(allow("t:b", 2, 1000, t0 + 20), "other keys are independent");
+  assert.ok(allow("t:a", 2, 1000, t0 + 1000), "a new window starts over");
+});
+
+test("rate limit: 0 means no limit, hasRoom does not use a hit", () => {
+  for (let i = 0; i < 100; i++) assert.ok(allow("t:free", 0, 1000, 5));
+  assert.ok(hasRoom("t:c", 1, 1000, 5));
+  assert.ok(hasRoom("t:c", 1, 1000, 5));
+  assert.ok(allow("t:c", 1, 1000, 5));
+  assert.equal(hasRoom("t:c", 1, 1000, 6), false);
+  assert.ok(hasRoom("t:c", 1, 1000, 1005));
+});

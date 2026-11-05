@@ -42,7 +42,7 @@ Quedó a medio revisar o detectado al cerrar la sesión del 29/10/2026:
 - [x] Persistencia: Postgres + Prisma, guardar el JSON (gzip) con enlace privado y token de gestión
 - [x] Página `/r/<id>` para cada replay
 - [ ] Cola de parseo y estados `pending` / `ready` / `failed` (cuando haga falta)
-- [ ] Tests de la API de la web (subida, permisos, expiración)
+- [~] Tests de la API de la web: validación de ids, tokens y límites (`npm test -w apps/web`, sin base de datos). Falta subida, permisos y expiración contra una base de prueba
 - [x] CI de GitHub Actions (tests, lint, build y build de imágenes Docker)
 - [x] Lint y formato para Python (ruff, en el CI)
 - [x] Análisis básico: build order, APM, edades y actividad por jugador

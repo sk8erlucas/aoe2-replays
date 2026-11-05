@@ -39,7 +39,7 @@ npm install                       # también corre `prisma generate`
 cp apps/web/.env.example apps/web/.env.local
 npm run db:migrate -w apps/web    # aplica/crea migraciones en la DB local
 npm run dev:web                   # http://localhost:3000
-npm test                          # tests del motor del visor (node --test)
+npm test                          # tests del motor del visor y de la web (node --test)
 npm run lint -w apps/web && npm run typecheck -w apps/web
 npm run build -w apps/web
 ```
