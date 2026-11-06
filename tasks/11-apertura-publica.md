@@ -36,7 +36,7 @@ Revisión completa del código con estos puntos. Ya conocidos (hallazgos de desa
 ### Datos y privacidad
 - [ ] Tokens de gestión: longitud, comparación en tiempo constante (hecho), y que nunca se registren en logs.
 - [ ] Logs: no guardar IPs en claro, ni nombres de archivo completos, ni tokens; revisar qué loguea Next y Traefik.
-- [ ] Expiración real de replays (hoy se limpian al subir): tarea programada diaria.
+- [x] Expiración real de replays: el servidor los borra al arrancar y cada hora (`src/instrumentation.ts`), aunque nadie suba nada.
 - [ ] Página de privacidad y forma de pedir el borrado de un replay o de ocultar un perfil.
 
 ### Dependencias
@@ -45,7 +45,7 @@ Revisión completa del código con estos puntos. Ya conocidos (hallazgos de desa
 - [ ] Revisar licencias de todas las dependencias (registrar en `docs/LEGAL.md`).
 
 ## 2. Infraestructura (Dokploy)
-- [ ] Backups automáticos de Postgres (diarios, con prueba de restauración).
+- [~] Backups automáticos de Postgres (diarios, con prueba de restauración): pasos en `docs/DEPLOY.md` y formato probado con la base local. Falta crear el bucket y activarlos en Dokploy (manual), y ensayar la restauración allá.
 - [ ] Monitoreo y alertas: caída de la web o del parser, errores 5xx, uso de disco y memoria.
 - [ ] Contenedores sin root (parser ya usa `nobody`, web usa `node`), sistema de archivos de solo lectura donde se pueda.
 - [ ] HTTPS forzado y HSTS en el dominio.
@@ -79,4 +79,4 @@ Revisión completa del código con estos puntos. Ya conocidos (hallazgos de desa
 - [ ] Claves de Cloudflare Turnstile.
 - [ ] Decidir si se reescribe el historial (paso 3) — conviene hacerlo antes de abrir.
 - [ ] Configurar protección de rama y opciones de seguridad en GitHub (o darme permisos para hacerlo con `gh`).
-- [ ] Backups y monitoreo en el servidor de Dokploy.
+- [ ] Backups y monitoreo en el servidor de Dokploy (backups: seguir "Backups" en `docs/DEPLOY.md`, necesita un bucket S3).

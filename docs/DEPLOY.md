@@ -70,5 +70,33 @@ Para generar `IP_HASH_SECRET` sin `openssl`, en PowerShell:
 
 Las imágenes de Docker todavía no se construyeron fuera de la máquina de desarrollo (allí falla por certificados SSL interceptados). El primer deploy es también la primera prueba real de los Dockerfiles: si falla el build, pasame el log.
 
+## Backups
+No hay un archivo de la aplicación para copiar: **todo lo que importa está en la base de PostgreSQL de Dokploy** (tablas `replays` y `matches`). Los contenedores `parser` y `web` no guardan nada.
+
+| Qué | Dónde | ¿Backup? |
+|---|---|---|
+| Replays subidos y partidas | Base PostgreSQL de Dokploy | **Sí.** Los replays subidos no se pueden recuperar de otro lado (el `.aoe2record` no se guarda); las partidas online se pueden volver a bajar mientras Microsoft las tenga |
+| `DATABASE_URL`, `IP_HASH_SECRET` y demás variables | Pestaña Environment de Dokploy | **Sí**, en un gestor de contraseñas. Si se pierde `IP_HASH_SECRET`, solo se reinician los límites por IP |
+| Código, migraciones y sprites | GitHub | No hace falta |
+| `fixtures/` y `apps/web/.env.local` | Solo en la máquina de desarrollo (fuera de git) | Opcional: los replays de prueba no se pueden regenerar |
+
+Los enlaces de gestión siguen andando después de restaurar: el hash del token está en la base.
+
+### Configurarlos en Dokploy
+1. Crear un bucket S3 (o compatible) **privado** y agregarlo en `/dashboard/settings/destinations`.
+2. En la base: pestaña **Backup**. Elegir el bucket, **Database Name** `aoe2replays`, **Schedule Cron** `0 4 * * *` (todos los días a las 4; la documentación no aclara la zona horaria) y un **Prefix** como `aoe2replays/`.
+3. Probar con el botón **Test** y comprobar que el archivo aparece en el bucket.
+4. Poner en el bucket una regla que borre los backups de más de 30 días. **Es un tema de privacidad**: un backup conserva los replays que el usuario borró o que expiraron, así que no conviene guardarlos más que la expiración (`REPLAY_TTL_DAYS`).
+
+### Restaurar
+Desde Dokploy: pestaña **Backup → Restore**, elegir bucket, archivo y base. Conviene ensayarlo sobre una base nueva, no sobre la de producción.
+
+A mano (Dokploy guarda `pg_dump -Fc` comprimido con gzip):
+```sh
+pg_dump -d "$DATABASE_URL" -Fc --no-acl --no-owner | gzip > backup.dump.gz
+gzip -dc backup.dump.gz | pg_restore -d "$DATABASE_URL_NUEVA" --no-acl --no-owner
+```
+Este formato se probó con la base local: filas y datos idénticos después de restaurar. Después de restaurar, las migraciones siguen al día porque `_prisma_migrations` viaja en el backup.
+
 ## Actualizar
 Cada `git push` a `main` + **Deploy** en Dokploy (o activar el auto-deploy por webhook). Las migraciones nuevas se aplican solas antes de que arranque la web.

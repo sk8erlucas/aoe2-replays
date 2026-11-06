@@ -34,6 +34,7 @@ Quedó a medio revisar o detectado al cerrar la sesión del 29/10/2026:
 | GitHub | Protección de `main`, secret scanning, reporte privado de vulnerabilidades, etiquetas `good first issue`, imagen de vista previa y primer Release | Colaboradores |
 | Replays de prueba | Pasar 2-3 replays: partida completa, 1v1, versión 66/67 | Probar el visor de verdad y los parches |
 | Docker local | El build de imágenes falla por certificados SSL en esta máquina (antivirus o proxy que intercepta HTTPS). Postgres local sí funciona | Probar las imágenes antes del deploy |
+| Backups | Crear un bucket S3 privado y activar los backups de la base en Dokploy ([DEPLOY](../docs/DEPLOY.md#backups)) | Perder replays subidos si falla el servidor |
 | Legal | Leer reglas de contenido de fans de Microsoft ([LEGAL](../docs/LEGAL.md)) | Publicidad, lanzamiento |
 | Dominio propio | Opcional: hoy la web está en aoe2replays.sitemaster.com.ar (`SITE_URL`) | SEO |
 | Decisiones abiertas | Confirmar expiración (hoy 30 días), tamaño máximo (hoy 30 MB), idiomas ([DECISIONS](../docs/DECISIONS.md)) | Ajustes |

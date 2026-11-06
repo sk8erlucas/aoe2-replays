@@ -2,7 +2,7 @@
 import { NextResponse } from "next/server";
 import { apiError, withErrors } from "@/lib/http";
 import { MAX_UPLOAD_BYTES, parseReplay } from "@/lib/parser";
-import { createReplay, deleteExpired, hashIp, uploadLimitReached, uploadsLastHour } from "@/lib/replays";
+import { createReplay, hashIp, uploadLimitReached, uploadsLastHour } from "@/lib/replays";
 
 // Room for the multipart boundaries and the other form fields.
 const FORM_OVERHEAD = 64 * 1024;
@@ -37,7 +37,6 @@ async function upload(request: Request) {
   const parsed = await parseReplay(file);
   if (!parsed.ok) return apiError(parsed.status, parsed.code, parsed.message);
 
-  await deleteExpired();
   const { id, token } = await createReplay(parsed.data, parsed.raw, file.name, ipHash);
   return NextResponse.json(
     { id, token, mapName: parsed.data.map.name, durationMs: parsed.data.game.duration_ms },
