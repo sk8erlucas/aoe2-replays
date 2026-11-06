@@ -11,7 +11,11 @@ python -m venv .venv
 .venv/Scripts/python -m pytest
 ```
 
-Desde código: `aoe2_parser.parse_replay(data: bytes) -> dict`. Lanza `UnsupportedVersion` o `CorruptReplay` (ambas `ReplayError`, con un `code` estable).
+Desde código: `aoe2_parser.parse_replay(data: bytes) -> dict`. Lanza `UnsupportedVersion` o `CorruptReplay` (ambas `ReplayError`, con un `code` estable). `parse_replay_json(data)` devuelve el JSON ya serializado y además rechaza `NaN` e `Infinity`; es lo que usa la API.
+
+Errores de `POST /parse`, siempre como `{ "error": { "code", "message" } }`: 400 y 422 (archivo inválido), 413 (`too_large`), 500 (`parser_error`), 503 (`parser_unavailable`: murió un worker y el pool se reinició, se puede reintentar) y 504 (`timeout`).
+
+Límites contra archivos armados a propósito: el header descomprimido no puede pasar de 256 MB (`MAX_HEADER_BYTES`) y el reloj de la partida de 7 días (`MAX_DURATION_MS`). Los mensajes de chat que no cumplen el contrato se descartan. `tests/test_malformed.py` incluye un fuzz con semilla que necesita el replay de `fixtures/`: `FUZZ_RUNS=2000 FUZZ_SEED=7 python -m pytest tests/test_malformed.py -k fuzz`.
 
 ## Cómo funciona
 

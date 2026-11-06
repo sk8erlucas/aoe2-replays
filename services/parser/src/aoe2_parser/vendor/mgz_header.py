@@ -660,12 +660,22 @@ def parse_hd(data, version, save):
     )
 
 
+# aoe2-replays patch: cap the inflated size. Deflate reaches ~1000:1, so a 30 MB
+# upload could otherwise expand to 30 GB. Real headers are around 20 MB.
+MAX_HEADER_BYTES = 256 * 1024 * 1024
+
+
 def decompress(data):
     """Decompress header bytes."""
     prefix_size = 8
     header_len, _ = unpack('<II', data)
     zlib_header = data.read(header_len - prefix_size)
-    return io.BytesIO(zlib.decompress(zlib_header, wbits=ZLIB_WBITS))
+    # aoe2-replays patch: bounded inflate instead of zlib.decompress.
+    inflater = zlib.decompressobj(wbits=ZLIB_WBITS)
+    raw = inflater.decompress(zlib_header, MAX_HEADER_BYTES)
+    if not inflater.eof:
+        raise ValueError('header is truncated or too large')
+    return io.BytesIO(raw)
 
 
 def parse_version(header, data):

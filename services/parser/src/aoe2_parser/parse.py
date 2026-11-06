@@ -16,6 +16,10 @@ SCHEMA_VERSION = 1
 MIN_SAVE = 61.5
 MAX_TESTED_SAVE = 68.9
 
+# Far beyond any real match; a larger clock means a corrupt body. It also keeps
+# the value inside the database's 32-bit column.
+MAX_DURATION_MS = 7 * 24 * 3600 * 1000
+
 
 class ReplayError(Exception):
     """Base error. `code` is stable and safe to show to users."""
@@ -37,8 +41,9 @@ class CorruptReplay(ReplayError):
 
 def _text(value):
     if isinstance(value, bytes):
-        return value.decode('utf-8', errors='replace')
-    return value
+        value = value.decode('utf-8', errors='replace')
+    # Postgres can store NUL neither in text nor in jsonb.
+    return value.replace('\x00', '') if isinstance(value, str) else value
 
 
 def _parse_header(data):
@@ -122,7 +127,10 @@ def _event(t, action_type, payload):
 def _parse_body(data, offset):
     body = io.BytesIO(data)
     body.seek(offset)
-    fast.meta(body)
+    try:
+        fast.meta(body)
+    except (struct.error, ValueError) as e:
+        raise CorruptReplay(f'could not parse body start: {e}') from e
     t = 0
     timeline, chat = [], []
     postgame = None
@@ -141,13 +149,17 @@ def _parse_body(data, offset):
         elif op_type is fast.Operation.CHAT:
             try:
                 msg = json.loads(payload)
-            except ValueError:
+            except (ValueError, RecursionError):
                 continue
+            # Chat is free-form JSON in the file: the contract promises more.
+            if not isinstance(msg, dict) or not isinstance(msg.get('message', ''), str):
+                continue
+            player, channel = msg.get('player'), msg.get('channel')
             chat.append(
                 {
                     't': t,
-                    'player': msg.get('player'),
-                    'channel': msg.get('channel'),
+                    'player': player if isinstance(player, int) else None,
+                    'channel': channel if isinstance(channel, int) else None,
                     'message': msg.get('message', ''),
                 }
             )
@@ -179,6 +191,8 @@ def parse_replay(data: bytes) -> dict:
 
     header = _parse_header(data)
     duration, timeline, chat, postgame = _parse_body(data, header_len)
+    if not 0 <= duration <= MAX_DURATION_MS:
+        raise CorruptReplay(f'match clock out of range: {duration}')
     de = header['de']
     save = header['save_version']
     map_ = _map(header)
@@ -187,7 +201,7 @@ def parse_replay(data: bytes) -> dict:
     return {
         'schema_version': SCHEMA_VERSION,
         'game': {
-            'game_version': header['game_version'],
+            'game_version': _text(header['game_version']),
             'save_version': save,
             'build': de.get('build'),
             'untested_version': save > MAX_TESTED_SAVE,
@@ -207,3 +221,12 @@ def parse_replay(data: bytes) -> dict:
         'chat': chat,
         'legend': _legend(map_, objects, timeline),
     }
+
+
+def parse_replay_json(data: bytes) -> str:
+    """`parse_replay`, serialized. NaN and Infinity are not JSON: only a corrupt file has them."""
+    result = parse_replay(data)
+    try:
+        return json.dumps(result, allow_nan=False, separators=(',', ':'))
+    except ValueError as e:
+        raise CorruptReplay(f'invalid number in the replay: {e}') from e

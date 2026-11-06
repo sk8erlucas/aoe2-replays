@@ -53,7 +53,7 @@ export async function createReplay(data: ReplayData, raw: string, fileName: stri
       manageTokenHash: sha256(token),
       expiresAt: TTL_DAYS > 0 ? new Date(Date.now() + TTL_DAYS * 86400_000) : null,
       uploaderIpHash: ipHash,
-      fileName: fileName.slice(0, 200),
+      fileName: fileName.replaceAll("\0", "").slice(0, 200), // Postgres text cannot hold NUL
       ...storedGame(data, raw),
     },
   });

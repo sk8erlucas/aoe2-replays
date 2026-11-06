@@ -20,8 +20,8 @@ Revisión completa del código con estos puntos. Ya conocidos (hallazgos de desa
 
 ### Servicio de parseo
 - [x] ⚠️ **Tiempo límite que no corta** (arreglado: se matan los procesos del pool y se crea uno nuevo; probado): cuando un parseo supera el tiempo, la API responde 504 pero el proceso trabajador sigue ocupado. Matar el proceso (o reiniciar el pool) al vencer el tiempo.
-- [ ] Límite de memoria por proceso de parseo (además del límite del contenedor) y prueba con archivos maliciosos: header que descomprime de más, archivos truncados, ZIPs anidados.
-- [ ] Fuzzing básico del parser con replays corruptos (que nunca tumbe el servicio ni devuelva 500 con detalles internos).
+- [~] Archivos maliciosos: el header descomprimido tiene tope de 256 MB (bomba de 1,5 MB rechazada en 0,5 s), los archivos truncados dan `corrupt_replay` y un worker muerto ya no deja el servicio caído (se recrea el pool y responde 503). Falta el límite de memoria por proceso (`RLIMIT_AS`, solo Linux, hay que probarlo en el contenedor): hoy el tope lo pone `mem_limit: 1g` del compose.
+- [x] Fuzzing básico del parser con replays corruptos (que nunca tumbe el servicio ni devuelva 500 con detalles internos): `tests/test_malformed.py`, mutando también el header descomprimido. Encontró `NaN` en la salida, relojes fuera de rango y chat con formato inesperado (arreglados).
 
 ### Descarga de partidas (Microsoft)
 - [ ] Confirmar protecciones contra SSRF: la URL se arma solo con IDs numéricos y dominio fijo, sin seguir redirecciones (hecho); agregar test.
