@@ -6,7 +6,15 @@ import { useI18n } from "@/i18n/I18nProvider";
 
 type Hit = { profileId: number; name: string; country: string | null; clan: string | null; games: number };
 
-export function PlayerSearch({ size = "small", autoFocus = false }: { size?: "small" | "large"; autoFocus?: boolean }) {
+type Props = {
+  size?: "small" | "large";
+  autoFocus?: boolean;
+  placeholder?: string;
+  /** What choosing a player does; by default, opening their profile. */
+  onPick?: (hit: Hit) => void;
+};
+
+export function PlayerSearch({ size = "small", autoFocus = false, placeholder, onPick }: Props) {
   const router = useRouter();
   const { t } = useI18n();
   const listId = useId();
@@ -56,7 +64,8 @@ export function PlayerSearch({ size = "small", autoFocus = false }: { size?: "sm
   function go(hit: Hit) {
     setOpen(false);
     setQ("");
-    router.push(`/p/${hit.profileId}`);
+    if (onPick) onPick(hit);
+    else router.push(`/p/${hit.profileId}`);
   }
 
   const showList = open && q.trim().length >= 2;
@@ -70,7 +79,7 @@ export function PlayerSearch({ size = "small", autoFocus = false }: { size?: "sm
         aria-controls={listId}
         aria-autocomplete="list"
         aria-activedescendant={active >= 0 ? `${listId}-${active}` : undefined}
-        placeholder={t.search.placeholder}
+        placeholder={placeholder ?? t.search.placeholder}
         value={q}
         autoFocus={autoFocus}
         onChange={(e) => {

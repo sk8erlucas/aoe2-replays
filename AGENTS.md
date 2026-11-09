@@ -21,6 +21,7 @@ Contexto y decisiones: [`docs/CONTEXT.md`](docs/CONTEXT.md), [`docs/DECISIONS.md
 Flujos:
 - Subida: navegador → `POST /api/replays` (web) → `POST /parse` (parser) → la web guarda el JSON comprimido con gzip en Postgres (tabla `replays`, privado) → `/r/<id>` lo reproduce.
 - Partida online: `/p/<profileId>` lista partidas (aoe2companion, con caché) → `POST /api/matches/<matchId>` descarga el ZIP de Microsoft, lo parsea y lo guarda una vez (tabla `matches`, público) → `/m/<matchId>` lo reproduce.
+- Cuentas (opcionales): `/register` y `/login` → sesión en Postgres con cookie `httpOnly` (`src/lib/auth.ts`). `/account` vincula el jugador y los seguidos. La campanita (`GET /api/notifications`) busca partidas nuevas mientras el usuario está en la web, no en segundo plano.
 
 ## Comandos
 ```sh
@@ -63,6 +64,7 @@ Antes de dar algo por terminado: tests y `ruff` del parser, `npm test`, lint, ty
 - No se guarda el `.aoe2record`, solo el JSON. No se guardan IPs en claro: se usa un HMAC con `IP_HASH_SECRET`.
 - El token de gestión se guarda solo como hash SHA-256; el enlace de gestión lo lleva en el fragmento (`#k=`) para que no llegue al servidor ni a los logs.
 - Texto que viene del replay (nombres, chat) se muestra siempre como texto: nada de `innerHTML` ni `dangerouslySetInnerHTML`.
+- Cuentas: contraseñas solo con scrypt (`src/lib/password.ts`) y token de sesión guardado solo como hash. El email y el jugador vinculado (sin verificar) no se muestran en páginas públicas. Toda ruta que cambia datos de una cuenta empieza con `rejectCrossSite` y filtra por el `userId` de la sesión. Si se guarda algo nuevo del usuario, actualizar `/privacy` y el borrado de cuenta.
 
 **Base de datos.** Cambios de esquema solo con migraciones de Prisma (`npm run db:migrate -w apps/web -- --name <cambio>`), commiteadas en `apps/web/prisma/migrations`. En producción se aplican solas con el servicio `migrate` del compose. El cliente generado (`apps/web/src/generated`) no se commitea.
 

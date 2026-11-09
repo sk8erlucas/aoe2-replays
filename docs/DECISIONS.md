@@ -6,7 +6,11 @@
 - Procesamiento: parseo en servidor, visor en el navegador.
 - Servidores: más de uno, separados por responsabilidad (ver `ARCHITECTURE.md`): web Next.js y parser en Python.
 - Licencia: MIT.
-- Stack web: Next.js + Auth.js + Postgres + Prisma.
+- Stack web: Next.js + Postgres + Prisma.
+- Replays subidos con cuenta (cuando exista "Mis replays"): no expiran mientras exista la cuenta, con un tope de 200 por cuenta. Se borran con la cuenta. Decidido el 09/11/2026.
+- Partidas online: se borran a los 90 días de la última vez que alguien las miró. Si se vuelve a abrir una y Microsoft todavía la tiene, se descarga de nuevo. Decidido el 09/11/2026.
+- Correo transaccional (recuperar la contraseña, verificar el email): **Resend**.
+- Cuentas con email y contraseña propias (scrypt y sesiones en Postgres), sin Auth.js: decidido el 09/11/2026 para que funcionen sin claves de terceros. Ver [`tasks/13-cuentas.md`](../tasks/13-cuentas.md).
 - Replays privados; se comparten solo si el enlace se hace público.
 - Se guarda solo el JSON del parser comprimido con gzip (~230 KB para el replay de ejemplo, frente a 2,7 MB sin comprimir), nunca el `.aoe2record`. Metadatos (mapa, jugadores, duración) en columnas para listar.
 - Expiración provisional: 30 días (`REPLAY_TTL_DAYS`). Tamaño máximo provisional: 30 MB.
@@ -31,4 +35,3 @@
 - ¿Dónde se aloja el repo (GitHub personal o una organización)?
 - ¿Dominio y hosting definitivos?
 - ¿Red publicitaria? Afecta a lo legal (ver `LEGAL.md`) y a la experiencia.
-- ¿Qué pasa con los replays de cuentas registradas: expiran o no?

@@ -1,11 +1,15 @@
 import type { Metadata } from "next";
+import Image from "next/image";
 import localFont from "next/font/local";
 import { cookies, headers } from "next/headers";
 import Link from "next/link";
+import { AccountControls } from "@/components/AccountControls";
+import { AccountProvider } from "@/components/AccountProvider";
 import { LanguageSwitcher } from "@/components/LanguageSwitcher";
 import { PlayerSearch } from "@/components/PlayerSearch";
 import { I18nProvider } from "@/i18n/I18nProvider";
 import { MESSAGES, REPO_URL, pickLocale } from "@/i18n/messages";
+import { currentSession, publicAccount } from "@/lib/auth";
 import { SITE_URL } from "@/lib/site";
 import "./globals.css";
 
@@ -55,13 +59,17 @@ export default async function RootLayout({ children }: Readonly<{ children: Reac
   const t = MESSAGES[locale];
   const rules = "Game Content Usage Rules";
   const [before, after] = t.footer.notice(rules).split(rules);
+  // With the database down the site still works, just logged out.
+  const session = await currentSession().catch(() => null);
   return (
     <html lang={locale} className={`${cinzel.variable} ${montserrat.variable}`}>
       <body>
         <I18nProvider initial={locale}>
+          <AccountProvider account={session ? publicAccount(session.user) : null}>
           <div className="app">
             <header className="topbar">
               <Link href="/" className="brand">
+                <Image src="/images/logo.svg" alt="" width={30} height={30} priority />
                 AoE2 Replays
               </Link>
               <nav className="topnav">
@@ -69,6 +77,7 @@ export default async function RootLayout({ children }: Readonly<{ children: Reac
                 <a href={REPO_URL}>GitHub</a>
               </nav>
               <PlayerSearch />
+              <AccountControls />
               <LanguageSwitcher />
             </header>
             {children}
@@ -79,10 +88,11 @@ export default async function RootLayout({ children }: Readonly<{ children: Reac
                 {after}
               </p>
               <p>
-                {t.footer.project} <a href={REPO_URL}>{t.footer.source}</a>
+                {t.footer.project} <a href={REPO_URL}>{t.footer.source}</a> · <Link href="/privacy">{t.footer.privacy}</Link>
               </p>
             </footer>
           </div>
+          </AccountProvider>
         </I18nProvider>
       </body>
     </html>

@@ -24,9 +24,9 @@ Revisión completa del código con estos puntos. Ya conocidos (hallazgos de desa
 - [x] Fuzzing básico del parser con replays corruptos (que nunca tumbe el servicio ni devuelva 500 con detalles internos): `tests/test_malformed.py`, mutando también el header descomprimido. Encontró `NaN` en la salida, relojes fuera de rango y chat con formato inesperado (arreglados).
 
 ### Descarga de partidas (Microsoft)
-- [ ] Confirmar protecciones contra SSRF: la URL se arma solo con IDs numéricos y dominio fijo, sin seguir redirecciones (hecho); agregar test.
-- [ ] Límite de tamaño descomprimido y de cantidad de entradas del ZIP (hecho el primero); test con zip bomb.
-- [ ] ⚠️ **Crecimiento de la tabla `matches`**: cualquiera puede hacer que se guarden partidas (~230 KB cada una). Política de retención (por ejemplo, borrar las no vistas en N días) o tope total.
+- [x] Protecciones contra SSRF: la URL se arma solo con IDs numéricos y dominio fijo, sin seguir redirecciones; con test (`replayUrl`).
+- [x] Límite de tamaño descomprimido y de cantidad de entradas del ZIP: se infla una sola entrada y no más de lo que declara; con tests de zip bomb (`extractReplay`).
+- [ ] ⚠️ **Crecimiento de la tabla `matches`**: cualquiera puede hacer que se guarden partidas (~230 KB cada una). Decidido: borrar las que nadie miró en 90 días. Falta implementarlo: columna `last_viewed_at`, actualizarla al abrir una partida (como mucho una vez por día) y sumar el borrado a la limpieza horaria de `src/instrumentation.ts`.
 
 ### Navegador
 - [x] Encabezados de seguridad (CSP, nosniff, Referrer-Policy, X-Frame-Options, Permissions-Policy): Content-Security-Policy (scripts propios, imágenes propias, `connect-src` acotado), `X-Content-Type-Options`, `Referrer-Policy`, `Permissions-Policy`, `frame-ancestors` (salvo la futura vista para insertar).
@@ -37,7 +37,7 @@ Revisión completa del código con estos puntos. Ya conocidos (hallazgos de desa
 - [ ] Tokens de gestión: longitud, comparación en tiempo constante (hecho), y que nunca se registren en logs.
 - [ ] Logs: no guardar IPs en claro, ni nombres de archivo completos, ni tokens; revisar qué loguea Next y Traefik.
 - [x] Expiración real de replays: el servidor los borra al arrancar y cada hora (`src/instrumentation.ts`), aunque nadie suba nada.
-- [ ] Página de privacidad y forma de pedir el borrado de un replay o de ocultar un perfil.
+- [x] Página de privacidad (`/privacy`) y forma de pedir el borrado de un replay o de ocultar un perfil.
 
 ### Dependencias
 - [x] `npm audit` sin hallazgos; `npm audit` y `pip-audit` corren en el CI; fijar versiones de Python con rango acotado (hoy FastAPI/uvicorn tienen rango amplio).

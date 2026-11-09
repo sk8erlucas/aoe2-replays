@@ -3,7 +3,9 @@
 import assert from "node:assert/strict";
 import { randomBytes } from "node:crypto";
 import { test } from "node:test";
+import { zipSync } from "fflate";
 import { allow, hasRoom } from "../src/lib/ratelimit.ts";
+import { MAX_REPLAY_BYTES, extractReplay, replayUrl } from "../src/lib/replayZip.ts";
 import { envInt, isManageToken, isMatchId, isReplayId } from "../src/lib/validate.ts";
 
 test("replay ids and tokens match what the server generates", () => {
@@ -55,4 +57,51 @@ test("rate limit: 0 means no limit, hasRoom does not use a hit", () => {
   assert.ok(allow("t:c", 1, 1000, 5));
   assert.equal(hasRoom("t:c", 1, 1000, 6), false);
   assert.ok(hasRoom("t:c", 1, 1000, 1005));
+});
+
+test("the replay URL only ever points at Microsoft, with numeric ids", () => {
+  const url = new URL(replayUrl("516586396", "196240"));
+  assert.equal(url.origin, "https://api.ageofempires.com");
+  assert.equal(url.searchParams.get("gameId"), "516586396");
+  for (const [m, p] of [["1&x=2", "1"], ["1", "../../evil"], ["1", "1@evil.example"], ["", "1"], ["1", "1\n"]]) {
+    assert.equal(replayUrl(m, p), null, JSON.stringify([m, p]));
+  }
+});
+
+test("the replay comes out of a normal ZIP, whatever other files it holds", () => {
+  const replay = new Uint8Array([1, 2, 3]);
+  const out = extractReplay(zipSync({ "readme.txt": new Uint8Array([9]), "Game.AOE2RECORD": replay }));
+  assert.deepEqual(out, replay);
+  assert.equal(extractReplay(zipSync({ "readme.txt": new Uint8Array([9]) })), null);
+});
+
+test("an entry larger than the limit is not inflated", () => {
+  const bomb = new Uint8Array(MAX_REPLAY_BYTES + 1);
+  assert.equal(extractReplay(zipSync({ "a.aoe2record": bomb }, { level: 9 })), null);
+});
+
+test("a ZIP with many replays only inflates one", () => {
+  const entries = {};
+  for (let i = 0; i < 2000; i++) entries[`${i}.aoe2record`] = new Uint8Array([i & 255]);
+  assert.equal(extractReplay(zipSync(entries)).length, 1);
+});
+
+test("a damaged ZIP throws instead of returning something", () => {
+  assert.throws(() => extractReplay(new Uint8Array([0x50, 0x4b, 3, 4, 0, 0, 0])));
+});
+
+test("an entry lying about its size can't inflate past what it declared", () => {
+  const zip = zipSync({ "a.aoe2record": new Uint8Array(1024 * 1024) }, { level: 9 });
+  // Rewrites the uncompressed size in the central directory: says 16 bytes, holds 1 MB.
+  const view = new DataView(zip.buffer, zip.byteOffset, zip.byteLength);
+  let central = zip.length - 22;
+  while (view.getUint32(central, true) !== 0x02014b50) central--;
+  view.setUint32(central + 24, 16, true);
+  let out = null;
+  try {
+    out = extractReplay(zip);
+  } catch {
+    return; // refusing it outright is fine too
+  }
+  assert.ok(out === null || out.length <= 16, `inflated ${out?.length} bytes`);
 });

@@ -5,23 +5,20 @@ Objetivo: que la gente encuentre el sitio buscando partidas o jugadores, y que c
 ## Base técnica
 Hoy las páginas de jugador (`/p/<id>`) y de partida (`/m/<id>`) se arman en el navegador: los buscadores y las vistas previas de redes ven una página casi vacía. Lo primero es que el servidor entregue el contenido y los metadatos.
 
-- [ ] Metadatos por página con `generateMetadata` (título, descripción, URL canónica):
-  - Portada: qué es y qué hace.
-  - Jugador: "Nombre — ELO, civilizaciones favoritas, partidas recientes".
-  - Partida: "Mapa · 4v4 · Jugadores · Duración · Ganador".
+- [x] Metadatos por página con `generateMetadata` (título, descripción, URL canónica): portada, jugador (nombre) y partida (mapa y jugadores, si ya está guardada). Falta enriquecer la descripción con ELO, duración y ganador.
 - [ ] Renderizar en el servidor lo esencial de `/p/<id>` y `/m/<id>` (datos del jugador, resumen de la partida) para que sea indexable; el visor sigue siendo del lado del cliente
 - [x] `robots.txt` y `sitemap.xml` (por ahora el sitemap solo tiene la portada; `/r/` lleva `noindex`):
   - Indexar: portada, jugadores, partidas online.
   - **No indexar** replays subidos (`/r/<id>`, son privados o de enlace) ni páginas de gestión: `noindex` además de excluirlos del sitemap.
-- [ ] Sitemap dinámico de jugadores y partidas vistos, con límite y prioridad por actividad
+- [~] Sitemap dinámico: incluye las últimas 1000 partidas guardadas. Faltan los jugadores, que hoy no se registran al verlos.
 - [ ] Datos estructurados (JSON-LD): `WebSite` con buscador (`SearchAction` hacia la búsqueda de jugadores), `BreadcrumbList`, y para partidas un tipo genérico (`Event`/`SportsEvent`) si aporta
 - [ ] URLs legibles: además del número, slug descriptivo (`/m/516586396-black-forest-4v4`), redirigiendo al canónico
 - [ ] Rendimiento (Core Web Vitals): imágenes con tamaño fijo, fuentes autoalojadas (ya), cargar el visor y los sprites solo cuando se usan, medir con Lighthouse en CI
-- [ ] Páginas de error y 404 útiles (con buscador) y sin contenido duplicado
+- [x] Página 404 útil, con buscador
 
 ## Compartir en redes
 - [x] Open Graph y Twitter Cards generales (`SITE_URL`, imagen `og.jpg` 1200×630)
-- [ ] Open Graph propio de cada partida y jugador (necesita renderizar en el servidor)
+- [x] Open Graph propio de cada partida y jugador (título y descripción; la imagen sigue siendo la general)
 - [ ] **Imágenes de vista previa generadas** (`next/og`, 1200×630) con el estilo pergamino:
   - Partida: mapa en miniatura (minimapa isométrico), jugadores con civilización y color, duración y ganador.
   - Jugador: nombre, país, ELO por modo, civilizaciones más jugadas.

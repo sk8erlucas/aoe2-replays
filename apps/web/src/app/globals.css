@@ -151,6 +151,9 @@ button.primary:hover:not(:disabled), .button-primary:hover { border-color: var(-
   mask: var(--torn) 0 0 / 240px 100% repeat-x;
 }
 .brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
   font-family: var(--font-display);
   font-weight: 700;
   font-size: 18px;
@@ -784,10 +787,163 @@ button.link:hover { color: var(--bronze); }
 .zoom-buttons { display: flex; gap: 4px; }
 .zoom-buttons button { min-width: 32px; }
 
+/* Account: top bar controls */
+.account-area { display: flex; align-items: center; gap: 8px; }
+.topbar-login { color: var(--charcoal-ink); font-size: 13px; text-decoration: none; white-space: nowrap; }
+.topbar-login:hover { color: var(--bronze-light); }
+.topbar-button {
+  display: inline-flex;
+  align-items: center;
+  height: 30px;
+  background: transparent;
+  color: var(--charcoal-ink);
+  border-color: #5a524a;
+  font-size: 13px;
+}
+.topbar-button:hover:not(:disabled) { border-color: var(--bronze-light); }
+.account-icon { display: none; }
+.topbar-popup { position: relative; }
+.topbar-panel {
+  position: absolute;
+  z-index: 20;
+  top: calc(100% + 6px);
+  right: 0;
+  background: var(--paper-raised);
+  color: var(--ink);
+  border: 1px solid var(--bronze-dark);
+  border-radius: 4px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
+}
+.account-panel { min-width: 200px; padding: 4px 0; }
+.account-panel .account-email {
+  margin: 0;
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--rule);
+  color: var(--ink-faint);
+  font-size: 12px;
+  overflow-wrap: anywhere;
+}
+.account-panel a, .account-panel button {
+  display: block;
+  width: 100%;
+  padding: 8px 12px;
+  background: none;
+  border: 0;
+  border-radius: 0;
+  color: var(--ink);
+  text-align: left;
+  text-decoration: none;
+}
+.account-panel a:hover, .account-panel button:hover { background: var(--paper-sunken); color: var(--ink); }
+
+/* Notifications */
+.bell-button { position: relative; justify-content: center; width: 34px; padding: 0; }
+.bell-button svg { display: block; }
+.bell-count {
+  position: absolute;
+  top: -6px;
+  right: -6px;
+  min-width: 17px;
+  padding: 0 4px;
+  border-radius: 999px;
+  background: var(--bronze);
+  color: var(--paper);
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 17px;
+  text-align: center;
+}
+.bell-panel { width: min(360px, calc(100vw - 24px)); }
+.bell-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 12px;
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--rule);
+}
+.bell-head strong { font-family: var(--font-display); letter-spacing: 0.06em; }
+.bell-head button.link { font-size: 12px; }
+.bell-note { margin: 0; padding: 16px 12px; color: var(--ink-soft); }
+.bell-list { list-style: none; margin: 0; padding: 0; max-height: min(420px, 60vh); overflow-y: auto; }
+.bell-list li + li { border-top: 1px solid var(--rule); }
+.bell-list a { display: block; padding: 10px 12px; color: var(--ink); text-decoration: none; }
+.bell-list a:hover { background: var(--paper-sunken); color: var(--ink); }
+.bell-title { display: flex; align-items: baseline; gap: 6px; overflow-wrap: anywhere; }
+.bell-dot { flex: none; width: 8px; height: 8px; border-radius: 50%; background: var(--bronze); align-self: center; }
+.bell-list .unread .bell-title { font-weight: 700; }
+.bell-meta { display: flex; justify-content: space-between; align-items: center; gap: 8px; margin-top: 2px; color: var(--ink-faint); font-size: 12px; }
+.bell-meta .result { font-size: 11px; padding: 0 8px; }
+
+/* Forms: login, register and account */
+.auth-page { max-width: 440px; margin: 0 auto; padding: 48px 16px; }
+.auth-page h1, .account-page h1 { text-transform: uppercase; font-size: 28px; margin: 0 0 12px; }
+.auth-card { margin: 24px 8px; padding: 24px; }
+.form-grid { display: grid; gap: 14px; }
+.field { display: grid; gap: 4px; font-weight: 600; }
+.field input {
+  width: 100%;
+  padding: 8px 10px;
+  border: 1px solid var(--rule);
+  border-radius: 4px;
+  background: var(--paper);
+  color: var(--ink);
+  font: inherit;
+  font-weight: 400;
+}
+.field-hint { font-weight: 400; color: var(--ink-faint); font-size: 12px; margin: 0; }
+.form-error { margin: 0; color: var(--danger); font-weight: 600; }
+.form-notice { margin: 0; color: var(--bronze-dark); font-weight: 600; }
+.form-actions { display: flex; justify-content: center; }
+.auth-alt { text-align: center; margin: 8px 0 0; }
+
+.account-page { max-width: 720px; margin: 0 auto; padding: 40px 16px; }
+.account-page section { margin-top: 32px; padding-top: 24px; border-top: 1px solid var(--rule); }
+.account-page h2 { font-size: 18px; text-transform: uppercase; margin: 0 0 6px; }
+.account-page section > p { margin: 0 0 12px; }
+.account-page .form-grid { max-width: 340px; }
+.account-page .form-actions { justify-content: flex-start; }
+.linked-player { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; }
+.follow-head { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; }
+.follow-list { list-style: none; margin: 12px 0 0; padding: 0; border-top: 1px solid var(--rule); }
+.follow-list li {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 4px;
+  border-bottom: 1px solid var(--rule);
+  overflow-wrap: anywhere;
+}
+button.danger { border-color: var(--danger); color: var(--danger); font-weight: 600; padding: 8px 16px; }
+button.danger:hover:not(:disabled) { background: var(--danger); color: var(--paper); border-color: var(--danger); }
+
+.profile-title { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 8px 16px; }
+.profile-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+
+.prose-page { max-width: 720px; margin: 0 auto; padding: 40px 16px; }
+.prose-page h1 { text-transform: uppercase; font-size: 28px; margin: 0 0 4px; }
+.prose-page h2 { font-size: 18px; text-transform: uppercase; margin: 28px 0 6px; }
+.prose-page p { font-size: 16px; line-height: 1.6; margin: 0; color: var(--ink-soft); }
+.not-found-search { display: flex; justify-content: center; margin: 20px 0; }
+
 @media (max-width: 760px) {
   .topnav { display: none; }
-  .topbar .player-search { margin-left: auto; }
-  .topbar .player-search input { width: 150px; }
+  .topbar { flex-wrap: wrap; row-gap: 8px; }
+  .topbar .account-area { margin-left: auto; }
+  /* Its own row: on a 360 px screen it doesn't fit beside the brand and the controls. */
+  .topbar .player-search { order: 10; flex-basis: 100%; }
+  .topbar .player-search input { width: 100%; }
+  /* Panels hang from the whole bar: from the bell they would run off the left edge. */
+  .brand { font-size: 14px; letter-spacing: 0.04em; gap: 6px; white-space: nowrap; }
+  .brand img { width: 24px; height: 24px; }
+  .topbar { column-gap: 8px; padding-left: 12px; padding-right: 12px; }
+  .account-icon { display: block; }
+  .account-label { display: none; }
+  .topbar-button:has(.account-icon) { width: 34px; justify-content: center; padding: 0; }
+  .topbar-popup { position: static; }
+  .topbar-panel { right: 12px; }
+  .bell-panel { left: 12px; width: auto; }
   .feature, .feature.reverse { grid-template-columns: minmax(0, 1fr); gap: 16px; }
   .feature.reverse > :first-child { order: 0; }
   .hero-content { padding: 40px 16px 56px; }

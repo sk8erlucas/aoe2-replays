@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useEffect, useState } from "react";
 import { formatTime } from "@aoe2-replays/viewer";
+import { FollowControls } from "@/components/FollowControls";
 import { errorText, useI18n } from "@/i18n/I18nProvider";
 import type { Messages } from "@/i18n/messages";
 import type { MatchSummary, Profile } from "@/lib/aoe2companion";
@@ -65,10 +66,13 @@ export default function ProfilePage() {
     <main className="page">
       <div className="container profile">
         <header className="profile-head">
-          <h1>
-            {profile.clan && <span className="clan">[{profile.clan}] </span>}
-            {profile.name}
-          </h1>
+          <div className="profile-title">
+            <h1>
+              {profile.clan && <span className="clan">[{profile.clan}] </span>}
+              {profile.name}
+            </h1>
+            <FollowControls profileId={profileId} />
+          </div>
           <p className="muted">
             {[profile.countryName ?? profile.country?.toUpperCase(), t.common.games(profile.games.toLocaleString(t.common.dateLocale))]
               .filter(Boolean)

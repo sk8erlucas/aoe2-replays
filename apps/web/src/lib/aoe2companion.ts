@@ -105,8 +105,15 @@ export async function getProfile(profileId: number): Promise<Profile> {
   };
 }
 
-export async function getMatches(profileId: number): Promise<MatchSummary[]> {
-  const body = await getJson<{ matches?: Raw[] }>(`/matches?profile_ids=${profileId}&page=1`);
+export function getMatches(profileId: number): Promise<MatchSummary[]> {
+  return getMatchesOf([profileId]);
+}
+
+/** The latest matches of any of these players, in one request. */
+export async function getMatchesOf(profileIds: number[]): Promise<MatchSummary[]> {
+  // Sorted so that the same set of players shares a cache entry.
+  const ids = [...new Set(profileIds)].sort((a, b) => a - b).join(",");
+  const body = await getJson<{ matches?: Raw[] }>(`/matches?profile_ids=${ids}&page=1`);
   return (body.matches ?? []).map((m) => ({
     matchId: num(m.matchId) ?? 0,
     started: str(m.started),

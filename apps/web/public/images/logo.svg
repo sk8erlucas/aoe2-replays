@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="AoE2 Replays">
+  <defs>
+    <linearGradient id="bronze" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#b5733a"/>
+      <stop offset="1" stop-color="#5e3416"/>
+    </linearGradient>
+  </defs>
+  <path fill="url(#bronze)" stroke="#d39a5f" stroke-width="2.5" stroke-linejoin="round" d="M7 6H19V13H26V6H38V13H45V6H57V33C57 47 45 55 32 61 19 55 7 47 7 33Z"/>
+  <path fill="none" stroke="#2d2a27" stroke-opacity=".45" stroke-width="1.5" stroke-linejoin="round" d="M12 18H52V33C52 44 42 50.5 32 55.5 22 50.5 12 44 12 33Z"/>
+  <path fill="#efe2c8" stroke="#efe2c8" stroke-width="3" stroke-linejoin="round" d="M26 25V45L43 35Z"/>
+</svg>

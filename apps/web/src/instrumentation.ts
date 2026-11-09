@@ -3,9 +3,14 @@
 const SWEEP_MS = 3600_000;
 
 export async function register() {
-  if (process.env.NEXT_RUNTIME !== "nodejs") return;
-  const { deleteExpired } = await import("@/lib/replays");
-  const sweep = () => deleteExpired().catch((err) => console.error("could not delete expired replays", err));
-  void sweep();
-  setInterval(sweep, SWEEP_MS).unref();
+  // This exact `if` lets the bundler drop the database imports from the edge
+  // build, where `pg` can't compile. An early return doesn't.
+  if (process.env.NEXT_RUNTIME === "nodejs") {
+    const { deleteExpired } = await import("@/lib/replays");
+    const { deleteStaleAccountData } = await import("@/lib/notifications");
+    const sweep = () =>
+      Promise.all([deleteExpired(), deleteStaleAccountData()]).catch((err) => console.error("could not delete expired data", err));
+    void sweep();
+    setInterval(sweep, SWEEP_MS).unref();
+  }
 }

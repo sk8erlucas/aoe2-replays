@@ -67,6 +67,6 @@ Escala: 12 / 14 / 16 / 20 / 28 / 40 px. Texto base 14 px en el visor y 16 px en 
 
 ## Pendiente
 - [ ] Ilustraciones propias en estilo grabado (portada, estados vacíos, página 404)
-- [ ] Logo propio
+- [x] Logo propio: escudo almenado de bronce con un triángulo de reproducción (`public/images/logo.svg`; versión simplificada para el favicon en `src/app/icon.svg`)
 - [ ] Íconos de línea propios (subir, compartir, cámara, análisis)
 - [ ] Revisar si se suma un modo oscuro ("pergamino de noche") o se mantiene solo claro

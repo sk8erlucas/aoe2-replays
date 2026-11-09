@@ -63,3 +63,75 @@ model Match {
   @@index([importedAt])
   @@map("matches")
 }
+
+/// Accounts are optional: uploading, watching and searching stay anonymous.
+model User {
+  /// 128 random bits, base64url.
+  id           String   @id
+  /// Lowercase. Never shown on public pages.
+  email        String   @unique
+  /// scrypt, with its parameters and salt (see src/lib/password.ts).
+  passwordHash String   @map("password_hash")
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  /// The player this account says it is. Not verified: anyone can pick any
+  /// profile, so it only drives this user's own notifications.
+  aoeProfileId   String?   @map("aoe_profile_id")
+  aoeProfileName String?   @map("aoe_profile_name")
+  aoeLinkedAt    DateTime? @map("aoe_linked_at")
+
+  /// Last time new matches were looked up; limits requests to aoe2companion.
+  notificationsCheckedAt DateTime? @map("notifications_checked_at")
+
+  sessions      Session[]
+  follows       FollowedPlayer[]
+  notifications Notification[]
+
+  @@map("users")
+}
+
+model Session {
+  /// SHA-256 of the cookie's token; the token itself is only in the browser.
+  tokenHash String   @id @map("token_hash")
+  userId    String   @map("user_id")
+  createdAt DateTime @default(now()) @map("created_at")
+  expiresAt DateTime @map("expires_at")
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([expiresAt])
+  @@map("sessions")
+}
+
+model FollowedPlayer {
+  userId    String   @map("user_id")
+  profileId String   @map("profile_id")
+  name      String
+  createdAt DateTime @default(now()) @map("created_at")
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([userId, profileId])
+  @@map("followed_players")
+}
+
+/// A finished match worth watching, one per user and match.
+model Notification {
+  userId          String    @map("user_id")
+  matchId         String    @map("match_id")
+  /// The linked or followed player who played it (their copy gets downloaded).
+  profileId       String    @map("profile_id")
+  playerName      String    @map("player_name")
+  /// The user's own match, as opposed to a followed player's.
+  mine            Boolean
+  won             Boolean?
+  mapName         String?   @map("map_name")
+  leaderboardName String?   @map("leaderboard_name")
+  finishedAt      DateTime  @map("finished_at")
+  readAt          DateTime? @map("read_at")
+  user            User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([userId, matchId])
+  @@index([userId, finishedAt(sort: Desc)])
+  @@index([finishedAt])
+  @@map("notifications")
+}

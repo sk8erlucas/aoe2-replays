@@ -1,13 +1,11 @@
 // Online matches: download the replay from Microsoft, parse it and store it
 // once per match id. Matches are public, so there is no access token.
-import { unzipSync } from "fflate";
 import { db } from "@/lib/db";
 import { MAX_UPLOAD_BYTES, parseReplay } from "@/lib/parser";
 import { storedGame } from "@/lib/replays";
+import { extractReplay, replayUrl } from "@/lib/replayZip";
 
-const REPLAY_URL = "https://api.ageofempires.com/api/GameStats/AgeII/GetMatchReplay/";
 const MAX_ZIP_BYTES = MAX_UPLOAD_BYTES;
-const MAX_REPLAY_BYTES = 60 * 1024 * 1024; // uncompressed, guards against zip bombs
 
 export { isMatchId } from "@/lib/validate";
 
@@ -55,7 +53,8 @@ async function readCapped(res: Response, max: number): Promise<Uint8Array> {
 }
 
 async function download(matchId: string, profileId: string): Promise<Uint8Array> {
-  const url = `${REPLAY_URL}?gameId=${matchId}&profileId=${profileId}&matchId=${matchId}`;
+  const url = replayUrl(matchId, profileId);
+  if (!url) throw new ImportError(400, "bad_request", "Invalid match or player id.");
   let res: Response;
   try {
     res = await fetch(url, { redirect: "error", signal: AbortSignal.timeout(30_000) });
@@ -69,15 +68,12 @@ async function download(matchId: string, profileId: string): Promise<Uint8Array>
   if (zip[0] !== 0x50 || zip[1] !== 0x4b) {
     throw new ImportError(404, "replay_unavailable", "Microsoft has no replay for this match (it may have expired).");
   }
-  let files: Record<string, Uint8Array>;
+  let replay: Uint8Array | null;
   try {
-    files = unzipSync(zip, {
-      filter: (f) => f.name.toLowerCase().endsWith(".aoe2record") && f.originalSize <= MAX_REPLAY_BYTES,
-    });
+    replay = extractReplay(zip);
   } catch {
     throw new ImportError(422, "corrupt_replay", "The file from Microsoft is damaged.");
   }
-  const replay = Object.values(files)[0];
   if (!replay) throw new ImportError(422, "corrupt_replay", "The file from Microsoft contains no replay.");
   return replay;
 }

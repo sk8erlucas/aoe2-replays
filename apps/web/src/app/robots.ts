@@ -7,7 +7,7 @@ export const dynamic = "force-dynamic";
 // Uploaded replays (/r/) are private or link-only: never indexed.
 export default function robots(): MetadataRoute.Robots {
   return {
-    rules: { userAgent: "*", allow: "/", disallow: ["/api/", "/r/"] },
+    rules: { userAgent: "*", allow: "/", disallow: ["/api/", "/r/", "/account", "/login", "/register"] },
     sitemap: `${SITE_URL}/sitemap.xml`,
   };
 }

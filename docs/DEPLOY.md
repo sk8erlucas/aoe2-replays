@@ -44,6 +44,10 @@ UPLOADS_PER_HOUR=20      # subidas por IP por hora; 0 = sin límite
 SEARCHES_PER_MINUTE=60   # búsquedas de jugadores por IP por minuto; 0 = sin límite
 MATCH_IMPORTS_PER_HOUR=20          # partidas online descargadas de Microsoft por IP por hora; 0 = sin límite
 MATCH_IMPORTS_PER_HOUR_GLOBAL=300  # lo mismo, para todo el sitio; 0 = sin límite
+REGISTRATIONS_PER_HOUR=10           # cuentas creadas por IP; 0 = sin límite
+LOGINS_PER_15_MINUTES=20            # intentos de login por IP y por email; 0 = sin límite
+MAX_FOLLOWS=20                      # jugadores que puede seguir una cuenta
+NOTIFICATION_CHECKS_PER_MINUTE=120  # chequeos de partidas nuevas de todo el sitio; 0 = sin límite
 SITE_URL=https://aoe2replays.sitemaster.com.ar   # dirección pública: enlaces canónicos, vista previa en redes, sitemap
 ```
 `PARSER_URL` no hace falta: el compose ya la apunta a `http://parser:8000`.

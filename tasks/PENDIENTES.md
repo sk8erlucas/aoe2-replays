@@ -5,11 +5,11 @@ Separados entre lo que necesita una decisión o acción tuya y lo que se puede a
 ## Repo abierto
 El repo es público desde octubre de 2026. Lo que queda de seguridad e infraestructura está en [11-apertura-publica](./11-apertura-publica.md); la migración a Next 16 en [12-next-16](./12-next-16.md).
 
-## Plan nuevo: cuentas
-Login opcional (Steam, Discord, Google), vincular el perfil de AoE2, favoritos de jugadores, partidas y momentos, y "Mis replays": [13-cuentas](./13-cuentas.md). Antes de empezar hay que decidir los proveedores de login y si los replays de cuentas expiran.
+## Cuentas
+Hecho el 09/11/2026: registro y login con email y contraseña, vincular el jugador, seguir hasta 20 jugadores, campanita de partidas nuevas, borrar la cuenta y página de privacidad. Falta recuperar la contraseña (con Resend), favoritos de partidas y "Mis replays": [13-cuentas](./13-cuentas.md).
 
-## Plan nuevo: calidad gráfica
-Selector Alta / Media / Baja / Automática: en media, sprites de edificios compartidos para todas las civilizaciones y terreno sin transiciones; en baja, sin terreno. No es urgente: [14-calidad-grafica](./14-calidad-grafica.md).
+## Prioridad: celulares y calidad gráfica
+**En un celular el visor hoy no llega a cargar**: es demasiado pesado. Plan: medir qué baja y cuánta memoria usa, modo liviano y selector Alta / Media / Baja / Automática, con Baja o Media por defecto en celulares: [14-calidad-grafica](./14-calidad-grafica.md).
 
 ## Próxima sesión
 Quedó a medio revisar o detectado al cerrar la sesión del 29/10/2026:
@@ -28,7 +28,7 @@ Quedó a medio revisar o detectado al cerrar la sesión del 29/10/2026:
 | Tema | Qué hace falta | Bloquea |
 |---|---|---|
 | CAPTCHA | Crear claves de Cloudflare Turnstile (sitio + secreto) | Protección de subidas anónimas |
-| Logo e ilustraciones | Decidir si se encargan o se hacen propios (estilo grabado, ver [DESIGN](../docs/DESIGN.md)) | Portada final |
+| Ilustraciones | Decidir si se encargan o se hacen propias (estilo grabado, ver [DESIGN](../docs/DESIGN.md)). El logo ya está | Portada final |
 | Nombre del proyecto | Las reglas de Microsoft piden no usar el nombre del juego en el título; evaluar un nombre propio ([LEGAL](../docs/LEGAL.md)) | Lanzamiento público |
 | Publicidad | Confirmar si las reglas de Microsoft permiten anuncios en un sitio propio | Activar anuncios |
 | GitHub | Protección de `main`, secret scanning, reporte privado de vulnerabilidades, etiquetas `good first issue`, imagen de vista previa y primer Release | Colaboradores |
@@ -37,7 +37,8 @@ Quedó a medio revisar o detectado al cerrar la sesión del 29/10/2026:
 | Backups | Crear un bucket S3 privado y activar los backups de la base en Dokploy ([DEPLOY](../docs/DEPLOY.md#backups)) | Perder replays subidos si falla el servidor |
 | Legal | Leer reglas de contenido de fans de Microsoft ([LEGAL](../docs/LEGAL.md)) | Publicidad, lanzamiento |
 | Dominio propio | Opcional: hoy la web está en aoe2replays.sitemaster.com.ar (`SITE_URL`) | SEO |
-| Decisiones abiertas | Confirmar expiración (hoy 30 días), tamaño máximo (hoy 30 MB), idiomas ([DECISIONS](../docs/DECISIONS.md)) | Ajustes |
+| Correo (Resend) | Crear la cuenta, verificar el dominio y generar `RESEND_API_KEY` | Recuperar la contraseña y verificar emails |
+| Decisiones abiertas | Confirmar expiración de replays anónimos (hoy 30 días), tamaño máximo (hoy 30 MB), idiomas ([DECISIONS](../docs/DECISIONS.md)) | Ajustes |
 
 ## Automático (se puede avanzar sin vos)
 - [x] Persistencia: Postgres + Prisma, guardar el JSON (gzip) con enlace privado y token de gestión
@@ -57,5 +58,5 @@ Quedó a medio revisar o detectado al cerrar la sesión del 29/10/2026:
 - [x] Plantillas de issue y pull request, código de conducta ([06](./06-comunidad-completed.md))
 - [ ] Música de fondo en el visor ([08](./08-experiencia-de-juego.md))
 - [x] Interfaz en español e inglés
-- [ ] SEO y compartir en redes: vistas previas por partida y jugador (hechos: metadatos generales, imagen, robots y sitemap) ([10](./10-seo-y-redes.md))
+- [~] SEO y compartir en redes: hechos los metadatos por jugador y partida, el sitemap con partidas y la página 404. Faltan las imágenes de vista previa generadas y renderizar en el servidor ([10](./10-seo-y-redes.md))
 - [ ] Exportar a video con `MediaRecorder` (prueba de concepto)
