@@ -6,6 +6,7 @@
 //   v = (x + y) / 2 - z  (screen down; z = ground height)
 
 import { ANIMAL_COLOR, PLAYER_COLORS, RESOURCE_COLORS, TERRAIN_COLORS } from './palette.js';
+import { QUALITY_SETTINGS } from './quality.js';
 
 const ELEVATION_UNITS = 0.25; // height of one elevation level
 // Unit class (game data) -> a common unit whose sprite stands in for units
@@ -39,9 +40,9 @@ const AUTO_RESEEK_MS = 15_000; // game time: a jump in the timeline picks a new 
 const CAMERA_SPEED = 4; // higher = snappier camera
 // Close-up ground is drawn in square chunks at the zoom's resolution and cached.
 const CHUNK_PX = 512;
-const MAX_CHUNKS = 64;
-const MAX_CHUNK_K = 32; // px per unit; beyond this chunks are scaled up
-const CHUNKS_PER_FRAME = 1; // render budget, so zooming never stalls a frame
+const CHUNKS_PER_FRAME = 1;
+// Largest canvas area some browsers allow (iOS Safari: 4096 x 4096); bigger ones fail to draw.
+const MAX_CANVAS_AREA = 16_000_000; // render budget, so zooming never stalls a frame
 const FARM_TERRAIN = 7; // the game's farm ground ("Farm1"), drawn under farm buildings
 const CANOPY_RGB = [38, 66, 30]; // forest seen from afar, where trees are not drawn
 const BLEND_RADIUS = 0.4; // soft edge between terrains, in tile heights
@@ -68,7 +69,7 @@ function hash(n) {
 }
 
 export class Renderer {
-  constructor(canvas, replay) {
+  constructor(canvas, replay, { quality = 'high' } = {}) {
     this.canvas = canvas;
     this.ctx = canvas.getContext('2d');
     this.replay = replay;
@@ -76,8 +77,10 @@ export class Renderer {
     this.size = size;
     this.elevation = elevation;
     this.maxElevation = elevation.reduce((m, e) => Math.max(m, e), 0);
-    this.k = Math.max(2, Math.min(8, Math.floor(8192 / (2 * size)))); // base layer px per unit
     this.elevPad = this.maxElevation * ELEVATION_UNITS;
+    this.quality = QUALITY_SETTINGS[quality] ? quality : 'high';
+    this.q = QUALITY_SETTINGS[this.quality];
+    this.k = this.#baseK();
     this.base = this.#buildBaseLayer();
     this.dpr = 1;
     this.cam = { u: 0, v: size / 2, scale: 8 };
@@ -97,9 +100,14 @@ export class Renderer {
    * loaded and the ground is rebuilt with them; redraw then.
    */
   async setTerrain(terrainSet) {
-    if (!terrainSet) return;
+    this.terrainSet = terrainSet ?? null;
+    if (!terrainSet || !this.q.terrain) return;
     const textures = await terrainSet.prepare(new Set([...this.replay.data.map.terrain, FARM_TERRAIN]));
-    if (!textures.size) return;
+    if (!textures.size || !this.q.terrain || this.terrainSet !== terrainSet) return;
+    this.#setTextures(textures);
+  }
+
+  #setTextures(textures) {
     this.textures = textures;
     this.farmPattern = null;
     this.water = null;
@@ -111,6 +119,38 @@ export class Renderer {
   /** Game sprites (SpriteSet) to draw with; null keeps the plain shapes. */
   setSprites(sprites) {
     this.sprites = sprites;
+    sprites?.setQuality(this.q);
+  }
+
+  /**
+   * 'high' | 'medium' | 'low' (see quality.js). Resolves once the ground is
+   * rebuilt for it (terrain textures may need loading); redraw then.
+   */
+  async setQuality(quality) {
+    const q = QUALITY_SETTINGS[quality];
+    if (!q || quality === this.quality) return;
+    this.quality = quality;
+    this.q = q;
+    this.sprites?.setQuality(q);
+    this.resize();
+    this.k = this.#baseK();
+    if (!q.terrain) {
+      if (this.textures) this.#setTextures(null);
+      else this.base = this.#buildBaseLayer();
+      return;
+    }
+    this.scaledTextures.clear();
+    this.chunks.clear();
+    this.water = null;
+    if (this.textures) this.base = this.#buildBaseLayer();
+    else await this.setTerrain(this.terrainSet);
+  }
+
+  // Base layer px per unit: as sharp as the quality allows, within the canvas size browsers accept.
+  #baseK() {
+    const n = this.size;
+    const fit = Math.sqrt(MAX_CANVAS_AREA / (2 * n * (n + this.elevPad + 1)));
+    return Math.max(1, Math.min(this.q.baseK, Math.floor(8192 / (2 * n)), Math.floor(fit)));
   }
 
   // ---------- geometry ----------
@@ -151,8 +191,14 @@ export class Renderer {
     const layer = document.createElement('canvas');
     layer.width = 2 * n * k;
     layer.height = Math.ceil((n + this.elevPad + 1) * k);
+    const ctx = layer.getContext('2d');
+    // Out of canvas memory (phones): a coarser layer instead of none at all.
+    if (!ctx && k > 1) {
+      this.k = Math.max(1, Math.floor(k / 2));
+      return this.#buildBaseLayer();
+    }
     // Zoomed out trees are not drawn, so forests get a canopy colour.
-    this.#paintTerrain(layer.getContext('2d'), k, -n, -this.elevPad, 2 * n, n + this.elevPad + 1, true);
+    if (ctx) this.#paintTerrain(ctx, k, -n, -this.elevPad, 2 * n, n + this.elevPad + 1, true);
     return layer;
   }
 
@@ -242,7 +288,7 @@ export class Renderer {
           continue;
         }
         add(ground, id, () => ({ f, z: 0 }), x, y, z);
-        if (!canopy) add(areas, id, () => ({}), x, y, z);
+        if (!canopy && this.q.blend) add(areas, id, () => ({}), x, y, z);
         if (canopy && legend[id]?.category === 'forest') {
           const q = Math.round((0.85 + hash(i) * 0.4 + slope * 0.09) * 20) / 20;
           add(overlay, `c${q}`, () => ({ style: shade(CANOPY_RGB, q), stroke: true }), x, y, z);
@@ -318,11 +364,11 @@ export class Renderer {
   // Close up, the base layer is too coarse: draw cached chunks at the zoom's resolution.
   #drawGroundDetail() {
     this.pending = false;
-    if (!this.textures) return false;
+    if (!this.textures || !this.q.chunks) return false;
     const scale = this.cam.scale;
     const devicePx = scale * this.dpr;
     if (devicePx <= this.k * 1.5) return false;
-    const k = Math.min(MAX_CHUNK_K, 2 ** Math.ceil(Math.log2(devicePx)));
+    const k = Math.min(this.q.chunkK, 2 ** Math.ceil(Math.log2(devicePx)));
     const span = CHUNK_PX / k; // (u, v) units per chunk
     const { clientWidth: w, clientHeight: h } = this.canvas;
     const uA = this.cam.u - w / 2 / scale;
@@ -343,7 +389,9 @@ export class Renderer {
           chunk = document.createElement('canvas');
           chunk.width = CHUNK_PX;
           chunk.height = CHUNK_PX;
-          this.#paintTerrain(chunk.getContext('2d'), k, cu * span, cv * span, span, span);
+          const cctx = chunk.getContext('2d');
+          if (!cctx) return false; // out of canvas memory: keep the coarse ground
+          this.#paintTerrain(cctx, k, cu * span, cv * span, span, span);
         } else {
           this.pending = true; // the base layer shows through until it is drawn
           continue;
@@ -357,7 +405,7 @@ export class Renderer {
         ctx.drawImage(chunk, sx, sy, Math.ceil(x1) - sx, Math.ceil(y1) - sy);
       }
     }
-    while (this.chunks.size > MAX_CHUNKS) this.chunks.delete(this.chunks.keys().next().value);
+    while (this.chunks.size > this.q.chunks) this.chunks.delete(this.chunks.keys().next().value);
     return true;
   }
 
@@ -421,7 +469,7 @@ export class Renderer {
   // ---------- camera ----------
 
   resize() {
-    const dpr = window.devicePixelRatio || 1;
+    const dpr = Math.min(this.q.maxDpr, window.devicePixelRatio || 1);
     const { clientWidth: w, clientHeight: h } = this.canvas;
     this.canvas.width = Math.round(w * dpr);
     this.canvas.height = Math.round(h * dpr);
@@ -451,7 +499,8 @@ export class Renderer {
   }
 
   closeScale() {
-    return CLOSE_TILE_PX / 2;
+    // Phones: a bit farther, or a 390 px screen shows only a couple of buildings.
+    return (this.canvas.clientWidth < 600 ? CLOSE_TILE_PX * 0.7 : CLOSE_TILE_PX) / 2;
   }
 
   /** null (free), 'auto', or a player number. */
@@ -557,7 +606,7 @@ export class Renderer {
     const [bx, by] = this.uvToScreen(-this.size, -this.elevPad);
     ctx.imageSmoothingEnabled = !!this.textures;
     ctx.drawImage(this.base, bx, by, (this.base.width / this.k) * s, (this.base.height / this.k) * s);
-    if (this.#drawGroundDetail()) this.#drawWaterMotion(state.t);
+    if (this.#drawGroundDetail() && this.q.water) this.#drawWaterMotion(state.t);
 
     const b = this.#visibleBounds();
     const inView = (x, y) => x >= b.x0 && x <= b.x1 && y >= b.y0 && y <= b.y1;
@@ -596,6 +645,7 @@ export class Renderer {
     }
     for (const it of items) it.draw();
     ctx.globalAlpha = 1;
+    this.sprites?.endFrame();
     if (pointer) {
       const hit = this.pick(state, pointer.x, pointer.y);
       if (hit?.kind === 'building') this.#drawRally(hit.building, state);
@@ -818,7 +868,7 @@ export class Renderer {
 
   // What a deleted building leaves: the game's rubble, or a low heap of stones.
   #drawRuin(b, state) {
-    if (this.sprites && this.cam.scale >= DETAIL_SCALE) {
+    if (this.sprites && this.q.rubble && this.cam.scale >= DETAIL_SCALE) {
       const civ = this.#civ(b.player);
       const key = civ != null && this.sprites.rubble(civ, b.typeId, this.replay.ageAt(b.player, state.t));
       if (key != null) {
@@ -949,9 +999,17 @@ export class Renderer {
     const y = sy + (oy - f.ay) * k;
     const w = f.w * k;
     const h = f.h * k;
-    this.ctx.drawImage(f.image, f.x, f.y, f.w, f.h, x, y, w, h);
-    if (f.mask && color) this.ctx.drawImage(this.sprites.tint(f, key, color), x, y, w, h);
+    this.ctx.drawImage(f.image, f.sx, f.sy, f.sw, f.sh, x, y, w, h);
+    const tint = f.mask && color ? this.sprites.tint(f, key, color) : null;
+    if (tint) this.ctx.drawImage(tint, x, y, w, h);
     return true;
+  }
+
+  // Animation frame at time t (`period` ms per frame); lower qualities skip frames.
+  #cycle(frames, t, period) {
+    const step = Math.min(this.q.frameStep, frames.length);
+    const count = Math.ceil(frames.length / step);
+    return frames[(Math.floor(t / (period * step)) % count) * step];
   }
 
   #civ(player) {
@@ -1004,12 +1062,12 @@ export class Renderer {
       if (keys?.length) ok = this.#blit(keys[this.#angleIndex(unit, { t: state.t }, keys.length)], sx, sy, GAIA_TINT);
     } else {
       const civ = this.#civ(unit.player);
-      const job = this.#villagerJob(unit, state.t);
+      const job = this.q.jobs && this.#villagerJob(unit, state.t);
       if (job) {
         const anim = u.moving ? job.walk : job.task;
         if (anim) {
           const frames = anim[this.#angleIndex(unit, { t: state.t }, anim.length)];
-          ok = this.#blit(frames[Math.floor(state.t / (u.moving ? 110 : 160)) % frames.length], sx, sy, color);
+          ok = this.#blit(this.#cycle(frames, state.t, u.moving ? 110 : 160), sx, sy, color);
           this.ctx.globalAlpha = 1;
           if (ok) return true;
         }
@@ -1028,10 +1086,10 @@ export class Renderer {
       if (set) {
         if (u.moving && set.walk) {
           const frames = set.walk[this.#angleIndex(unit, { t: state.t }, set.walk.length)];
-          ok = this.#blit(frames[Math.floor(state.t / 110) % frames.length], sx, sy, color);
-        } else if (set.attack && unit.activityAt(state.t) === 'attack') {
+          ok = this.#blit(this.#cycle(frames, state.t, 110), sx, sy, color);
+        } else if (this.q.jobs && set.attack && unit.activityAt(state.t) === 'attack') {
           const frames = set.attack[this.#angleIndex(unit, { t: state.t }, set.attack.length)];
-          ok = this.#blit(frames[Math.floor(state.t / 140) % frames.length], sx, sy, color);
+          ok = this.#blit(this.#cycle(frames, state.t, 140), sx, sy, color);
         } else if (set.idle) {
           ok = this.#blit(set.idle[this.#angleIndex(unit, { t: state.t }, set.idle.length)], sx, sy, color);
         }

@@ -3,12 +3,21 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
+import { formatTime } from "@aoe2-replays/viewer";
 import { refreshNotifications, useAccount } from "@/components/AccountProvider";
 import { PlayerSearch } from "@/components/PlayerSearch";
 import { errorText, useI18n } from "@/i18n/I18nProvider";
 import { PASSWORD_MAX, PASSWORD_MIN } from "@/lib/validate";
 
 type Follow = { profileId: string; name: string };
+type AccountReplay = {
+  id: string;
+  isPublic: boolean;
+  createdAt: string;
+  fileName: string | null;
+  mapName: string | null;
+  durationMs: number;
+};
 
 export function AccountSettings() {
   const account = useAccount();
@@ -23,6 +32,8 @@ export function AccountSettings() {
   const [current, setCurrent] = useState("");
   const [next, setNext] = useState("");
   const [deletePassword, setDeletePassword] = useState("");
+  const [replays, setReplays] = useState<AccountReplay[] | null>(null);
+  const [maxReplays, setMaxReplays] = useState(0);
 
   useEffect(() => {
     let cancelled = false;
@@ -34,10 +45,36 @@ export function AccountSettings() {
         setMax(json.max);
       })
       .catch(() => null);
+    fetch("/api/account/replays")
+      .then((res) => (res.ok ? res.json() : null))
+      .then((json: { replays: AccountReplay[]; max: number } | null) => {
+        if (cancelled || !json) return;
+        setReplays(json.replays);
+        setMaxReplays(json.max);
+      })
+      .catch(() => null);
     return () => {
       cancelled = true;
     };
   }, []);
+
+  async function removeReplay(id: string) {
+    if (!window.confirm(t.account.replayRemoveConfirm)) return;
+    setBusy(true);
+    setError(null);
+    try {
+      const res = await fetch(`/api/replays/${id}`, { method: "DELETE" });
+      if (!res.ok) {
+        setError(t.replay.removeFailed);
+        return;
+      }
+      setReplays((list) => list?.filter((r) => r.id !== id) ?? null);
+    } catch {
+      setError(t.errors.network);
+    } finally {
+      setBusy(false);
+    }
+  }
 
   /** Sends a change; returns its JSON, or null after showing the error. */
   async function send(url: string, method: string, body?: object) {
@@ -158,6 +195,36 @@ export function AccountSettings() {
                   <Link href={`/p/${f.profileId}`}>{f.name}</Link>
                   <button type="button" disabled={busy} onClick={() => unfollow(f.profileId)}>
                     {t.account.unfollow}
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
+        </section>
+
+        <section>
+          <div className="follow-head">
+            <h2>{t.account.replaysTitle}</h2>
+            {replays && maxReplays > 0 && (
+              <span className="muted small">{t.account.replaysCount(replays.length, maxReplays)}</span>
+            )}
+          </div>
+          <p className="muted">{t.account.replaysHelp}</p>
+          {replays && replays.length === 0 && <p className="muted">{t.account.replaysEmpty}</p>}
+          {replays && replays.length > 0 && (
+            <ul className="follow-list">
+              {replays.map((r) => (
+                <li key={r.id}>
+                  <span>
+                    <Link href={`/r/${r.id}`}>{r.mapName ?? t.common.unknownMap}</Link>
+                    <span className="muted small">
+                      {" "}
+                      · {formatTime(r.durationMs)} · {new Date(r.createdAt).toLocaleDateString(t.common.dateLocale)} ·{" "}
+                      {r.isPublic ? t.replay.public : t.replay.private}
+                    </span>
+                  </span>
+                  <button type="button" disabled={busy} onClick={() => removeReplay(r.id)}>
+                    {t.account.replayRemove}
                   </button>
                 </li>
               ))}

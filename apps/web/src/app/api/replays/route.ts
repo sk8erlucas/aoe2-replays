@@ -1,8 +1,18 @@
 // POST: upload a .aoe2record. It is parsed, and only the resulting JSON is stored.
+// Logged in (and sent from this site), the replay goes to the account and doesn't expire.
 import { NextResponse } from "next/server";
+import { sameSiteUserId } from "@/lib/auth";
 import { apiError, withErrors } from "@/lib/http";
 import { MAX_UPLOAD_BYTES, parseReplay } from "@/lib/parser";
-import { createReplay, hashIp, uploadLimitReached, uploadsLastHour } from "@/lib/replays";
+import {
+  accountFull,
+  accountReplayCount,
+  createReplay,
+  hashIp,
+  uploadLimitReached,
+  uploadsLastHour,
+  userUploadsLastHour,
+} from "@/lib/replays";
 
 // Room for the multipart boundaries and the other form fields.
 const FORM_OVERHEAD = 64 * 1024;
@@ -33,13 +43,22 @@ async function upload(request: Request) {
   if (ipHash && uploadLimitReached(await uploadsLastHour(ipHash))) {
     return apiError(429, "rate_limited", "Too many uploads in the last hour. Try again later.");
   }
+  const userId = await sameSiteUserId(request);
+  if (userId) {
+    if (uploadLimitReached(await userUploadsLastHour(userId))) {
+      return apiError(429, "rate_limited", "Too many uploads in the last hour. Try again later.");
+    }
+    if (accountFull(await accountReplayCount(userId))) {
+      return apiError(409, "account_full", "Your account has reached its replay limit. Delete some first.");
+    }
+  }
 
   const parsed = await parseReplay(file);
   if (!parsed.ok) return apiError(parsed.status, parsed.code, parsed.message);
 
-  const { id, token } = await createReplay(parsed.data, parsed.raw, file.name, ipHash);
+  const { id, token } = await createReplay(parsed.data, parsed.raw, file.name, ipHash, userId);
   return NextResponse.json(
-    { id, token, mapName: parsed.data.map.name, durationMs: parsed.data.game.duration_ms },
+    { id, token, mapName: parsed.data.map.name, durationMs: parsed.data.game.duration_ms, inAccount: userId != null },
     { status: 201 },
   );
 }

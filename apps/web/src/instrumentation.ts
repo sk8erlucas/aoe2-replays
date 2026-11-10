@@ -8,8 +8,9 @@ export async function register() {
   if (process.env.NEXT_RUNTIME === "nodejs") {
     const { deleteExpired } = await import("@/lib/replays");
     const { deleteStaleAccountData } = await import("@/lib/notifications");
+    const { deleteStaleMatches } = await import("@/lib/matches");
     const sweep = () =>
-      Promise.all([deleteExpired(), deleteStaleAccountData()]).catch((err) => console.error("could not delete expired data", err));
+      Promise.all([deleteExpired(), deleteStaleAccountData(), deleteStaleMatches()]).catch((err) => console.error("could not delete expired data", err));
     void sweep();
     setInterval(sweep, SWEEP_MS).unref();
   }

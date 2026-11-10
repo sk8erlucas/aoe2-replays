@@ -6,10 +6,10 @@ Separados entre lo que necesita una decisión o acción tuya y lo que se puede a
 El repo es público desde octubre de 2026. Lo que queda de seguridad e infraestructura está en [11-apertura-publica](./11-apertura-publica.md); la migración a Next 16 en [12-next-16](./12-next-16.md).
 
 ## Cuentas
-Hecho el 09/11/2026: registro y login con email y contraseña, vincular el jugador, seguir hasta 20 jugadores, campanita de partidas nuevas, borrar la cuenta y página de privacidad. Falta recuperar la contraseña (con Resend), favoritos de partidas y "Mis replays": [13-cuentas](./13-cuentas.md).
+Hecho el 09/11/2026: registro y login con email y contraseña, vincular el jugador, seguir hasta 20 jugadores, campanita de partidas nuevas, borrar la cuenta y página de privacidad. El 10/11/2026: "Mis replays" (las subidas con sesión quedan en la cuenta y no vencen; se puede guardar uno subido antes). Falta recuperar la contraseña (con Resend) y favoritos de partidas: [13-cuentas](./13-cuentas.md).
 
 ## Prioridad: celulares y calidad gráfica
-**En un celular el visor hoy no llega a cargar**: es demasiado pesado. Plan: medir qué baja y cuánta memoria usa, modo liviano y selector Alta / Media / Baja / Automática, con Baja o Media por defecto en celulares: [14-calidad-grafica](./14-calidad-grafica.md).
+**En un celular el visor no llegaba a cargar** por memoria: una sola civilización pedía hasta ~270 MB de atlas decodificados. Hecho el 10/11/2026: atlas de edificios por arquitectura y edad, copia a media resolución, liberación de páginas sin usar, selector Alta / Media / Baja / Automática (Baja o Media en celulares, baja solo si se traba) y zoom con dos dedos. **Falta probarlo en un celular de verdad** y medir: [14-calidad-grafica](./14-calidad-grafica.md).
 
 ## Próxima sesión
 Quedó a medio revisar o detectado al cerrar la sesión del 29/10/2026:
@@ -58,5 +58,5 @@ Quedó a medio revisar o detectado al cerrar la sesión del 29/10/2026:
 - [x] Plantillas de issue y pull request, código de conducta ([06](./06-comunidad-completed.md))
 - [ ] Música de fondo en el visor ([08](./08-experiencia-de-juego.md))
 - [x] Interfaz en español e inglés
-- [~] SEO y compartir en redes: hechos los metadatos por jugador y partida, el sitemap con partidas y la página 404. Faltan las imágenes de vista previa generadas y renderizar en el servidor ([10](./10-seo-y-redes.md))
+- [~] SEO y compartir en redes: hechos los metadatos por jugador y partida, el sitemap con partidas, la página 404 y el botón "Compartir" (menú nativo, WhatsApp, X, Reddit, Telegram). Faltan las imágenes de vista previa generadas y renderizar en el servidor ([10](./10-seo-y-redes.md))
 - [ ] Exportar a video con `MediaRecorder` (prueba de concepto)

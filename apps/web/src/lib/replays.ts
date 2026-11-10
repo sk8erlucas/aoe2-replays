@@ -7,6 +7,8 @@ import { envInt, isManageToken, isReplayId } from "@/lib/validate";
 
 const TTL_DAYS = envInt("REPLAY_TTL_DAYS", 30);
 const UPLOADS_PER_HOUR = envInt("UPLOADS_PER_HOUR", 20);
+/** Replays an account can keep (they don't expire). 0 = no limit. */
+export const MAX_ACCOUNT_REPLAYS = envInt("MAX_ACCOUNT_REPLAYS", 200);
 
 export const TOKEN_HEADER = "x-manage-token";
 
@@ -35,6 +37,18 @@ export async function uploadsLastHour(ipHash: string): Promise<number> {
   });
 }
 
+export async function userUploadsLastHour(userId: string): Promise<number> {
+  return db().replay.count({ where: { userId, createdAt: { gte: new Date(Date.now() - 3600_000) } } });
+}
+
+export async function accountReplayCount(userId: string): Promise<number> {
+  return db().replay.count({ where: { userId } });
+}
+
+export function accountFull(count: number) {
+  return MAX_ACCOUNT_REPLAYS > 0 && count >= MAX_ACCOUNT_REPLAYS;
+}
+
 export function uploadLimitReached(count: number) {
   return UPLOADS_PER_HOUR > 0 && count >= UPLOADS_PER_HOUR;
 }
@@ -43,16 +57,26 @@ export async function deleteExpired() {
   await db().replay.deleteMany({ where: { expiresAt: { lt: new Date() } } });
 }
 
-/** Stores a parsed replay. Returns the public id and the secret management token. */
-export async function createReplay(data: ReplayData, raw: string, fileName: string, ipHash: string | null) {
+/**
+ * Stores a parsed replay. Returns the public id and the secret management token.
+ * With `userId` it belongs to that account and never expires.
+ */
+export async function createReplay(
+  data: ReplayData,
+  raw: string,
+  fileName: string,
+  ipHash: string | null,
+  userId: string | null = null,
+) {
   const id = randomId();
   const token = randomBytes(24).toString("base64url");
   await db().replay.create({
     data: {
       id,
       manageTokenHash: sha256(token),
-      expiresAt: TTL_DAYS > 0 ? new Date(Date.now() + TTL_DAYS * 86400_000) : null,
+      expiresAt: !userId && TTL_DAYS > 0 ? new Date(Date.now() + TTL_DAYS * 86400_000) : null,
       uploaderIpHash: ipHash,
+      userId,
       fileName: fileName.replaceAll("\0", "").slice(0, 200), // Postgres text cannot hold NUL
       ...storedGame(data, raw),
     },
@@ -93,16 +117,18 @@ const notExpired = () => ({ OR: [{ expiresAt: null }, { expiresAt: { gt: new Dat
 
 /**
  * Loads a replay if the caller may see it: public replays for anyone,
- * private ones only with the management token. Otherwise null, so a private
- * replay is indistinguishable from a missing one.
+ * private ones only with the management token or to the account that owns it.
+ * Otherwise null, so a private replay is indistinguishable from a missing one.
  */
-export async function findVisibleReplay(id: string, token: string | null) {
+export async function findVisibleReplay(id: string, token: string | null, userId: string | null = null) {
   if (!isReplayId(id)) return null;
   const replay = await db().replay.findFirst({ where: { id, ...notExpired() }, omit: { data: true } });
   if (!replay) return null;
-  const canManage = tokenMatches(token, replay.manageTokenHash);
+  const tokenValid = tokenMatches(token, replay.manageTokenHash);
+  const inAccount = userId != null && replay.userId === userId;
+  const canManage = tokenValid || inAccount;
   if (!replay.isPublic && !canManage) return null;
-  return { replay, canManage };
+  return { replay, canManage, tokenValid, inAccount };
 }
 
 /** The stored gzip JSON. Call only after an access check. */
@@ -111,9 +137,20 @@ export async function replayData(id: string) {
   return row?.data ?? null;
 }
 
-export async function findManagedReplay(id: string, token: string | null) {
+/** The replay if the caller may change it: management token, or the owning account. */
+export async function findManagedReplay(id: string, token: string | null, userId: string | null = null) {
   if (!isReplayId(id)) return null;
   const replay = await db().replay.findFirst({ where: { id, ...notExpired() }, omit: { data: true } });
-  if (!replay || !tokenMatches(token, replay.manageTokenHash)) return null;
-  return replay;
+  if (!replay) return null;
+  if (tokenMatches(token, replay.manageTokenHash) || (userId != null && replay.userId === userId)) return replay;
+  return null;
+}
+
+/** The account's replays, newest first (no data). */
+export async function accountReplays(userId: string) {
+  return db().replay.findMany({
+    where: { userId },
+    orderBy: { createdAt: "desc" },
+    select: { id: true, isPublic: true, createdAt: true, fileName: true, mapName: true, durationMs: true, players: true },
+  });
 }

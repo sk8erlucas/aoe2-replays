@@ -19,6 +19,10 @@ model Replay {
   /// Null means it never expires.
   expiresAt       DateTime? @map("expires_at")
   uploaderIpHash  String?   @map("uploader_ip_hash")
+  /// Account it was uploaded with (or saved to). Such replays don't expire and
+  /// go with the account.
+  userId          String?   @map("user_id")
+  user            User?     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   fileName      String? @map("file_name")
   schemaVersion Int     @map("schema_version")
@@ -36,6 +40,7 @@ model Replay {
 
   @@index([expiresAt])
   @@index([uploaderIpHash, createdAt])
+  @@index([userId, createdAt])
   @@map("replays")
 }
 
@@ -47,6 +52,9 @@ model Match {
   /// Profile whose replay copy was downloaded.
   sourceProfileId String   @map("source_profile_id")
   importedAt      DateTime @default(now()) @map("imported_at")
+  /// Last time someone opened it (updated at most once a day). Matches nobody
+  /// opened in MATCH_TTL_DAYS are deleted: anyone can make the site store one.
+  lastViewedAt    DateTime @default(now()) @map("last_viewed_at")
 
   schemaVersion Int     @map("schema_version")
   gameVersion   String  @map("game_version")
@@ -61,6 +69,7 @@ model Match {
   dataBytes Int   @map("data_bytes")
 
   @@index([importedAt])
+  @@index([lastViewedAt])
   @@map("matches")
 }
 
@@ -86,6 +95,7 @@ model User {
   sessions      Session[]
   follows       FollowedPlayer[]
   notifications Notification[]
+  replays       Replay[]
 
   @@map("users")
 }

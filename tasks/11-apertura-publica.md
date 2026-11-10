@@ -26,7 +26,7 @@ Revisión completa del código con estos puntos. Ya conocidos (hallazgos de desa
 ### Descarga de partidas (Microsoft)
 - [x] Protecciones contra SSRF: la URL se arma solo con IDs numéricos y dominio fijo, sin seguir redirecciones; con test (`replayUrl`).
 - [x] Límite de tamaño descomprimido y de cantidad de entradas del ZIP: se infla una sola entrada y no más de lo que declara; con tests de zip bomb (`extractReplay`).
-- [ ] ⚠️ **Crecimiento de la tabla `matches`**: cualquiera puede hacer que se guarden partidas (~230 KB cada una). Decidido: borrar las que nadie miró en 90 días. Falta implementarlo: columna `last_viewed_at`, actualizarla al abrir una partida (como mucho una vez por día) y sumar el borrado a la limpieza horaria de `src/instrumentation.ts`.
+- [x] ⚠️ **Crecimiento de la tabla `matches`**: cualquiera puede hacer que se guarden partidas (~230 KB cada una). Se borran las que nadie abrió en `MATCH_TTL_DAYS` (90): columna `last_viewed_at` (migración `match_last_viewed`), que se actualiza al bajar los datos de la partida como mucho una vez por día, y borrado en la limpieza horaria de `src/instrumentation.ts`.
 
 ### Navegador
 - [x] Encabezados de seguridad (CSP, nosniff, Referrer-Policy, X-Frame-Options, Permissions-Policy): Content-Security-Policy (scripts propios, imágenes propias, `connect-src` acotado), `X-Content-Type-Options`, `Referrer-Policy`, `Permissions-Policy`, `frame-ancestors` (salvo la futura vista para insertar).

@@ -38,13 +38,14 @@ Objetivo: que quien quiera pueda tener una cuenta para guardar lo suyo (replays,
 - [ ] Sin cuenta: favoritos en el navegador (`localStorage`), como hoy "Tus replays en este navegador"; al iniciar sesión, ofrecer pasarlos a la cuenta.
 
 ## Mis replays
-- [ ] Los replays subidos con sesión iniciada quedan asociados a la cuenta: "Mis replays" con todos, sin depender del navegador ni del enlace de gestión.
-- [ ] Reclamar replays subidos antes sin cuenta (con su enlace de gestión `#k=`).
-- [ ] Gestión desde la cuenta: hacer público/privado, borrar, renombrar.
+- [x] Los replays subidos con sesión iniciada quedan asociados a la cuenta (columna `user_id`, migración `account_replays`, se borran con la cuenta) y no vencen, hasta `MAX_ACCOUNT_REPLAYS` (200). "Mis replays" en `/account`. Solo cuenta la sesión si la subida viene del propio sitio (`sameSiteUserId`); desde otro sitio la subida queda anónima.
+- [x] Reclamar replays subidos antes sin cuenta: "Guardar en mi cuenta" en `/r/<id>` con el enlace de gestión (`PATCH { saveToAccount: true }`, pide token y sesión).
+- [~] Gestión desde la cuenta: el dueño hace público/privado y borra sin token (desde `/r/<id>` y "Mis replays"). Falta renombrar.
+- Probado contra la base local el 10/11/2026: permisos entre dos cuentas, pedido desde otro sitio, reclamo y borrado de cuenta. Falta dejarlo en el CI.
 
 ## Seguridad y privacidad
 - [x] Protección CSRF en las rutas que cambian datos: cookie `sameSite=lax` y verificación de `Origin` (`rejectCrossSite`).
-- [~] Límites por cuenta además de por IP: hechos para registro, login, cambios de cuenta y seguidos. Faltan las subidas.
+- [x] Límites por cuenta además de por IP: registro, login, cambios de cuenta, seguidos y subidas (`UPLOADS_PER_HOUR` también por cuenta, y `MAX_ACCOUNT_REPLAYS`).
 - [x] No exponer el email en páginas públicas.
 - [ ] Repetir la revisión de seguridad de la fase 11 para todo lo nuevo.
 - [~] Tests: contraseñas, validación, CSRF, redirección tras el login y reglas de avisos en `apps/web/test`. Permisos entre usuarios y borrado de cuenta probados a mano contra una base real el 09/11/2026; falta dejarlos en el CI con una base de prueba.
