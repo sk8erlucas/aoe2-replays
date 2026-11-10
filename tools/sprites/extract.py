@@ -25,7 +25,8 @@ import sld
 TILE_PX = 86  # width of one tile in the x1 graphics (measured on foundations)
 AGE_TECHS = {2: 101, 3: 102, 4: 103}  # Feudal, Castle, Imperial
 MAX_ATLAS = 4096
-PAD = 1
+PAD = 2  # also keeps a 1 px gap between frames in the half-size pages
+LOW_DIR = 'low'  # half-size copies of every page, for the lighter viewer qualities
 
 # Buildings drawn by the viewer (dat unit ids, Dark Age versions).
 BUILDINGS = [70, 109, 68, 562, 584, 12, 87, 101, 103, 84, 104, 209, 82, 45, 49, 79, 50, 72, 117]
@@ -162,6 +163,7 @@ def save_hashed(img, out_dir: Path, name: str, quality: int) -> str:
 
 
 PAGE_FILES = {}  # page name -> [base file, mask file or None]
+LOW_FILES = {}  # page name -> the same at half size (paths under low/)
 
 
 def pack(frames, keys, out_dir: Path, group: str):
@@ -201,16 +203,30 @@ def pack(frames, keys, out_dir: Path, group: str):
             save_hashed(base, out_dir, name, 82),
             save_hashed(mask, out_dir, f'{name}-mask', 85) if has_mask else None,
         ]
+        # Same layout at half size: frame coordinates are simply halved by the viewer,
+        # and a quarter of the memory once decoded.
+        low_dir = out_dir / LOW_DIR
+        half = ((page['w'] + 1) // 2, (page['h'] + 1) // 2)
+        LOW_FILES[name] = [
+            f'{LOW_DIR}/{save_hashed(base.resize(half, Image.LANCZOS), low_dir, name, 80)}',
+            f'{LOW_DIR}/{save_hashed(mask.resize(half, Image.LANCZOS), low_dir, f"{name}-mask", 85)}' if has_mask else None,
+        ]
     return entries
 
 
 def group_of(stem):
-    """Atlas page group: one per building set, one per unit/animal/tree graphic.
+    """Atlas page group: per architecture and age for buildings, one per
+    unit/animal/tree graphic.
 
-    Small groups let the viewer download only what a match uses."""
+    Small groups let the viewer download and decode only what is on screen: a
+    player's buildings all show the same age, so one age page is enough at a time
+    (a whole architecture in one page was ~50 MB once decoded)."""
     parts = stem.split('_')
     if parts[0] == 'b':
-        return f'b-{parts[1]}'
+        if 'rubble' in parts:
+            return f'b-{parts[1]}-rubble'
+        age = next((p for p in parts if p.startswith('age') and p[3:].isdigit()), None)
+        return f'b-{parts[1]}-{age or "other"}'
     if parts[0] in ('u', 'a') or stem.startswith('n_tree'):
         return stem.removesuffix('_x1')
     return 'gaia'
@@ -238,7 +254,8 @@ def main():
     ap.add_argument('--scale', type=float, default=0.75, help='64 px tiles at 0.75')
     args = ap.parse_args()
     args.out.mkdir(parents=True, exist_ok=True)
-    for old in args.out.glob('*.webp'):  # previous atlases (hashed names change)
+    (args.out / LOW_DIR).mkdir(exist_ok=True)
+    for old in [*args.out.glob('*.webp'), *(args.out / LOW_DIR).glob('*.webp')]:  # previous atlases (hashed names change)
         old.unlink()
     dat = load_dat(args.game, Path(__file__).with_name('.dat-cache.pkl'))
     col = Collector(args.game / 'resources/_common/drs/graphics', args.scale)
@@ -494,6 +511,8 @@ def main():
         'tilePx': TILE_PX * args.scale,
         # [base file, mask file or null] per page; names carry a content hash.
         'pages': [PAGE_FILES[name] for name in pages],
+        # The same pages at half size (same frame coordinates, halved).
+        'pagesLow': [LOW_FILES[name] for name in pages],
         # [page, x, y, w, h, anchor x, anchor y, has player mask]
         'frames': frames,
         'civs': {cid: {'name': c['name'], 'buildings': ref(c['buildings']), 'units': ref(c['units']),
