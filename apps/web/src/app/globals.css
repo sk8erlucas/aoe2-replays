@@ -546,6 +546,20 @@ button.primary:hover:not(:disabled), .button-primary:hover { border-color: var(-
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
 }
 
+/* While atlas pages download the map already plays with plain shapes. */
+.stage-loading {
+  position: absolute;
+  top: 10px;
+  left: 12px;
+  pointer-events: none;
+  background: rgba(45, 42, 39, 0.85);
+  color: var(--charcoal-ink);
+  border: 1px solid var(--bronze-dark);
+  border-radius: 4px;
+  padding: 3px 8px;
+  font-size: 12px;
+}
+
 .tooltip {
   position: absolute;
   pointer-events: none;
@@ -953,8 +967,17 @@ button.danger:hover:not(:disabled) { background: var(--danger); color: var(--pap
   .legal p + p { display: none; }
   .stage { border-width: 3px 0; }
   .stage .minimap { width: 140px; height: 78px; left: 8px; bottom: 8px; }
-  .viewer-body { grid-template-columns: minmax(0, 1fr); grid-template-rows: minmax(0, 1fr) 40%; }
-  .sidebar { border-left: 0; border-top: 1px solid var(--rule); }
+  /* Phones: the viewer scrolls; the map gets most of the screen with its controls
+     right under it, and the players and events come after. */
+  .viewer { display: flex; flex-direction: column; overflow-y: auto; }
+  .viewer-body { display: contents; }
+  .viewer-info { order: 0; }
+  .stage { order: 1; flex: none; height: 60svh; }
+  .controls { order: 2; }
+  .sidebar { order: 3; flex: none; height: 70svh; border-left: 0; border-top: 1px solid var(--rule); }
   .controls { flex-wrap: wrap; }
   .controls .seek-track { order: 10; flex-basis: 100%; }
 }
+
+/* Share menu next to the match actions: opens below its button, on the left. */
+.share-menu .share-panel { left: 0; right: auto; min-width: 170px; }

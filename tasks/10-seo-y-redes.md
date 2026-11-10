@@ -23,7 +23,7 @@ Hoy las páginas de jugador (`/p/<id>`) y de partida (`/m/<id>`) se arman en el 
   - Partida: mapa en miniatura (minimapa isométrico), jugadores con civilización y color, duración y ganador.
   - Jugador: nombre, país, ELO por modo, civilizaciones más jugadas.
   - Cacheadas por partida y por jugador.
-- [ ] Botones de compartir: copiar enlace (ya), WhatsApp, X, Reddit, Telegram; en móvil, el menú nativo (`navigator.share`)
+- [x] Botón "Compartir" en `/m/` y en `/r/` públicos (`ShareMenu`): menú nativo del celular si existe (`navigator.share`), copiar enlace, WhatsApp, X, Reddit y Telegram con enlaces simples (no se carga nada de esos sitios)
 - [x] Abrir en un momento: `?t=<segundos>` en `/m/` y `/r/`
 - [x] Compartir **un momento** desde el visor: botón "Compartir momento" que copia el enlace con `?t=` (sin el `#k=` de gestión)
 - [ ] Vista previa de Discord bien armada (Discord usa Open Graph; probar color de tema y tamaño de imagen)

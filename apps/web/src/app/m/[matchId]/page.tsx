@@ -5,6 +5,7 @@ import { useParams, useSearchParams } from "next/navigation";
 import { Suspense, useEffect, useState } from "react";
 import type { ReplayData } from "@aoe2-replays/shared";
 import { ReplayViewer } from "@/components/ReplayViewer";
+import { ShareMenu } from "@/components/ShareMenu";
 import { errorText, useI18n } from "@/i18n/I18nProvider";
 
 type Load =
@@ -71,23 +72,16 @@ function MatchView() {
     );
   }
 
+  const shareTitle = (data: ReplayData) =>
+    t.share.matchTitle(data.map.name ?? t.common.mapNumber(data.map.id), data.game.players.map((p) => p.name).join(", "));
   const actions = (
     <div className="replay-actions">
       <span className="badge public">{t.match.online}</span>
-      <button
-        type="button"
-        onClick={async () => {
-          const url = `${location.origin}/m/${matchId}`;
-          try {
-            await navigator.clipboard.writeText(url);
-            setNotice(t.common.linkCopied);
-          } catch {
-            window.prompt(t.common.copyPrompt, url);
-          }
-        }}
-      >
-        {t.common.copyLink}
-      </button>
+      <ShareMenu
+        url={`${location.origin}/m/${matchId}`}
+        title={shareTitle(load.data)}
+        onCopied={() => setNotice(t.common.linkCopied)}
+      />
       {profileId && <Link href={`/p/${profileId}`}>{t.common.backToProfile}</Link>}
       {notice && <p className="notice">{notice}</p>}
     </div>

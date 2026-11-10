@@ -4,14 +4,20 @@ import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import type { ReplayData } from "@aoe2-replays/shared";
+import { useAccount } from "@/components/AccountProvider";
 import { ReplayViewer } from "@/components/ReplayViewer";
-import { useI18n } from "@/i18n/I18nProvider";
+import { ShareMenu } from "@/components/ShareMenu";
+import { errorText, useI18n } from "@/i18n/I18nProvider";
 import { forgetOwned, rememberOwned, tokenFor } from "@/lib/owned";
 
 type Meta = {
   id: string;
   isPublic: boolean;
   canManage: boolean;
+  /** The management token sent is right (false when managing through the account). */
+  tokenValid: boolean;
+  /** It belongs to the logged-in account. */
+  inAccount: boolean;
   fileName: string | null;
   createdAt: string;
   expiresAt: string | null;
@@ -38,6 +44,7 @@ export default function ReplayPage() {
   const { id } = useParams<{ id: string }>();
   const router = useRouter();
   const { t } = useI18n();
+  const account = useAccount();
   const [load, setLoad] = useState<Load>({ kind: "loading" });
   const [notice, setNotice] = useState<string | null>(null);
 
@@ -57,7 +64,7 @@ export default function ReplayPage() {
         const dataRes = await fetch(`/api/replays/${id}/data`, { headers });
         if (!dataRes.ok) throw new Error(`HTTP ${dataRes.status}`);
         const data: ReplayData = await dataRes.json();
-        if (meta.canManage && token) {
+        if (meta.tokenValid && token) {
           rememberOwned({
             id,
             token,
@@ -67,7 +74,7 @@ export default function ReplayPage() {
             createdAt: meta.createdAt,
           });
         }
-        if (!cancelled) setLoad({ kind: "ready", meta, data, token: meta.canManage ? token : null });
+        if (!cancelled) setLoad({ kind: "ready", meta, data, token: meta.tokenValid ? token : null });
       } catch (err) {
         if (!cancelled) setLoad({ kind: "error", message: err instanceof Error ? err.message : String(err) });
       }
@@ -121,6 +128,21 @@ export default function ReplayPage() {
     setNotice(isPublic ? t.replay.nowPublic : t.replay.nowPrivate);
   }
 
+  async function saveToAccount() {
+    const res = await fetch(`/api/replays/${meta.id}`, {
+      method: "PATCH",
+      headers: { "content-type": "application/json", "x-manage-token": token ?? "" },
+      body: JSON.stringify({ saveToAccount: true }),
+    });
+    if (!res.ok) {
+      const json = await res.json().catch(() => null);
+      setNotice(errorText(t, json?.error?.code, res.status));
+      return;
+    }
+    setLoad({ ...load, meta: { ...meta, inAccount: true, expiresAt: null } } as Load);
+    setNotice(t.replay.savedToAccount);
+  }
+
   async function remove() {
     if (!window.confirm(t.replay.confirmRemove)) return;
     const res = await fetch(`/api/replays/${meta.id}`, {
@@ -136,30 +158,46 @@ export default function ReplayPage() {
   }
 
   const shareUrl = `${location.origin}/r/${meta.id}`;
+  const share = meta.isPublic && (
+    <ShareMenu
+      url={shareUrl}
+      title={t.share.matchTitle(data.map.name ?? t.common.mapNumber(data.map.id), data.game.players.map((p) => p.name).join(", "))}
+      onCopied={() => setNotice(t.replay.shareCopied)}
+    />
+  );
   const actions = meta.canManage ? (
     <div className="replay-actions">
       <span className={`badge${meta.isPublic ? " public" : ""}`}>{meta.isPublic ? t.replay.public : t.replay.private}</span>
+      {meta.inAccount && <span className="badge">{t.replay.inAccount}</span>}
       <button type="button" onClick={() => setPublic(!meta.isPublic)}>
         {meta.isPublic ? t.replay.makePrivate : t.replay.makePublic}
       </button>
-      {meta.isPublic && (
-        <button type="button" onClick={() => copy(shareUrl, t.replay.shareCopied)}>
-          {t.common.copyLink}
+      {share}
+      {token && (
+        <button
+          type="button"
+          title={t.replay.manageTitle}
+          onClick={() => copy(`${shareUrl}#k=${token}`, t.replay.manageCopied)}
+        >
+          {t.replay.manageLink}
         </button>
       )}
-      <button
-        type="button"
-        title={t.replay.manageTitle}
-        onClick={() => copy(`${shareUrl}#k=${token}`, t.replay.manageCopied)}
-      >
-        {t.replay.manageLink}
-      </button>
+      {account && token && !meta.inAccount && (
+        <button type="button" title={t.replay.saveToAccountTitle} onClick={saveToAccount}>
+          {t.replay.saveToAccount}
+        </button>
+      )}
       <button type="button" onClick={remove}>
         {t.replay.remove}
       </button>
       {meta.expiresAt && (
         <span className="muted small">{t.replay.expires(new Date(meta.expiresAt).toLocaleDateString(t.common.dateLocale))}</span>
       )}
+      {notice && <p className="notice">{notice}</p>}
+    </div>
+  ) : share ? (
+    <div className="replay-actions">
+      {share}
       {notice && <p className="notice">{notice}</p>}
     </div>
   ) : null;

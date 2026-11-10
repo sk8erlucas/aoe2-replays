@@ -5,3 +5,4 @@ export { AGES, analyze, bucketSize } from './analysis.js';
 export { buildAiContext } from './aiContext.js';
 export { SpriteSet } from './sprites.js';
 export { TerrainSet } from './terrain.js';
+export { FpsWatch, QUALITIES, QUALITY_SETTINGS, lowerQuality, pickQuality } from './quality.js';

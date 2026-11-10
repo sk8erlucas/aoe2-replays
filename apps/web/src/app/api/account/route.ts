@@ -70,7 +70,7 @@ export async function DELETE(request: Request) {
     if (!(await verifyPassword(password, session.user.passwordHash))) {
       return apiError(403, "wrong_password", "Wrong password.");
     }
-    // Sessions, follows and notifications go with it (ON DELETE CASCADE).
+    // Sessions, follows, notifications and replays go with it (ON DELETE CASCADE).
     await db().user.delete({ where: { id: session.user.id } });
     return clearSessionCookie(NextResponse.json({ ok: true }));
   });

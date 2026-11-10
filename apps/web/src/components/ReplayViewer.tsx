@@ -3,15 +3,21 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { ReplayData } from "@aoe2-replays/shared";
 import {
+  FpsWatch,
   PLAYER_COLORS,
+  QUALITIES,
+  QUALITY_SETTINGS,
   Renderer,
   Replay,
   SpriteSet,
   TerrainSet,
   formatTime,
+  lowerQuality,
+  pickQuality,
   type FollowMode,
   type LogEntry,
   type GameData,
+  type Quality,
   type State,
 } from "@aoe2-replays/viewer";
 import { AiContextPanel } from "@/components/AiContextPanel";
@@ -41,6 +47,31 @@ function loadTerrain() {
 }
 
 type Tooltip = { x: number; y: number; text: string } | null;
+
+// Graphics quality: "auto" picks one for the device and drops a level if playback stutters.
+type QualityPref = "auto" | Quality;
+const QUALITY_KEY = "viewer-quality";
+
+function readQualityPref(): QualityPref {
+  try {
+    const v = localStorage.getItem(QUALITY_KEY);
+    if (v === "auto" || QUALITIES.includes(v as Quality)) return v as QualityPref;
+  } catch {
+    // storage blocked: use the default
+  }
+  return "auto";
+}
+
+function deviceQuality(): Quality {
+  const nav = navigator as Navigator & { deviceMemory?: number };
+  return pickQuality({
+    deviceMemory: nav.deviceMemory,
+    cores: nav.hardwareConcurrency,
+    screenWidth: Math.min(screen.width, screen.height),
+    coarse: matchMedia("(pointer: coarse)").matches,
+    reducedMotion: matchMedia("(prefers-reduced-motion: reduce)").matches,
+  });
+}
 
 // Unit train locations, speeds and build times from the game (tools/sprites).
 let gameDataPromise: Promise<GameData | null> | null = null;
@@ -88,8 +119,47 @@ function ReplayStage({ data, actions, gameData }: ViewerProps & { gameData: Game
   const [follow, setFollowState] = useState<FollowMode>("auto");
   const [tooltip, setTooltip] = useState<Tooltip>(null);
   const [tab, setTab] = useState<"events" | "chat" | "analysis" | "ai">("events");
-  const [shareNotice, setShareNotice] = useState<string | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
   const [logPlayer, setLogPlayer] = useState<number | null>(null); // events of one player, or all
+  const [qualityPref, setQualityPref] = useState<QualityPref>(readQualityPref);
+  const [autoQuality, setAutoQuality] = useState<Quality>(deviceQuality);
+  const quality: Quality = qualityPref === "auto" ? autoQuality : qualityPref;
+  const qualityRef = useRef(quality);
+  qualityRef.current = quality;
+  const [loadingGraphics, setLoadingGraphics] = useState(false);
+
+  function showNotice(text: string) {
+    setNotice(text);
+    setTimeout(() => setNotice((n) => (n === text ? null : n)), 4000);
+  }
+
+  function chooseQuality(pref: QualityPref) {
+    setQualityPref(pref);
+    try {
+      localStorage.setItem(QUALITY_KEY, pref);
+    } catch {
+      // storage blocked: the choice lasts this visit
+    }
+  }
+
+  // Playback too slow (auto only) or drawing failed (out of memory): one level down.
+  const lowerRef = useRef<(failed: boolean) => void>(() => {});
+  lowerRef.current = (failed) => {
+    const next = lowerQuality(quality);
+    if (!next || (!failed && qualityPref !== "auto")) return;
+    if (qualityPref === "auto") setAutoQuality(next);
+    else setQualityPref(next); // not saved: the next visit tries the chosen level again
+    showNotice(tr.viewer.qualityLowered(tr.viewer.qualities[next]));
+  };
+
+  useEffect(() => {
+    const r = renderer.current;
+    if (!r || r.quality === quality) return;
+    r.setQuality(quality).then(() => {
+      dirty.current = true;
+    });
+    dirty.current = true;
+  }, [quality]);
 
   // Link to this match at the current second. The #fragment is left out: on a
   // private upload it carries the management token.
@@ -98,8 +168,7 @@ function ReplayStage({ data, actions, gameData }: ViewerProps & { gameData: Game
     const url = `${location.origin}${location.pathname}?t=${seconds}`;
     try {
       await navigator.clipboard.writeText(url);
-      setShareNotice(tr.viewer.momentCopied(formatTime(seconds * 1000)));
-      setTimeout(() => setShareNotice(null), 3000);
+      showNotice(tr.viewer.momentCopied(formatTime(seconds * 1000)));
     } catch {
       window.prompt(tr.common.copyPrompt, url);
     }
@@ -143,8 +212,9 @@ function ReplayStage({ data, actions, gameData }: ViewerProps & { gameData: Game
 
   useEffect(() => {
     const el = canvas.current!;
-    const r = new Renderer(el, replay);
+    const r = new Renderer(el, replay, { quality: qualityRef.current });
     renderer.current = r;
+    let spriteSet: SpriteSet | null = null;
     time.current = 0;
     r.resize();
     // Start close, like in-game, on the first action (or the first player's start).
@@ -158,12 +228,15 @@ function ReplayStage({ data, actions, gameData }: ViewerProps & { gameData: Game
     dirty.current = true;
     loadSprites().then(async (sprites) => {
       if (!sprites) return;
-      await sprites.loadCivs(replay.players.map((p) => p.civilization_id));
+      // Below high quality one civilization's buildings stand in for everyone's.
+      const shared = QUALITY_SETTINGS[qualityRef.current].sharedCiv;
+      await sprites.loadCivs([...replay.players.map((p) => p.civilization_id), shared]);
       if (renderer.current !== r) return;
       sprites.onLoad = () => {
         dirty.current = true;
       };
       r.setSprites(sprites);
+      spriteSet = sprites;
       dirty.current = true;
     });
     loadTerrain()
@@ -187,8 +260,11 @@ function ReplayStage({ data, actions, gameData }: ViewerProps & { gameData: Game
 
     let raf = 0;
     let last = performance.now();
+    let lastDraw = 0;
     let shownT = -1;
     let shownTip = "";
+    let shownLoading = false;
+    const fps = new FpsWatch();
     const frame = (now: number) => {
       const dt = Math.min(100, now - last);
       last = now;
@@ -197,11 +273,23 @@ function ReplayStage({ data, actions, gameData }: ViewerProps & { gameData: Game
         if (time.current >= replay.duration) setPlaying(false);
       }
       const moving = r.update(dt, time.current);
-      if (playingRef.current || moving || dirty.current) {
+      // Lower qualities cap the frame rate (phones: battery and heat).
+      const targetFps = QUALITY_SETTINGS[r.quality].fps;
+      const due = now - lastDraw >= 1000 / targetFps - 2;
+      if ((playingRef.current || moving || dirty.current) && due) {
+        if (playingRef.current && lastDraw && fps.frame(now - lastDraw, targetFps)) lowerRef.current(false);
+        else if (!playingRef.current) fps.reset();
+        lastDraw = now;
         dirty.current = false;
         const state = replay.stateAt(time.current);
-        r.draw(state, { pointer: pointer.current });
-        if (minimap.current) r.drawMinimap(minimap.current, state);
+        try {
+          r.draw(state, { pointer: pointer.current });
+          if (minimap.current) r.drawMinimap(minimap.current, state);
+        } catch (err) {
+          // Most likely out of memory on a phone: a lighter quality instead of a frozen map.
+          console.error(err);
+          lowerRef.current(true);
+        }
         const tip = tooltipFor(state);
         const key = tip ? `${tip.text}@${tip.x},${tip.y}` : "";
         if (key !== shownTip) {
@@ -213,6 +301,11 @@ function ReplayStage({ data, actions, gameData }: ViewerProps & { gameData: Game
       if (Math.abs(time.current - shownT) >= 100 || (time.current !== shownT && !playingRef.current)) {
         shownT = time.current;
         setT(time.current);
+      }
+      const busy = (spriteSet?.pending ?? 0) > 0;
+      if (busy !== shownLoading) {
+        shownLoading = busy;
+        setLoadingGraphics(busy);
       }
       raf = requestAnimationFrame(frame);
     };
@@ -307,6 +400,8 @@ function ReplayStage({ data, actions, gameData }: ViewerProps & { gameData: Game
   }, [replay, trackWidth]);
 
   const drag = useRef<{ x: number; y: number } | null>(null);
+  const touches = useRef(new Map<number, { x: number; y: number }>()); // pointers down, for pinch zoom
+  const pinch = useRef<number | null>(null); // last distance between two fingers
   const logText = (e: LogEntry) => {
     const l = tr.viewer.log;
     if (e.kind === "chat") return `: “${e.text ?? ""}”`;
@@ -335,11 +430,24 @@ function ReplayStage({ data, actions, gameData }: ViewerProps & { gameData: Game
             ref={canvas}
             aria-label={tr.viewer.mapLabel}
             onPointerDown={(e) => {
-              drag.current = { x: e.clientX, y: e.clientY };
+              touches.current.set(e.pointerId, { x: e.nativeEvent.offsetX, y: e.nativeEvent.offsetY });
+              drag.current = touches.current.size === 1 ? { x: e.clientX, y: e.clientY } : null;
               e.currentTarget.setPointerCapture(e.pointerId);
             }}
             onPointerMove={(e) => {
               pointer.current = { x: e.nativeEvent.offsetX, y: e.nativeEvent.offsetY };
+              // Two fingers: pinch to zoom around their midpoint.
+              if (touches.current.has(e.pointerId)) touches.current.set(e.pointerId, pointer.current);
+              if (touches.current.size === 2 && renderer.current) {
+                const [a, b] = [...touches.current.values()];
+                const dist = Math.hypot(a.x - b.x, a.y - b.y);
+                if (pinch.current && dist > 0) {
+                  renderer.current.zoomAt((a.x + b.x) / 2, (a.y + b.y) / 2, dist / pinch.current);
+                }
+                pinch.current = dist;
+                dirty.current = true;
+                return;
+              }
               if (drag.current && renderer.current) {
                 const dx = e.clientX - drag.current.x;
                 const dy = e.clientY - drag.current.y;
@@ -352,7 +460,14 @@ function ReplayStage({ data, actions, gameData }: ViewerProps & { gameData: Game
               }
               dirty.current = true;
             }}
-            onPointerUp={() => {
+            onPointerUp={(e) => {
+              touches.current.delete(e.pointerId);
+              pinch.current = null;
+              drag.current = null;
+            }}
+            onPointerCancel={(e) => {
+              touches.current.delete(e.pointerId);
+              pinch.current = null;
               drag.current = null;
             }}
             onPointerLeave={() => {
@@ -372,6 +487,11 @@ function ReplayStage({ data, actions, gameData }: ViewerProps & { gameData: Game
               r.centerOn(x, y);
             }}
           />
+          {loadingGraphics && (
+            <div className="stage-loading" role="status">
+              {tr.viewer.loadingGraphics}
+            </div>
+          )}
           {tooltip && (
             <div className="tooltip" style={{ left: tooltip.x + 14, top: tooltip.y + 14 }}>
               {tooltip.text}
@@ -458,9 +578,9 @@ function ReplayStage({ data, actions, gameData }: ViewerProps & { gameData: Game
         <button type="button" className="share-moment" onClick={shareMoment} title={tr.viewer.shareMomentHint}>
           {tr.viewer.shareMoment}
         </button>
-        {shareNotice && (
+        {notice && (
           <span className="share-notice" role="status">
-            {shareNotice}
+            {notice}
           </span>
         )}
         <span className="clock">
@@ -519,6 +639,17 @@ function ReplayStage({ data, actions, gameData }: ViewerProps & { gameData: Game
             {players.map((p) => (
               <option key={p.number} value={p.number}>
                 {tr.viewer.follow(p.name)}
+              </option>
+            ))}
+          </select>
+        </label>
+        <label title={tr.viewer.qualityHint}>
+          {tr.viewer.quality}{" "}
+          <select value={qualityPref} onChange={(e) => chooseQuality(e.target.value as QualityPref)}>
+            <option value="auto">{tr.viewer.qualityAuto(tr.viewer.qualities[autoQuality])}</option>
+            {QUALITIES.map((q) => (
+              <option key={q} value={q}>
+                {tr.viewer.qualities[q]}
               </option>
             ))}
           </select>

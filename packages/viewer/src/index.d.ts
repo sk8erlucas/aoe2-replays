@@ -100,7 +100,7 @@ export class Replay {
 export type FollowMode = null | 'auto' | number;
 
 export class Renderer {
-  constructor(canvas: HTMLCanvasElement, replay: Replay);
+  constructor(canvas: HTMLCanvasElement, replay: Replay, options?: { quality?: Quality });
   follow: FollowMode;
   resize(): void;
   /** Whole map in view (switches to free camera). */
@@ -122,6 +122,46 @@ export class Renderer {
   setSprites(sprites: SpriteSet | null): void;
   /** Game terrain textures; resolves when the ground is rebuilt with them (redraw then). */
   setTerrain(terrain: TerrainSet | null): Promise<void>;
+  /** Current graphics quality ('high' by default). */
+  readonly quality: Quality;
+  /** Changes the graphics quality; resolves when the ground is rebuilt (redraw then). */
+  setQuality(quality: Quality): Promise<void>;
+}
+
+export type Quality = 'high' | 'medium' | 'low';
+export const QUALITIES: Quality[];
+export interface QualitySettings {
+  maxDpr: number;
+  fps: number;
+  terrain: boolean;
+  blend: boolean;
+  water: boolean;
+  chunkK: number;
+  chunks: number;
+  baseK: number;
+  lowRes: boolean;
+  sharedCiv: number | null;
+  rubble: boolean;
+  jobs: boolean;
+  frameStep: number;
+  atlasMB: number;
+}
+export const QUALITY_SETTINGS: Record<Quality, QualitySettings>;
+/** Quality for a device, from what the browser reports (all fields optional). */
+export function pickQuality(device?: {
+  deviceMemory?: number;
+  cores?: number;
+  screenWidth?: number;
+  coarse?: boolean;
+  reducedMotion?: boolean;
+}): Quality;
+/** The next lower quality, or null at the lowest. */
+export function lowerQuality(quality: Quality): Quality | null;
+/** Says when the frame rate stays too low while playing (drop a quality level then). */
+export class FpsWatch {
+  constructor(options?: { windowMs?: number; ratio?: number });
+  reset(): void;
+  frame(dtMs: number, targetFps: number): boolean;
 }
 
 /** Game terrain textures in apps/web/public/sprites/terrain (made by tools/sprites/terrain.py). */
@@ -136,6 +176,10 @@ export class SpriteSet {
   loadCivs(civIds: Array<number | null | undefined>): Promise<void>;
   /** Called whenever an atlas page finishes loading (redraw then). */
   onLoad: (() => void) | null;
+  /** Atlas images requested and still downloading. */
+  readonly pending: number;
+  /** Decoded size of the loaded atlas pages, in bytes (approximate). */
+  readonly decodedBytes: number;
 }
 
 export function formatTime(ms: number): string;

@@ -68,3 +68,12 @@ export function rejectCrossSite(request: Request): Response | null {
 }
 
 export const unauthorized = () => apiError(401, "unauthorized", "You need to log in.");
+
+/**
+ * The logged-in user's id for a request that changes something, only when it
+ * comes from this site: a cross-site request is treated as anonymous.
+ */
+export async function sameSiteUserId(request: Request): Promise<string | null> {
+  if (rejectCrossSite(request)) return null;
+  return (await currentSession())?.user.id ?? null;
+}

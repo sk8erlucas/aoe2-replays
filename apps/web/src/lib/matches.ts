@@ -4,8 +4,12 @@ import { db } from "@/lib/db";
 import { MAX_UPLOAD_BYTES, parseReplay } from "@/lib/parser";
 import { storedGame } from "@/lib/replays";
 import { extractReplay, replayUrl } from "@/lib/replayZip";
+import { envInt } from "@/lib/validate";
 
 const MAX_ZIP_BYTES = MAX_UPLOAD_BYTES;
+// Anyone can make the site store a match (~230 KB), so the ones nobody opens go.
+const MATCH_TTL_DAYS = envInt("MATCH_TTL_DAYS", 90);
+const DAY_MS = 86400_000;
 
 export { isMatchId } from "@/lib/validate";
 
@@ -25,7 +29,22 @@ export async function findMatch(id: string) {
 
 export async function matchData(id: string) {
   const row = await db().match.findUnique({ where: { id }, select: { data: true } });
+  if (row) void markViewed(id);
   return row?.data ?? null;
+}
+
+// At most one write per match and day: the condition makes repeat views a no-op.
+async function markViewed(id: string) {
+  const now = new Date();
+  await db()
+    .match.updateMany({ where: { id, lastViewedAt: { lt: new Date(now.getTime() - DAY_MS) } }, data: { lastViewedAt: now } })
+    .catch((err) => console.error("could not mark match as viewed", err));
+}
+
+/** Deletes matches nobody opened in MATCH_TTL_DAYS (0 keeps them forever). */
+export async function deleteStaleMatches() {
+  if (MATCH_TTL_DAYS <= 0) return;
+  await db().match.deleteMany({ where: { lastViewedAt: { lt: new Date(Date.now() - MATCH_TTL_DAYS * DAY_MS) } } });
 }
 
 async function readCapped(res: Response, max: number): Promise<Uint8Array> {
