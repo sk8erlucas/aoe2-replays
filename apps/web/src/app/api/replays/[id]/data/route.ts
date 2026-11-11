@@ -1,4 +1,4 @@
-// GET: the parser JSON, sent as stored (gzip) so the browser inflates it.
+// GET: the parser JSON, sent as stored (gzip); the page inflates it (lib/replayJson.ts).
 import { currentSession } from "@/lib/auth";
 import { apiError, withErrors } from "@/lib/http";
 import { TOKEN_HEADER, findVisibleReplay, replayData } from "@/lib/replays";
@@ -12,8 +12,8 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
     if (!found || !data) return apiError(404, "not_found", "The replay does not exist, has expired or is private.");
     return new Response(Buffer.from(data), {
       headers: {
-        "content-type": "application/json",
-        "content-encoding": "gzip",
+        // Not Content-Encoding: Next 16 drops it from route responses. The page inflates it.
+        "content-type": "application/gzip",
         // Never cache in shared caches: a replay can be made private again.
         "cache-control": found.replay.isPublic ? "private, max-age=60" : "private, no-store",
       },

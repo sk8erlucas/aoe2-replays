@@ -1,4 +1,4 @@
-// GET: the parser JSON of a stored match, sent as stored (gzip).
+// GET: the parser JSON of a stored match, sent as stored (gzip); the page inflates it (lib/replayJson.ts).
 import { apiError, withErrors } from "@/lib/http";
 import { isMatchId, matchData } from "@/lib/matches";
 
@@ -9,8 +9,8 @@ export async function GET(_request: Request, { params }: { params: Promise<{ mat
     if (!data) return apiError(404, "not_found", "This match has not been downloaded yet.");
     return new Response(Buffer.from(data), {
       headers: {
-        "content-type": "application/json",
-        "content-encoding": "gzip",
+        // Not Content-Encoding: Next 16 drops it from route responses. The page inflates it.
+        "content-type": "application/gzip",
         // Matches never change once stored.
         "cache-control": "public, max-age=86400, immutable",
       },
