@@ -15,6 +15,7 @@ type AccountReplay = {
   isPublic: boolean;
   createdAt: string;
   fileName: string | null;
+  title: string | null;
   mapName: string | null;
   durationMs: number;
 };
@@ -216,9 +217,10 @@ export function AccountSettings() {
               {replays.map((r) => (
                 <li key={r.id}>
                   <span>
-                    <Link href={`/r/${r.id}`}>{r.mapName ?? t.common.unknownMap}</Link>
+                    <Link href={`/r/${r.id}`}>{r.title ?? r.mapName ?? t.common.unknownMap}</Link>
                     <span className="muted small">
                       {" "}
+                      {r.title && `· ${r.mapName ?? t.common.unknownMap} `}
                       · {formatTime(r.durationMs)} · {new Date(r.createdAt).toLocaleDateString(t.common.dateLocale)} ·{" "}
                       {r.isPublic ? t.replay.public : t.replay.private}
                     </span>

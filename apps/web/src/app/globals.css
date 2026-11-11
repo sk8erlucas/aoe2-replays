@@ -1005,3 +1005,42 @@ button.danger:hover:not(:disabled) { background: var(--danger); color: var(--pap
 
 /* Share menu next to the match actions: opens below its button, on the left. */
 .share-menu .share-panel { left: 0; right: auto; min-width: 170px; }
+
+/* Favorites */
+.favorites { max-width: 820px; padding-top: 40px; padding-bottom: 40px; }
+.favorites h1 { text-transform: uppercase; margin: 0 0 6px; }
+.favorites .notice { margin: 10px 0; font-size: 13px; }
+.notice-box {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 16px;
+  margin: 14px 0;
+  padding: 10px 14px;
+  border: 1px solid var(--bronze-dark);
+  border-radius: 4px;
+  background: var(--paper-raised);
+}
+.favorite-list a { font-weight: 600; }
+.moment-time {
+  display: inline-block;
+  margin-right: 8px;
+  font-variant-numeric: tabular-nums;
+  color: var(--bronze-dark);
+}
+.favorite-button[aria-pressed="true"] { border-color: var(--bronze); }
+.favorite-button span { color: var(--bronze-dark); }
+.replay-title { font-family: var(--font-display); }
+/* Opens upwards, like the shortcuts help. */
+.save-moment .moment-panel {
+  top: auto;
+  bottom: calc(100% + 6px);
+  left: 0;
+  right: auto;
+  display: grid;
+  gap: 8px;
+  width: min(300px, calc(100vw - 32px));
+  padding: 12px 14px;
+}
+.moment-panel input { width: 100%; }
+.moment-panel button { justify-self: start; }

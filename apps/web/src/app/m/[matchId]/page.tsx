@@ -5,6 +5,7 @@ import { useParams, useSearchParams } from "next/navigation";
 import { Suspense, useEffect, useMemo, useState } from "react";
 import type { ReplayData } from "@aoe2-replays/shared";
 import { ReplayViewer, type PlayerExtra } from "@/components/ReplayViewer";
+import { FavoriteButton } from "@/components/FavoriteButton";
 import { ShareMenu } from "@/components/ShareMenu";
 import { errorText, useI18n } from "@/i18n/I18nProvider";
 import type { MatchSummary } from "@/lib/aoe2companion";
@@ -111,20 +112,20 @@ function MatchView() {
 
   const shareTitle = (data: ReplayData) =>
     t.share.matchTitle(data.map.name ?? t.common.mapNumber(data.map.id), data.game.players.map((p) => p.name).join(", "));
+  const title = shareTitle(load.data);
   const actions = (
     <div className="replay-actions">
       <span className="badge public">{t.match.online}</span>
       {info?.leaderboardName && <span className="muted">{info.leaderboardName}</span>}
-      <ShareMenu
-        url={`${location.origin}/m/${matchId}`}
-        title={shareTitle(load.data)}
-        onCopied={() => setNotice(t.common.linkCopied)}
-      />
+      <FavoriteButton kind="match" targetId={matchId} title={title} onNotice={setNotice} />
+      <ShareMenu url={`${location.origin}/m/${matchId}`} title={title} onCopied={() => setNotice(t.common.linkCopied)} />
       {profileId && <Link href={`/p/${profileId}`}>{t.common.backToProfile}</Link>}
       {notice && <p className="notice">{notice}</p>}
     </div>
   );
-  return <ReplayViewer data={load.data} actions={actions} extras={extras} />;
+  return (
+    <ReplayViewer data={load.data} actions={actions} extras={extras} moment={{ kind: "match", targetId: matchId, title }} />
+  );
 }
 
 export default function MatchPage() {

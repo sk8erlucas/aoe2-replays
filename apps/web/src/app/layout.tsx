@@ -74,6 +74,7 @@ export default async function RootLayout({ children }: Readonly<{ children: Reac
               </Link>
               <nav className="topnav">
                 <Link href="/#upload">{t.nav.upload}</Link>
+                <Link href="/favorites">{t.nav.favorites}</Link>
                 <a href={REPO_URL}>GitHub</a>
               </nav>
               <PlayerSearch />

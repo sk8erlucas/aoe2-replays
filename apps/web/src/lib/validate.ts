@@ -18,6 +18,32 @@ export function parsePage(v: string | null, max = 50): number | null {
   return n >= 1 && n <= max ? n : null;
 }
 
+export const NOTE_MAX = 140;
+export const TITLE_MAX = 80;
+/** Longest match a saved moment can point into: a day of game time. */
+const MAX_SECOND = 86_400;
+
+/** One line of user text: no control characters (NUL can't go in Postgres), trimmed, at most `max`. */
+export function cleanLine(v: unknown, max: number): string | null {
+  if (typeof v !== "string") return null;
+  const line = v.replace(/[\u0000-\u001f\u007f]+/g, " ").trim();
+  return line.length > 0 && line.length <= max ? line : null;
+}
+
+export type FavoriteKind = "match" | "replay";
+export type FavoriteInput = { kind: FavoriteKind; targetId: string; second: number; note: string | null };
+
+/** A favorite or saved moment from a request body, or null if anything is off. */
+export function parseFavorite(body: Record<string, unknown> | null): FavoriteInput | null {
+  if (!body) return null;
+  const { kind, targetId, second = 0, note = null } = body;
+  if (kind !== "match" && kind !== "replay") return null;
+  if (typeof targetId !== "string" || !(kind === "match" ? isMatchId(targetId) : isReplayId(targetId))) return null;
+  if (typeof second !== "number" || !Number.isInteger(second) || second < 0 || second > MAX_SECOND) return null;
+  if (note !== null && note !== "" && cleanLine(note, NOTE_MAX) === null) return null;
+  return { kind, targetId, second, note: note ? cleanLine(note, NOTE_MAX) : null };
+}
+
 /** Session cookies carry 32 random bytes in base64url. */
 export const isSessionToken = (v: string) => /^[\w-]{43}$/.test(v);
 

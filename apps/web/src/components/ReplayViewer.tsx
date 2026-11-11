@@ -23,6 +23,7 @@ import {
 import { AiContextPanel } from "@/components/AiContextPanel";
 import { AnalysisPanel } from "@/components/AnalysisPanel";
 import { ChatPanel } from "@/components/ChatPanel";
+import { SaveMoment, type MomentTarget } from "@/components/SaveMoment";
 import { usePopup } from "@/components/usePopup";
 import { useI18n } from "@/i18n/I18nProvider";
 
@@ -86,7 +87,13 @@ function loadGameData() {
 /** Data from outside the replay (online matches): rating and result per player number. */
 export type PlayerExtra = { rating: number | null; ratingDiff: number | null; won: boolean | null };
 
-type ViewerProps = { data: ReplayData; actions?: React.ReactNode; extras?: Map<number, PlayerExtra> };
+type ViewerProps = {
+  data: ReplayData;
+  actions?: React.ReactNode;
+  extras?: Map<number, PlayerExtra>;
+  /** Where saved moments point to; without it there is no "Save moment". */
+  moment?: MomentTarget;
+};
 
 export function ReplayViewer(props: ViewerProps) {
   const { t } = useI18n();
@@ -105,7 +112,7 @@ export function ReplayViewer(props: ViewerProps) {
   return <ReplayStage {...props} gameData={gameData} />;
 }
 
-function ReplayStage({ data, actions, extras, gameData }: ViewerProps & { gameData: GameData | null }) {
+function ReplayStage({ data, actions, extras, moment, gameData }: ViewerProps & { gameData: GameData | null }) {
   const { t: tr } = useI18n();
   const replay = useMemo(() => new Replay(data, { gameData }), [data, gameData]);
   const canvas = useRef<HTMLCanvasElement>(null);
@@ -626,6 +633,7 @@ function ReplayStage({ data, actions, extras, gameData }: ViewerProps & { gameDa
         <button type="button" className="share-moment" onClick={shareMoment} title={tr.viewer.shareMomentHint}>
           {tr.viewer.shareMoment}
         </button>
+        {moment && <SaveMoment {...moment} now={() => time.current} onNotice={showNotice} />}
         {notice && (
           <span className="share-notice" role="status">
             {notice}

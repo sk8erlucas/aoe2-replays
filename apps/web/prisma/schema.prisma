@@ -25,6 +25,8 @@ model Replay {
   user            User?     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   fileName      String? @map("file_name")
+  /// Name the owner gave it ("Final vs Juan"). Only shown to whoever can manage it.
+  title         String?
   schemaVersion Int     @map("schema_version")
   gameVersion   String  @map("game_version")
   saveVersion   Float   @map("save_version")
@@ -96,6 +98,7 @@ model User {
   follows       FollowedPlayer[]
   notifications Notification[]
   replays       Replay[]
+  favorites     Favorite[]
 
   @@map("users")
 }
@@ -144,4 +147,26 @@ model Notification {
   @@index([userId, finishedAt(sort: Desc)])
   @@index([finishedAt])
   @@map("notifications")
+}
+
+/// A starred match or replay (`second` = 0) or a saved moment in one, with an
+/// optional note. Only for things the user could see when saving them.
+model Favorite {
+  /// 64 random bits, base64url.
+  id        String   @id
+  userId    String   @map("user_id")
+  /// "match" (online, /m/<id>) or "replay" (uploaded, /r/<id>).
+  kind      String
+  targetId  String   @map("target_id")
+  /// Seconds into the match; 0 is the whole match.
+  second    Int      @default(0)
+  note      String?
+  /// Map and players when it was saved, so the list needs no game data.
+  title     String
+  createdAt DateTime @default(now()) @map("created_at")
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, kind, targetId, second])
+  @@index([userId, createdAt(sort: Desc)])
+  @@map("favorites")
 }
