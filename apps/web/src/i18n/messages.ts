@@ -420,7 +420,7 @@ const es = {
       },
       {
         title: "Servicios externos",
-        text: "Los datos de jugadores y partidas vienen de aoe2companion y los replays online de Microsoft. Las consultas las hace nuestro servidor con el número de perfil del jugador; no les pasamos tu email ni tu IP. Una partida online abierta acá se guarda hasta 90 días después de la última vez que alguien la mira.",
+        text: "Los datos de jugadores y partidas vienen de aoe2companion y los replays online de Microsoft. Las consultas las hace nuestro servidor con el número de perfil del jugador; no les pasamos tu email ni tu IP. Una partida online abierta acá se guarda hasta 90 días después de la última vez que alguien la mira. Las imágenes de vista previa de los enlaces pueden pedirle a Google Fonts las letras que no tenemos (por ejemplo, de nombres en chino): solo se envían esos caracteres, nada sobre vos.",
       },
       {
         title: "Cómo borrar tus datos",
@@ -885,7 +885,7 @@ const en: Messages = {
       },
       {
         title: "Outside services",
-        text: "Player and match data come from aoe2companion, and online replays from Microsoft. Our server makes those requests using the player's profile number; we don't pass them your email or IP. An online match opened here is kept until 90 days after the last time someone watches it.",
+        text: "Player and match data come from aoe2companion, and online replays from Microsoft. Our server makes those requests using the player's profile number; we don't pass them your email or IP. An online match opened here is kept until 90 days after the last time someone watches it. Link preview images may ask Google Fonts for letters we don't have (for example, in Chinese names): only those characters are sent, nothing about you.",
       },
       {
         title: "How to delete your data",
