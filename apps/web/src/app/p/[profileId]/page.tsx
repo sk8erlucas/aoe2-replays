@@ -12,7 +12,10 @@ import type { MatchSummary, Profile } from "@/lib/aoe2companion";
 type Load =
   | { kind: "loading" }
   | { kind: "error"; message: string }
-  | { kind: "ready"; profile: Profile; matches: MatchSummary[] };
+  | { kind: "ready"; profile: Profile; matches: MatchSummary[]; page: number; more: boolean };
+
+// aoe2companion pages hold 20 matches; a shorter page is the last one.
+const PAGE_SIZE = 20;
 
 function duration(m: MatchSummary) {
   if (!m.started || !m.finished) return null;
@@ -30,6 +33,8 @@ export default function ProfilePage() {
   const id = Number(profileId);
   const { t } = useI18n();
   const [load, setLoad] = useState<Load>({ kind: "loading" });
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [moreError, setMoreError] = useState<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -38,7 +43,9 @@ export default function ProfilePage() {
       .then(async (res) => {
         const json = await res.json().catch(() => null);
         if (!res.ok) throw new Error(errorText(t, json?.error?.code, res.status));
-        if (!cancelled) setLoad({ kind: "ready", profile: json.profile, matches: json.matches });
+        if (!cancelled) {
+          setLoad({ kind: "ready", profile: json.profile, matches: json.matches, page: 1, more: json.matches.length >= PAGE_SIZE });
+        }
       })
       .catch((err: Error) => {
         if (!cancelled) setLoad({ kind: "error", message: err.message });
@@ -60,6 +67,33 @@ export default function ProfilePage() {
   }
 
   const { profile, matches } = load;
+
+  async function loadMore() {
+    if (load.kind !== "ready") return;
+    const page = load.page + 1;
+    setLoadingMore(true);
+    setMoreError(null);
+    try {
+      const res = await fetch(`/api/players/${profileId}?page=${page}`);
+      const json = await res.json().catch(() => null);
+      if (!res.ok) throw new Error(errorText(t, json?.error?.code, res.status));
+      const next = json.matches as MatchSummary[];
+      setLoad((l) => {
+        if (l.kind !== "ready") return l;
+        const seen = new Set(l.matches.map((m) => m.matchId));
+        return {
+          ...l,
+          matches: [...l.matches, ...next.filter((m) => !seen.has(m.matchId))],
+          page,
+          more: next.length >= PAGE_SIZE && page < 50,
+        };
+      });
+    } catch (err) {
+      setMoreError(err instanceof Error ? err.message : t.errors.network);
+    } finally {
+      setLoadingMore(false);
+    }
+  }
   const ratings = profile.ratings.filter((r) => r.rating != null);
 
   return (
@@ -161,6 +195,14 @@ export default function ProfilePage() {
               );
             })}
           </ul>
+          {load.more && (
+            <div className="load-more">
+              <button type="button" onClick={loadMore} disabled={loadingMore}>
+                {loadingMore ? t.common.loading : t.profile.loadMore}
+              </button>
+              {moreError && <p className="muted">{moreError}</p>}
+            </div>
+          )}
         </section>
         <p className="muted small source-note">
           <a href="https://www.aoe2companion.com">aoe2companion</a> · {t.profile.sources}

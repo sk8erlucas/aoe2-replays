@@ -6,7 +6,7 @@ import { test } from "node:test";
 import { zipSync } from "fflate";
 import { allow, hasRoom } from "../src/lib/ratelimit.ts";
 import { MAX_REPLAY_BYTES, extractReplay, replayUrl } from "../src/lib/replayZip.ts";
-import { envInt, isManageToken, isMatchId, isReplayId } from "../src/lib/validate.ts";
+import { envInt, isManageToken, isMatchId, isReplayId, parsePage } from "../src/lib/validate.ts";
 
 test("replay ids and tokens match what the server generates", () => {
   for (let i = 0; i < 50; i++) {
@@ -104,4 +104,12 @@ test("an entry lying about its size can't inflate past what it declared", () => 
     return; // refusing it outright is fine too
   }
   assert.ok(out === null || out.length <= 16, `inflated ${out?.length} bytes`);
+});
+
+test("list pages: 1 by default, small positive numbers only", () => {
+  assert.equal(parsePage(null), 1);
+  assert.equal(parsePage(""), 1);
+  assert.equal(parsePage("3"), 3);
+  assert.equal(parsePage("50"), 50);
+  for (const bad of ["0", "51", "-1", "1.5", "abc", "1e2", "9999", " 2"]) assert.equal(parsePage(bad), null, bad);
 });

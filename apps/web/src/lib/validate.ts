@@ -10,6 +10,14 @@ export const isManageToken = (v: string) => /^[\w-]{32}$/.test(v);
 /** Match and profile ids from Microsoft / aoe2companion: plain numbers. */
 export const isMatchId = (v: string) => /^\d{1,12}$/.test(v);
 
+/** A list page number from the query string: 1 when missing, null when invalid or past `max`. */
+export function parsePage(v: string | null, max = 50): number | null {
+  if (v == null || v === "") return 1;
+  if (!/^\d{1,3}$/.test(v)) return null;
+  const n = Number(v);
+  return n >= 1 && n <= max ? n : null;
+}
+
 /** Session cookies carry 32 random bytes in base64url. */
 export const isSessionToken = (v: string) => /^[\w-]{43}$/.test(v);
 

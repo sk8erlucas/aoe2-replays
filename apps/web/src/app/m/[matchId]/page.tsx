@@ -2,16 +2,28 @@
 
 import Link from "next/link";
 import { useParams, useSearchParams } from "next/navigation";
-import { Suspense, useEffect, useState } from "react";
+import { Suspense, useEffect, useMemo, useState } from "react";
 import type { ReplayData } from "@aoe2-replays/shared";
-import { ReplayViewer } from "@/components/ReplayViewer";
+import { ReplayViewer, type PlayerExtra } from "@/components/ReplayViewer";
 import { ShareMenu } from "@/components/ShareMenu";
 import { errorText, useI18n } from "@/i18n/I18nProvider";
+import type { MatchSummary } from "@/lib/aoe2companion";
 
 type Load =
   | { kind: "loading"; message: string }
   | { kind: "error"; message: string }
   | { kind: "ready"; data: ReplayData };
+
+/** Ratings and results from aoe2companion, by the replay's player numbers (profile id, else name). */
+function playerExtras(data: ReplayData, info: MatchSummary): Map<number, PlayerExtra> {
+  const all = info.teams.flatMap((t) => t.players);
+  const out = new Map<number, PlayerExtra>();
+  for (const p of data.game.players) {
+    const hit = all.find((x) => p.profile_id != null && x.profileId === p.profile_id) ?? all.find((x) => x.name === p.name);
+    if (hit) out.set(p.number, { rating: hit.rating, ratingDiff: hit.ratingDiff, won: hit.won });
+  }
+  return out;
+}
 
 function MatchView() {
   const { matchId } = useParams<{ matchId: string }>();
@@ -19,6 +31,22 @@ function MatchView() {
   const { t } = useI18n();
   const [load, setLoad] = useState<Load>({ kind: "loading", message: t.match.loading });
   const [notice, setNotice] = useState<string | null>(null);
+  const [info, setInfo] = useState<MatchSummary | null>(null);
+
+  // Optional: the match plays fine without it.
+  useEffect(() => {
+    let cancelled = false;
+    fetch(`/api/matches/${matchId}/info`)
+      .then((res) => (res.ok ? (res.json() as Promise<MatchSummary>) : null))
+      .then((m) => {
+        if (!cancelled) setInfo(m);
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, [matchId]);
+  const extras = useMemo(() => (info && load.kind === "ready" ? playerExtras(load.data, info) : undefined), [info, load]);
 
   useEffect(() => {
     let cancelled = false;
@@ -27,13 +55,22 @@ function MatchView() {
     };
     (async () => {
       let res = await fetch(`/api/matches/${matchId}`);
+      // A shared link without ?p=: any player of the match has a copy of the replay.
+      let source = profileId;
+      if (res.status === 404 && !source) {
+        const known = await fetch(`/api/matches/${matchId}/info`)
+          .then((r) => (r.ok ? (r.json() as Promise<MatchSummary>) : null))
+          .catch(() => null);
+        const ids = known?.teams.flatMap((team) => team.players.map((p) => p.profileId)) ?? [];
+        source = ids.find((id) => id != null)?.toString() ?? null;
+      }
       // First visit: download the replay from Microsoft through our server.
-      if (res.status === 404 && profileId) {
+      if (res.status === 404 && source) {
         set({ kind: "loading", message: t.match.downloading });
         res = await fetch(`/api/matches/${matchId}`, {
           method: "POST",
           headers: { "content-type": "application/json" },
-          body: JSON.stringify({ profileId }),
+          body: JSON.stringify({ profileId: source }),
         });
       }
       if (!res.ok) {
@@ -77,6 +114,7 @@ function MatchView() {
   const actions = (
     <div className="replay-actions">
       <span className="badge public">{t.match.online}</span>
+      {info?.leaderboardName && <span className="muted">{info.leaderboardName}</span>}
       <ShareMenu
         url={`${location.origin}/m/${matchId}`}
         title={shareTitle(load.data)}
@@ -86,7 +124,7 @@ function MatchView() {
       {notice && <p className="notice">{notice}</p>}
     </div>
   );
-  return <ReplayViewer data={load.data} actions={actions} />;
+  return <ReplayViewer data={load.data} actions={actions} extras={extras} />;
 }
 
 export default function MatchPage() {

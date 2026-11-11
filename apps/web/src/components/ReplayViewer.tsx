@@ -23,6 +23,7 @@ import {
 import { AiContextPanel } from "@/components/AiContextPanel";
 import { AnalysisPanel } from "@/components/AnalysisPanel";
 import { ChatPanel } from "@/components/ChatPanel";
+import { usePopup } from "@/components/usePopup";
 import { useI18n } from "@/i18n/I18nProvider";
 
 const SPEEDS = [1, 2, 4, 8, 16];
@@ -82,7 +83,10 @@ function loadGameData() {
   return gameDataPromise;
 }
 
-type ViewerProps = { data: ReplayData; actions?: React.ReactNode };
+/** Data from outside the replay (online matches): rating and result per player number. */
+export type PlayerExtra = { rating: number | null; ratingDiff: number | null; won: boolean | null };
+
+type ViewerProps = { data: ReplayData; actions?: React.ReactNode; extras?: Map<number, PlayerExtra> };
 
 export function ReplayViewer(props: ViewerProps) {
   const { t } = useI18n();
@@ -101,7 +105,7 @@ export function ReplayViewer(props: ViewerProps) {
   return <ReplayStage {...props} gameData={gameData} />;
 }
 
-function ReplayStage({ data, actions, gameData }: ViewerProps & { gameData: GameData | null }) {
+function ReplayStage({ data, actions, extras, gameData }: ViewerProps & { gameData: GameData | null }) {
   const { t: tr } = useI18n();
   const replay = useMemo(() => new Replay(data, { gameData }), [data, gameData]);
   const canvas = useRef<HTMLCanvasElement>(null);
@@ -127,6 +131,7 @@ function ReplayStage({ data, actions, gameData }: ViewerProps & { gameData: Game
   const qualityRef = useRef(quality);
   qualityRef.current = quality;
   const [loadingGraphics, setLoadingGraphics] = useState(false);
+  const { open: helpOpen, setOpen: setHelpOpen, box: helpBox } = usePopup();
 
   function showNotice(text: string) {
     setNotice(text);
@@ -323,16 +328,39 @@ function ReplayStage({ data, actions, gameData }: ViewerProps & { gameData: Game
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLSelectElement) return;
+      const target = e.target;
+      if (
+        target instanceof HTMLInputElement ||
+        target instanceof HTMLSelectElement ||
+        target instanceof HTMLTextAreaElement ||
+        (target instanceof HTMLElement && target.isContentEditable)
+      ) {
+        return;
+      }
+      // Leave the browser's own shortcuts (Ctrl+F, Ctrl+1...) alone.
+      if (e.ctrlKey || e.metaKey || e.altKey) return;
       const r = renderer.current;
-      if (e.code === "Space") {
+      const jump = e.shiftKey ? 30_000 : 5000;
+      const digit = /^Digit([1-8])$/.exec(e.code);
+      if (e.key === "?") setHelpOpen((o) => !o);
+      else if (e.code === "Escape") setHelpOpen(false);
+      else if (e.code === "Space") {
         e.preventDefault();
         togglePlay();
-      } else if (e.code === "ArrowRight") seek(time.current + 5000);
-      else if (e.code === "ArrowLeft") seek(time.current - 5000);
+      } else if (e.code === "ArrowRight") seek(time.current + jump);
+      else if (e.code === "ArrowLeft") seek(time.current - jump);
+      else if (e.code === "Home") seek(0);
+      else if (e.code === "End") seek(replay.duration);
+      else if (e.code === "BracketRight" || e.code === "Period") changeSpeed(1);
+      else if (e.code === "BracketLeft" || e.code === "Comma") changeSpeed(-1);
       else if (e.code === "Equal" || e.code === "NumpadAdd") zoom(1.25);
       else if (e.code === "Minus" || e.code === "NumpadSubtract") zoom(0.8);
-      else if (r) {
+      else if (e.code === "KeyF") setFollow("auto");
+      else if (e.code === "KeyM") showFullMap();
+      else if (digit) {
+        const p = players[Number(digit[1]) - 1];
+        if (p) setFollow(p.number);
+      } else if (r) {
         const step = 120;
         const pan = ({ KeyW: [0, step], KeyS: [0, -step], KeyA: [step, 0], KeyD: [-step, 0] } as Record<string, number[]>)[e.code];
         if (pan) {
@@ -361,6 +389,20 @@ function ReplayStage({ data, actions, gameData }: ViewerProps & { gameData: Game
     const el = canvas.current;
     if (!r || !el) return;
     r.zoomAt(el.clientWidth / 2, el.clientHeight / 2, factor);
+    dirty.current = true;
+  }
+
+  function changeSpeed(step: number) {
+    const i = SPEEDS.indexOf(speed);
+    const next = SPEEDS[Math.max(0, Math.min(SPEEDS.length - 1, (i < 0 ? 1 : i) + step))];
+    if (next === speed) return;
+    setSpeed(next);
+    showNotice(tr.viewer.speedNotice(next));
+  }
+
+  function showFullMap() {
+    renderer.current?.fit();
+    setFollowState(null);
     dirty.current = true;
   }
 
@@ -504,6 +546,7 @@ function ReplayStage({ data, actions, gameData }: ViewerProps & { gameData: Game
           <ul className="players">
             {players.map((p) => {
               const out = resigned.has(p.number);
+              const extra = extras?.get(p.number);
               return (
                 <li key={p.number} className={out ? "resigned" : ""}>
                   <button type="button" className="player-jump" title={tr.viewer.goToTown(p.name)} onClick={() => goToTown(p.number)}>
@@ -512,7 +555,12 @@ function ReplayStage({ data, actions, gameData }: ViewerProps & { gameData: Game
                     <span className="meta">
                       {p.civilization ?? `civ ${p.civilization_id}`} · {tr.viewer.team(p.team_id)}
                       {out && tr.viewer.resignedAt(formatTime(replay.resignedAt.get(p.number) ?? 0))}
+                      {extra?.rating != null && ` · ${extra.rating}`}
+                      {extra?.ratingDiff ? ` (${extra.ratingDiff > 0 ? "+" : ""}${extra.ratingDiff})` : ""}
                     </span>
+                    {extra?.won != null && (
+                      <span className={`result ${extra.won ? "win" : "loss"}`}>{extra.won ? tr.profile.win : tr.profile.loss}</span>
+                    )}
                   </button>
                 </li>
               );
@@ -661,17 +709,36 @@ function ReplayStage({ data, actions, gameData }: ViewerProps & { gameData: Game
           <button type="button" onClick={() => zoom(0.8)} aria-label={tr.viewer.zoomOut} title={`${tr.viewer.zoomOut} (−)`}>
             −
           </button>
-          <button
-            type="button"
-            onClick={() => {
-              renderer.current?.fit();
-              setFollowState(null);
-              dirty.current = true;
-            }}
-            title={tr.viewer.fullMapTitle}
-          >
+          <button type="button" onClick={showFullMap} title={`${tr.viewer.fullMapTitle} (M)`}>
             {tr.viewer.fullMap}
           </button>
+        </div>
+        <div className="topbar-popup keys-help" ref={helpBox}>
+          <button
+            type="button"
+            aria-expanded={helpOpen}
+            aria-haspopup="dialog"
+            onClick={() => setHelpOpen(!helpOpen)}
+            aria-label={tr.viewer.keys.title}
+            title={`${tr.viewer.keys.title} (?)`}
+          >
+            ?
+          </button>
+          {helpOpen && (
+            <div className="topbar-panel keys-panel" role="dialog" aria-label={tr.viewer.keys.title}>
+              <h2>{tr.viewer.keys.title}</h2>
+              <dl>
+                {tr.viewer.keys.list.map(([keys, what]) => (
+                  <div key={keys}>
+                    <dt>
+                      <kbd>{keys}</kbd>
+                    </dt>
+                    <dd>{what}</dd>
+                  </div>
+                ))}
+              </dl>
+            </div>
+          )}
         </div>
       </footer>
     </div>

@@ -206,6 +206,7 @@ const es = {
     win: "Victoria",
     loss: "Derrota",
     watch: "Ver partida",
+    loadMore: "Ver más partidas",
     sources: "Datos de jugadores y partidas: aoe2companion. Replays: servicio público de Microsoft.",
   },
   share: {
@@ -252,6 +253,22 @@ const es = {
     qualityAuto: (level: string) => `Automática (${level})`,
     qualityLowered: (level: string) => `Se bajaron los gráficos a ${level} para que la reproducción ande fluida.`,
     loadingGraphics: "Cargando gráficos…",
+    speedNotice: (x: number) => `Velocidad ${x}×`,
+    keys: {
+      title: "Atajos de teclado",
+      list: [
+        ["Espacio", "Reproducir o pausar"],
+        ["← →", "5 segundos atrás o adelante (con Mayús, 30)"],
+        ["Inicio / Fin", "Ir al principio o al final"],
+        ["[ ]", "Bajar o subir la velocidad"],
+        ["+ −", "Acercar o alejar"],
+        ["W A S D", "Mover la cámara"],
+        ["F", "Cámara automática (sigue la acción)"],
+        ["1 – 8", "Seguir a un jugador (en el orden de la lista)"],
+        ["M", "Ver el mapa completo"],
+        ["?", "Mostrar u ocultar esta ayuda"],
+      ] as Array<[string, string]>,
+    },
     log: {
       build: (name: string, segments?: number) => (segments ? `construye ${name} (${segments} tramos)` : `construye ${name}`),
       queue: (amount: number, name: string) => `entrena ${amount}× ${name}`,
@@ -615,6 +632,7 @@ const en: Messages = {
     win: "Win",
     loss: "Loss",
     watch: "Watch match",
+    loadMore: "Load more matches",
     sources: "Player and match data: aoe2companion. Replays: Microsoft's public service.",
   },
   share: {
@@ -661,6 +679,22 @@ const en: Messages = {
     qualityAuto: (level: string) => `Auto (${level})`,
     qualityLowered: (level: string) => `Graphics lowered to ${level} so playback stays smooth.`,
     loadingGraphics: "Loading graphics…",
+    speedNotice: (x: number) => `Speed ${x}×`,
+    keys: {
+      title: "Keyboard shortcuts",
+      list: [
+        ["Space", "Play or pause"],
+        ["← →", "5 seconds back or forward (with Shift, 30)"],
+        ["Home / End", "Go to the start or the end"],
+        ["[ ]", "Slower or faster"],
+        ["+ −", "Zoom in or out"],
+        ["W A S D", "Move the camera"],
+        ["F", "Automatic camera (follows the action)"],
+        ["1 – 8", "Follow a player (in list order)"],
+        ["M", "Show the whole map"],
+        ["?", "Show or hide this help"],
+      ] as Array<[string, string]>,
+    },
     log: {
       build: (name: string, segments?: number) => (segments ? `builds ${name} (${segments} pieces)` : `builds ${name}`),
       queue: (amount: number, name: string) => `trains ${amount}× ${name}`,
