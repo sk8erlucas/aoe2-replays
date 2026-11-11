@@ -1,14 +1,15 @@
 "use client";
 
 import type { ReplayData } from "@aoe2-replays/shared";
-import { PLAYER_COLORS, formatTime } from "@aoe2-replays/viewer";
+import { PLAYER_COLORS, formatTime, playerChat } from "@aoe2-replays/viewer";
 import { useI18n } from "@/i18n/I18nProvider";
 
-// Chat is user content: it is only ever rendered as text.
+// Chat is user content: it is only ever rendered as text. The game's own notices
+// (age-ups), which the replay stores as chat, are left out: they show in the analysis.
 export function ChatPanel({ data, t, onSeek }: { data: ReplayData; t: number; onSeek: (ms: number) => void }) {
   const { t: tr } = useI18n();
   const players = new Map(data.game.players.map((p) => [p.number, p]));
-  const chat = data.chat ?? [];
+  const chat = playerChat(data);
 
   if (chat.length === 0) return <p className="muted">{tr.chat.empty}</p>;
 

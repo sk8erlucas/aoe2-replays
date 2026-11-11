@@ -2,6 +2,7 @@
 // Player names and chat come from the replay, so they only go through textContent.
 
 import { Replay, formatTime } from '../../../packages/viewer/src/engine.js';
+import { toGameOrientation } from '../../../packages/viewer/src/orientation.js';
 import { PLAYER_COLORS } from '../../../packages/viewer/src/palette.js';
 import { Renderer } from '../../../packages/viewer/src/render.js';
 import { SpriteSet } from '../../../packages/viewer/src/sprites.js';
@@ -40,7 +41,7 @@ function el(tag, props = {}, children = []) {
 }
 
 async function load(data) {
-  replay = new Replay(data, { gameData: await gameDataReady });
+  replay = new Replay(toGameOrientation(data), { gameData: await gameDataReady });
   renderer = new Renderer(els.canvas, replay);
   renderer.resize();
   const first = replay.latestFocus(0) ?? replay.focusOf(replay.players[0]?.number ?? 1, 0);

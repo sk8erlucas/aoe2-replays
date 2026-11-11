@@ -3,6 +3,8 @@ export { Renderer } from './render.js';
 export * from './palette.js';
 export { AGES, analyze, bucketSize } from './analysis.js';
 export { buildAiContext } from './aiContext.js';
+export { isSystemMessage, playerChat } from './notices.js';
+export { toGameOrientation } from './orientation.js';
 export { SpriteSet } from './sprites.js';
 export { TerrainSet } from './terrain.js';
 export { FpsWatch, QUALITIES, QUALITY_SETTINGS, lowerQuality, pickQuality } from './quality.js';

@@ -4,6 +4,8 @@
 // Projection (2:1 isometric): a tile is 2 units wide and 1 unit tall.
 //   u = x - y            (screen right)
 //   v = (x + y) / 2 - z  (screen down; z = ground height)
+// on the engine's map, which is the game's turned so that this shows it as the
+// game does: game (0, 0) at the left corner (see orientation.js).
 
 import { ANIMAL_COLOR, PLAYER_COLORS, RESOURCE_COLORS, TERRAIN_COLORS } from './palette.js';
 import { QUALITY_SETTINGS } from './quality.js';
@@ -1030,8 +1032,9 @@ export class Renderer {
     // Foundations show the finished building faded until construction ends.
     this.ctx.globalAlpha = this.#alpha(b.player, state) * (progress < 1 ? 0.4 + progress * 0.3 : 1);
     for (const [key, dx, dy, ox = 0, oy = 0] of parts) {
-      // Annex offsets (town center parts) run along the other diagonal: (dx, dy) is world (-dx, +dy).
-      const [sx, sy] = this.toScreen(b.x - dx, b.y + dy);
+      // Annex offsets (town center parts) are in game tiles; the engine's map is
+      // turned (see orientation.js), so game (dx, dy) is (dy, -dx) here.
+      const [sx, sy] = this.toScreen(b.x + dy, b.y - dx);
       this.#blit(keyOf(key), sx, sy, color, ox, oy);
     }
     this.ctx.globalAlpha = 1;

@@ -354,6 +354,45 @@ button.primary:hover:not(:disabled), .button-primary:hover { border-color: var(-
 .feature-stats dt { font-family: var(--font-display); font-weight: 700; letter-spacing: 0.06em; color: var(--bronze-dark); }
 .feature-stats dd { margin: 2px 0 0; color: var(--ink-soft); }
 
+/* Tools (sibling projects) */
+.tools .section-lead { text-align: center; color: var(--ink-soft); margin: -8px auto 28px; max-width: 620px; line-height: 1.6; }
+.tool-showcase {
+  display: grid;
+  grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr);
+  gap: 32px;
+  align-items: center;
+  padding: 24px;
+}
+.tool-video video {
+  width: 100%;
+  height: auto;
+  display: block;
+  background: var(--charcoal);
+  border: 3px solid var(--charcoal);
+  border-radius: 4px;
+  box-shadow: 0 8px 24px rgba(47, 38, 32, 0.25);
+}
+.tool-video p { margin: 6px 0 0; }
+.tool-body h3 { font-size: 26px; text-transform: uppercase; margin: 0 0 6px; }
+.tool-tagline { font-size: 18px; line-height: 1.5; margin: 0 0 14px; color: var(--ink); }
+.tool-points { margin: 0 0 12px; padding-left: 20px; display: grid; gap: 8px; color: var(--ink-soft); line-height: 1.5; }
+.tool-points li::marker { content: "◆  "; color: var(--bronze); font-size: 11px; }
+.tool-body > p { margin: 0 0 14px; }
+.tool-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 12px 18px; margin: 4px 0 14px; }
+.tool-actions a:not([class]) { font-weight: 600; }
+.button-secondary {
+  display: inline-block;
+  padding: 8px 22px;
+  border: 1px solid var(--rule);
+  border-radius: 999px;
+  background: var(--paper-raised);
+  color: var(--ink);
+  font-weight: 600;
+  text-decoration: none;
+}
+.button-secondary:hover { border-color: var(--bronze); }
+.tools-more { text-align: center; margin: 24px 0 0; }
+
 /* FAQ */
 .faq details { border-bottom: 1px solid var(--rule); padding: 12px 4px; }
 .faq details:first-child { border-top: 1px solid var(--rule); }
@@ -706,6 +745,10 @@ button.link:hover { color: var(--bronze); }
 
 /* AI context tab */
 .ai-panel > p { margin: 4px 0 12px; line-height: 1.5; }
+.ai-focus { margin: 0 0 14px; }
+.ai-focus label { font-weight: 600; }
+.ai-focus select { margin-left: 4px; }
+.ai-focus p { margin: 4px 0 0; }
 .ai-actions { display: grid; gap: 4px; }
 .ai-actions button { justify-self: start; }
 .ai-actions p { margin: 0 0 10px; }
@@ -984,6 +1027,7 @@ button.danger:hover:not(:disabled) { background: var(--danger); color: var(--pap
   .bell-panel { left: 12px; width: auto; }
   .feature, .feature.reverse { grid-template-columns: minmax(0, 1fr); gap: 16px; }
   .feature.reverse > :first-child { order: 0; }
+  .tool-showcase { grid-template-columns: minmax(0, 1fr); gap: 20px; padding: 16px; }
   .hero-content { padding: 40px 16px 56px; }
   .hero-credit { position: static; padding: 0 16px 20px; }
   .hero-or { display: none; }

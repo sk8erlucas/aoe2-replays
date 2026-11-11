@@ -22,6 +22,7 @@ const es = {
     logout: "Salir",
     accountMenu: "Menú de cuenta",
     favorites: "Favoritos",
+    tools: "Herramientas",
   },
   footer: {
     notice: (rules: string) =>
@@ -292,8 +293,11 @@ const es = {
     player: "Jugador",
     apmTitle: "Acciones por minuto mientras jugó",
     ages: { feudal: "Feudal", castle: "Castillos", imperial: "Imperial" },
-    ageTitle: (age: string) => `Clic en ${age} (llegada estimada en el tooltip)`,
-    reached: (time: string) => `Llegada estimada: ${time}`,
+    ageTitle: (age: string) =>
+      `Llegada a ${age}. Sin ~ es exacta (avisos del juego); con ~ es estimada (clic + tiempo de investigación).`,
+    clicked: (time: string) => `Clic en ${time}`,
+    notReached: "no",
+    notReachedTitle: (time: string) => `Clic en ${time}, pero no llegó: la canceló o terminó la partida antes`,
     activity: "Actividad",
     activityNote: (s: number) => `Acciones cada ${s} s, misma escala para todos.`,
     actions: (n: number) => `${n} acciones`,
@@ -311,7 +315,7 @@ const es = {
     seek: "Ir a este momento",
     kinds: { build: "construye", queue: "entrena", research: "investiga", age: "avanza a" },
     footnote:
-      "Exacto: cuándo se dio cada orden. Estimado: la llegada a cada edad (clic + tiempo de investigación). APM excluye comandos automáticos y se calcula hasta que el jugador abandona.",
+      "Exacto: cuándo se dio cada orden y, en las versiones del juego que guardan sus avisos, la llegada a cada edad. Con ~: llegada estimada (clic + tiempo de investigación). APM excluye comandos automáticos y se calcula hasta que el jugador abandona.",
   },
   ai: {
     intro:
@@ -330,6 +334,34 @@ const es = {
     preview: "Ver el resumen",
     previewLabel: "Resumen de la partida para IA",
     thousands: (n: number) => `${Math.max(1, Math.round(n / 1000))} mil`,
+    focusLabel: "Preguntar por",
+    focusAll: "Toda la partida",
+    focusNote: "Con un jugador elegido, el build order y las órdenes son solo suyos y la IA responde sobre ese jugador.",
+  },
+  tools: {
+    title: "Más herramientas",
+    lead: "Otros proyectos para jugar mejor a Age of Empires II: DE. También gratis y de código abierto.",
+    pageTitle: "Herramientas para Age of Empires II: DE",
+    pageDescription:
+      "AoE2 Overlay: tu build order encima del juego, paso a paso y con reloj, con estrategias de la comunidad. Gratis y de código abierto.",
+    seeAll: "Ver herramientas",
+    overlay: {
+      name: "AoE2 Overlay",
+      tagline: "Tu build order arriba del juego, paso a paso y con reloj.",
+      points: [
+        "Elegís mapa, civilización y rival, y te sugiere estrategias.",
+        "El reloj sigue la velocidad del juego: cada paso aparece a su tiempo, con aldeanos y recursos.",
+        "Transparente: los clics pasan al juego y se maneja con atajos de teclado.",
+        "Estrategias de la comunidad, votadas en la web, que se abren directo en el overlay.",
+      ],
+      safe: "Es una ventana que queda encima del juego: no lee su memoria ni se mete en él.",
+      platform: "Windows 10 y 11 · Gratis · Código abierto (MIT)",
+      download: "Descargar el overlay",
+      strategies: "Explorar estrategias",
+      source: "Código en GitHub",
+      videoLabel: "Demo del overlay: elegir mapa y civilización, jugar con el reloj y ver las estrategias de la comunidad",
+      videoLang: "",
+    },
   },
   auth: {
     loginTitle: "Entrar",
@@ -488,6 +520,7 @@ const en: Messages = {
     logout: "Log out",
     accountMenu: "Account menu",
     favorites: "Favorites",
+    tools: "Tools",
   },
   footer: {
     notice: (rules: string) =>
@@ -758,8 +791,11 @@ const en: Messages = {
     player: "Player",
     apmTitle: "Actions per minute while playing",
     ages: { feudal: "Feudal", castle: "Castle", imperial: "Imperial" },
-    ageTitle: (age: string) => `Clicked up to ${age} (estimated arrival in the tooltip)`,
-    reached: (time: string) => `Estimated arrival: ${time}`,
+    ageTitle: (age: string) =>
+      `Arrival in ${age}. Without ~ it is exact (the game's notices); with ~ it is estimated (click + research time).`,
+    clicked: (time: string) => `Clicked at ${time}`,
+    notReached: "no",
+    notReachedTitle: (time: string) => `Clicked at ${time}, but never reached: cancelled, or the game ended first`,
     activity: "Activity",
     activityNote: (s: number) => `Actions every ${s} s, same scale for everyone.`,
     actions: (n: number) => `${n} actions`,
@@ -777,7 +813,7 @@ const en: Messages = {
     seek: "Go to this moment",
     kinds: { build: "builds", queue: "trains", research: "researches", age: "advances to" },
     footnote:
-      "Exact: when each command was given. Estimated: arrival in each age (click + research time). APM leaves out automatic commands and counts until the player resigns.",
+      "Exact: when each command was given and, in game versions that store their notices, arrival in each age. With ~: estimated arrival (click + research time). APM leaves out automatic commands and counts until the player resigns.",
   },
   ai: {
     intro:
@@ -795,6 +831,34 @@ const en: Messages = {
     preview: "Show the summary",
     previewLabel: "Match summary for AI",
     thousands: (n: number) => `${Math.max(1, Math.round(n / 1000))}k`,
+    focusLabel: "Ask about",
+    focusAll: "The whole match",
+    focusNote: "With a player chosen, the build order and commands are only theirs and the AI answers about that player.",
+  },
+  tools: {
+    title: "More tools",
+    lead: "Other projects to play Age of Empires II: DE better. Also free and open source.",
+    pageTitle: "Tools for Age of Empires II: DE",
+    pageDescription:
+      "AoE2 Overlay: your build order on top of the game, step by step with a clock, with community strategies. Free and open source.",
+    seeAll: "See the tools",
+    overlay: {
+      name: "AoE2 Overlay",
+      tagline: "Your build order on top of the game, step by step, with a clock.",
+      points: [
+        "Pick the map, civilization and opponent, and it suggests strategies.",
+        "The clock follows the game speed: each step shows up on time, with villagers and resources.",
+        "Transparent: clicks go through to the game, and keyboard shortcuts drive it.",
+        "Community strategies, voted on the website, open straight in the overlay.",
+      ],
+      safe: "It is a window that stays on top of the game: it does not read its memory or hook into it.",
+      platform: "Windows 10 and 11 · Free · Open source (MIT)",
+      download: "Download the overlay",
+      strategies: "Browse strategies",
+      source: "Source on GitHub",
+      videoLabel: "Overlay demo: pick a map and civilization, play with the clock and see community strategies",
+      videoLang: "The demo and the overlay are in Spanish for now.",
+    },
   },
   auth: {
     loginTitle: "Log in",

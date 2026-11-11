@@ -3,7 +3,8 @@
 //
 // A replay only stores player commands, so this is an approximation: units walk
 // in a straight line to their target, trained units appear next to the building
-// that trained them, and buildings rise linearly over an estimated build time.
+// that trained them and head for its gather point, and buildings rise linearly
+// over an estimated build time.
 // Resources are consumed by villagers told to gather them, at estimated rates;
 // when one runs out they move on to the nearest of the same kind, like in-game.
 // Orders on animals become hunting or herding, orders on enemies an attack of a
@@ -18,6 +19,7 @@ import {
   DEFAULT_SPEED, DEFAULT_TRAIN_TIME, FADE_MS, FALLEN_AFTER_MS, FOOTPRINTS, GATHER_RATES, HERDABLE, HIDDEN_OBJECT_TYPES,
   ENEMY_BASE_RADIUS, ENEMY_BUILDING_REACH, MEAT_RATE, MELEE_STOP, RANGED_CLASSES, RANGED_STOP, RESOURCE_AMOUNTS, RETARGET_RADIUS, SPEEDS, TRAIN_TIMES,
 } from './palette.js';
+import { isSystemMessage, noticeTimes, settleAgeUps } from './notices.js';
 
 const MOVING_COMMANDS = new Set(['MOVE', 'ORDER', 'BUILD', 'WALL', 'GATHER_POINT']);
 const GATHER_STEP_MS = 1000;
@@ -138,9 +140,9 @@ export class Replay {
     this.resourceById = new Map();
     this.resourceGrid = new Map();
     this.gatherers = new Map(); // unit -> resource being gathered
-    this.pendingGatherers = []; // trained units sent to a resource by a gather point
+    this.exits = []; // trained units about to leave their building: { unit, t, building }
     this.simT = 0;
-    this.ageUps = new Map(); // player -> [{ age, t }] (estimated arrival)
+    this.ageUps = new Map(); // player -> [{ age, t }] (arrival: exact with the game's notices, else estimated)
 
     // Object IDs are handed out in creation order: (id, time) pairs that are known
     // place an unknown ID in time, to bind it to the unit trained around then.
@@ -148,6 +150,7 @@ export class Replay {
 
     this.#loadInitialObjects();
     this.#processTimeline();
+    this.#settleAgeUps();
     this.#estimateFalls();
     this.#applyResigns();
     this.#enforcePopulationLimit();
@@ -252,6 +255,7 @@ export class Replay {
     const pending = unbound[0];
     if (pending) {
       pending.id = id;
+      pending.lastOrderT = t; // this is its player's order: it no longer walks to the gather point
       this.#anchor(id, Math.min(pending.spawnT, t));
       if (pending.spawnT > t) {
         pending.spawnT = t;
@@ -284,8 +288,9 @@ export class Replay {
         for (const id of ids) {
           const building = this.buildingById.get(id);
           if (!building) continue;
-          building.rally = this.resourceById.get(e.target_id) ?? null;
-          if (e.x != null) (building.rallyPoints ??= []).push({ t: e.t, x: e.x, y: e.y });
+          if (e.x == null) continue;
+          building.rally = { targetId: e.target_id, x: e.x, y: e.y };
+          (building.rallyPoints ??= []).push({ t: e.t, x: e.x, y: e.y });
         }
       }
 
@@ -309,7 +314,7 @@ export class Replay {
         const age = AGE_TECHS[e.technology_id];
         if (age) {
           const list = this.ageUps.get(e.player) ?? [];
-          if (!list.some((a) => a.age === age[0])) list.push({ age: age[0], t: e.t + age[1] * 1000 });
+          if (!list.some((a) => a.age === age[0])) list.push({ age: age[0], clickedAt: e.t, seconds: age[1] });
           this.ageUps.set(e.player, list);
         }
         const tech = this.legend.technologies?.[e.technology_id] ?? `tech #${e.technology_id}`;
@@ -348,7 +353,7 @@ export class Replay {
     }
     this.#advanceGathering(this.duration);
     for (const c of this.data.chat ?? []) {
-      this.log.push({ t: c.t, player: c.player, kind: 'chat', text: c.message });
+      if (!isSystemMessage(c)) this.log.push({ t: c.t, player: c.player, kind: 'chat', text: c.message });
     }
     this.log.sort((a, b) => a.t - b.t);
   }
@@ -407,9 +412,11 @@ export class Replay {
     const reach = RANGED_CLASSES.has(this.game?.units?.[unit.typeId]?.class) ? RANGED_STOP : MELEE_STOP;
     const other = this.unitById.get(e.target_id);
     if (other && other !== unit && other.removedAt > t) {
-      const animal = other.player === 0;
+      const herdable = HERDABLE.test(this.objectName(other.typeId));
+      // Wild animals, and the player's own sheep (herdables belong to whoever found them).
+      const animal = other.player === 0 || (herdable && villager && other.player === unit.player);
       if (!animal && !this.#enemies(unit.player, other.player)) return false;
-      const herd = animal && villager && HERDABLE.test(this.objectName(other.typeId));
+      const herd = animal && villager && herdable;
       const kind = animal && villager ? (herd ? 'shepherd' : 'hunt') : 'attack';
       this.#approach(unit, t, other.positionAt(t), villager ? MELEE_STOP : reach, i);
       let until = kind === 'attack' ? t + ATTACK_HOLD_MS : Infinity;
@@ -484,7 +491,7 @@ export class Replay {
         x: building.x + building.size / 2 + 0.5 + ox, y: building.y + building.size / 2 + 0.5 + oy,
         t: building.queueEnd, approx: true,
       }));
-      if (building.rally) this.pendingGatherers.push({ unit, t: building.queueEnd, resource: building.rally });
+      this.exits.push({ unit, t: building.queueEnd, building });
     }
   }
 
@@ -528,7 +535,6 @@ export class Replay {
   #stopGathering(unit, t) {
     if (t != null) unit.stopActivity(t);
     this.gatherers.delete(unit);
-    this.pendingGatherers = this.pendingGatherers.filter((g) => g.unit !== unit);
   }
 
   /** Closest resource of the same kind that still has something left. */
@@ -559,14 +565,10 @@ export class Replay {
     while (this.simT + GATHER_STEP_MS <= to) {
       this.simT += GATHER_STEP_MS;
       const now = this.simT;
-      if (this.pendingGatherers.length) {
-        const ready = this.pendingGatherers.filter((g) => g.t <= now);
-        this.pendingGatherers = this.pendingGatherers.filter((g) => g.t > now);
-        for (const g of ready) {
-          g.unit.moveTo(now, g.resource.x, g.resource.y);
-          this.gatherers.set(g.unit, g.resource);
-          g.unit.startActivity(now, g.resource.category);
-        }
+      if (this.exits.length) {
+        const ready = this.exits.filter((g) => g.t <= now);
+        this.exits = this.exits.filter((g) => g.t > now);
+        ready.forEach((g, i) => this.#leaveBuilding(g, now, i));
       }
       for (const [unit, resource] of this.gatherers) {
         const resigned = this.resignedAt.get(unit.player);
@@ -592,6 +594,33 @@ export class Replay {
         resource.remaining -= (GATHER_RATES[resource.category] ?? 0) * (GATHER_STEP_MS / 1000);
         if (resource.remaining <= 0) resource.depletedAt = now;
       }
+    }
+  }
+
+  // A trained unit comes out and goes to its building's gather point as it is
+  // now, like in the game: gathers a resource, herds or hunts an animal, helps
+  // build, or waits on the ground spot. Not if its player already ordered it.
+  #leaveBuilding({ unit, building }, now, i) {
+    const rally = building.rally;
+    if (!rally || unit.lastOrderT > -Infinity || unit.removedAt <= now) return;
+    const resource = this.resourceById.get(rally.targetId);
+    if (resource && resource.remaining > 0) {
+      unit.moveTo(now, resource.x, resource.y);
+      this.gatherers.set(unit, resource);
+      unit.startActivity(now, resource.category);
+      return;
+    }
+    if (rally.targetId >= 0 && this.#engage(unit, { t: now, target_id: rally.targetId, x: rally.x, y: rally.y }, i)) return;
+    const [ox, oy] = formationOffset(i);
+    unit.moveTo(now, rally.x + ox, rally.y + oy);
+  }
+
+  // Arrival in each age: the game's notices when the replay has them, else estimated.
+  #settleAgeUps() {
+    const notices = noticeTimes(this.data);
+    for (const [player, clicks] of this.ageUps) {
+      const settled = settleAgeUps(clicks.sort((a, b) => a.age - b.age), notices && (notices.get(player) ?? []));
+      this.ageUps.set(player, settled.filter((a) => a.reachedAt != null).map((a) => ({ age: a.age, t: a.reachedAt })));
     }
   }
 
@@ -713,7 +742,7 @@ export class Replay {
     return found && { x: found.x, y: found.y };
   }
 
-  /** Age (1 Dark .. 4 Imperial) a player is in at time t, estimated from age research. */
+  /** Age (1 Dark .. 4 Imperial) a player is in at time t (exact with the game's notices, else estimated). */
   ageAt(player, t) {
     let age = 1;
     for (const a of this.ageUps.get(player) ?? []) if (a.t <= t && a.age > age) age = a.age;
@@ -721,7 +750,7 @@ export class Replay {
   }
 
   /**
-   * Every estimated age arrival (2 Feudal .. 4 Imperial), sorted by time: for
+   * Every age arrival (2 Feudal .. 4 Imperial), sorted by time: for
    * flags on the timeline. Arrivals after the end of the match or after the
    * player resigned are left out (the research never finished).
    */

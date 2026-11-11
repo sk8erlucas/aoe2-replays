@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { formatTime } from "@aoe2-replays/viewer";
+import { OverlayShowcase } from "@/components/OverlayShowcase";
 import { PlayerSearch } from "@/components/PlayerSearch";
 import { Uploader } from "@/components/Uploader";
 import { useI18n } from "@/i18n/I18nProvider";
@@ -156,6 +157,18 @@ export default function Home() {
             <p>{h.features.ai.text}</p>
           </div>
         </article>
+      </section>
+
+      <section className="section container tools">
+        <h2 className="section-title">{t.tools.title}</h2>
+        <div className="ornament" aria-hidden="true">
+          ◆
+        </div>
+        <p className="section-lead">{t.tools.lead}</p>
+        <OverlayShowcase placement="home" />
+        <p className="tools-more">
+          <Link href="/tools">{t.tools.seeAll}</Link>
+        </p>
       </section>
 
       <section className="section container narrow">

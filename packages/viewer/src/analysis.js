@@ -1,12 +1,16 @@
 // Per-player analysis computed from the parser JSON. No DOM.
 //
 // Exact: when each command was given (APM, build order clicks, age-up clicks).
-// Estimated: when an age was reached (click time + research time; queues,
-// cancellations and missing resources are not visible in a replay).
+// Exact when the replay has the game's age-up notices (DE stores them as chat):
+// when an age was reached, or that it never was. Otherwise estimated as click
+// time + research time (queues, cancellations and missing resources are not
+// visible in the commands).
 
 // Commands that are not deliberate player actions: GAME is game settings (speed,
 // pause) and DE_TRANSFORM comes in bursts on trees (the same tree many times in
 // one millisecond, all game long), so it is not the player either.
+import { noticeTimes, settleAgeUps } from './notices.js';
+
 const NOT_ACTIONS = new Set(['GAME', 'RESIGN', 'DE_TRANSFORM']);
 
 // Units that work rather than fight; everything else trained counts as army.
@@ -41,6 +45,7 @@ export function analyze(data) {
   const duration = data.game.duration_ms;
   const bucket = bucketSize(duration);
   const bucketCount = Math.max(1, Math.ceil(duration / bucket));
+  const notices = noticeTimes(data);
   const resignedAt = new Map();
   for (const e of data.timeline) {
     if (e.type === 'RESIGN' && !resignedAt.has(e.player)) resignedAt.set(e.player, e.t);
@@ -56,7 +61,7 @@ export function analyze(data) {
 
     const buildOrder = [];
     const trained = new Map();
-    const ageUps = [];
+    const clicks = [];
     for (const e of events) {
       if (e.type === 'BUILD') {
         buildOrder.push({ t: e.t, kind: 'build', name: objectName(data, e.building_id) });
@@ -69,8 +74,8 @@ export function analyze(data) {
       } else if (e.type === 'RESEARCH') {
         const name = techName(data, e.technology_id);
         const age = AGES.find((a) => a.tech === name);
-        if (age && !ageUps.some((a) => a.key === age.key)) {
-          ageUps.push({ key: age.key, label: age.label, clickedAt: e.t, reachedAt: e.t + age.seconds * 1000 });
+        if (age && !clicks.some((a) => a.key === age.key)) {
+          clicks.push({ key: age.key, label: age.label, clickedAt: e.t, seconds: age.seconds });
         }
         buildOrder.push({ t: e.t, kind: age ? 'age' : 'research', name });
       }
@@ -89,7 +94,10 @@ export function analyze(data) {
         .sort((a, b) => b.amount - a.amount),
       economy: sum([...trained].filter(([name]) => ECONOMY_UNITS.test(name))),
       military: sum([...trained].filter(([name]) => !ECONOMY_UNITS.test(name))),
-      ageUps,
+      ageUps: settleAgeUps(
+        clicks.sort((a, b) => AGES.findIndex((x) => x.key === a.key) - AGES.findIndex((x) => x.key === b.key)),
+        notices && (notices.get(p.number) ?? []),
+      ).map(({ seconds, ...a }) => a),
     };
   });
 

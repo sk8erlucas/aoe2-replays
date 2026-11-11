@@ -3,6 +3,7 @@
 // about play, so this keeps players, analysis, build orders and commands.
 import { analyze } from './analysis.js';
 import { formatTime } from './engine.js';
+import { playerChat } from './notices.js';
 
 // Commands without a decision worth reading in the summary.
 const NOISE = new Set(['GAME', 'DE_TRANSFORM']);
@@ -27,8 +28,14 @@ const STRINGS = {
     starts: (x, y) => `, empieza en (${x},${y})`,
     ai: ' (IA)',
     summary: '## Resumen por jugador',
-    tableHead: '| Jugador | APM | Feudal (clic) | Castillo (clic) | Imperial (clic) | Activo hasta |',
-    ageNote: 'Llegada estimada a cada edad: clic + 130 s (Feudal), 160 s (Castillo), 190 s (Imperial), si no se canceló.',
+    tableHead: '| Jugador | APM | Feudal | Castillo | Imperial | Activo hasta |',
+    ageCell: (reached, click) => `${reached} (clic ${click})`,
+    notReached: (click) => `no llegó (clic ${click})`,
+    ageNoteExact: 'Llegada a cada edad según los avisos del juego (exacta), con el clic en la investigación entre paréntesis. "No llegó": la canceló o terminó la partida antes.',
+    ageNoteEstimated: 'Llegada a cada edad estimada (~): clic + 130 s (Feudal), 160 s (Castillo), 190 s (Imperial), si no se canceló. El clic en la investigación va entre paréntesis.',
+    focus: (who) => `Foco: ${who}. Las preguntas son sobre este jugador; el resto de la partida es contexto. El build order y las órdenes son solo suyos.`,
+    focusMark: ' ← foco',
+    outroFocus: (who) => `Preguntá lo que quieras sobre cómo jugó ${who} (por ejemplo: qué hizo bien y mal, cómo mejorar su build order, qué le convenía hacer contra sus rivales).`,
     buildOrder: '## Build order por jugador',
     trains: (amount, name) => `entrena ${amount}× ${name}`,
     until: (t) => ` (hasta ${t})`,
@@ -75,8 +82,14 @@ const STRINGS = {
     starts: (x, y) => `, starts at (${x},${y})`,
     ai: ' (AI)',
     summary: '## Per-player summary',
-    tableHead: '| Player | APM | Feudal (click) | Castle (click) | Imperial (click) | Active until |',
-    ageNote: 'Estimated arrival in each age: click + 130 s (Feudal), 160 s (Castle), 190 s (Imperial), unless cancelled.',
+    tableHead: '| Player | APM | Feudal | Castle | Imperial | Active until |',
+    ageCell: (reached, click) => `${reached} (click ${click})`,
+    notReached: (click) => `not reached (click ${click})`,
+    ageNoteExact: 'Arrival in each age from the game\'s notices (exact), with the research click in parentheses. "Not reached": cancelled, or the game ended first.',
+    ageNoteEstimated: 'Estimated arrival in each age (~): click + 130 s (Feudal), 160 s (Castle), 190 s (Imperial), unless cancelled. The research click is in parentheses.',
+    focus: (who) => `Focus: ${who}. Questions are about this player; the rest of the match is context. The build order and commands are only theirs.`,
+    focusMark: ' ← focus',
+    outroFocus: (who) => `Ask anything about how ${who} played (for example: what they did well and badly, how to improve their build order, what they should have done against their opponents).`,
     buildOrder: '## Build order per player',
     trains: (amount, name) => `trains ${amount}× ${name}`,
     until: (t) => ` (until ${t})`,
@@ -138,7 +151,7 @@ function describe(S, data, e) {
   }
 }
 
-function header(S, data) {
+function header(S, data, focus) {
   const g = data.game;
   const teams = [...new Set(g.players.map((p) => p.team_id))].sort((a, b) => a - b);
   const lines = [
@@ -158,7 +171,8 @@ function header(S, data) {
     lines.push(S.team(team));
     for (const p of g.players.filter((x) => x.team_id === team)) {
       const start = p.start ? S.starts(Math.round(p.start.x), Math.round(p.start.y)) : '';
-      lines.push(`- ${S.player}${p.number}: ${p.name} — ${p.civilization ?? `civ ${p.civilization_id}`}${p.is_ai ? S.ai : ''}${start}`);
+      const mark = focus === p.number ? S.focusMark : '';
+      lines.push(`- ${S.player}${p.number}: ${p.name} — ${p.civilization ?? `civ ${p.civilization_id}`}${p.is_ai ? S.ai : ''}${start}${mark}`);
     }
   }
   return lines;
@@ -166,21 +180,27 @@ function header(S, data) {
 
 function analysisLines(S, analysis) {
   const lines = ['', S.summary, S.tableHead, '|---|---|---|---|---|---|'];
+  let exact = false;
   for (const s of analysis.players) {
     const age = (key) => {
       const a = s.ageUps.find((u) => u.key === key);
-      return a ? formatTime(a.clickedAt) : '—';
+      if (!a) return '—';
+      exact ||= a.exact;
+      const click = formatTime(a.clickedAt);
+      if (a.reachedAt == null) return S.notReached(click);
+      return S.ageCell(`${a.exact ? '' : '~'}${formatTime(a.reachedAt)}`, click);
     };
     lines.push(`| ${S.player}${s.number} | ${s.apm ?? '—'} | ${age('feudal')} | ${age('castle')} | ${age('imperial')} | ${formatTime(s.activeMs)} |`);
   }
-  lines.push('', S.ageNote);
+  lines.push('', exact ? S.ageNoteExact : S.ageNoteEstimated);
   return lines;
 }
 
 // Build order with consecutive queues of the same unit merged.
-function buildOrderLines(S, data) {
+function buildOrderLines(S, data, focus) {
   const lines = ['', S.buildOrder];
   for (const p of data.game.players) {
+    if (focus != null && p.number !== focus) continue;
     lines.push('', `### ${S.player}${p.number} ${p.name}`);
     let pending = null;
     const flush = () => {
@@ -211,15 +231,18 @@ function buildOrderLines(S, data) {
   return lines;
 }
 
+// What players wrote: the game's own notices (age-ups) are already in the table.
 function chatLines(S, data) {
-  if (!data.chat?.length) return [];
+  const chat = playerChat(data);
+  if (!chat.length) return [];
   const name = (n) => data.game.players.find((p) => p.number === n)?.name ?? `${S.player}${n}`;
-  return ['', S.chat, ...data.chat.map((c) => `- ${formatTime(c.t)} ${name(c.player)}: ${c.message}`)];
+  return ['', S.chat, ...chat.map((c) => `- ${formatTime(c.t)} ${name(c.player)}: ${c.message}`)];
 }
 
-function commandLines(S, data) {
+function commandLines(S, data, focus) {
   const lines = ['', S.commands, S.commandsNote];
   for (const e of data.timeline) {
+    if (focus != null && e.player !== focus) continue;
     const text = describe(S, data, e);
     if (text) lines.push(`${formatTime(e.t)} ${S.player}${e.player} ${text}`);
   }
@@ -228,20 +251,27 @@ function commandLines(S, data) {
 
 /**
  * Builds the context in `locale` ('es' or 'en'). `full` adds every command
- * (much longer). Returns the text and a rough token estimate (~4 characters per token).
+ * (much longer). `player` (a player number) focuses it on one player: everyone
+ * stays in the lists and the summary table, but the build order and commands
+ * are only theirs and the questions are about them. Returns the text and a
+ * rough token estimate (~4 characters per token).
  */
-export function buildAiContext(data, { full = false, locale = 'es' } = {}) {
+export function buildAiContext(data, { full = false, locale = 'es', player = null } = {}) {
   const S = STRINGS[locale] ?? STRINGS.es;
   const analysis = analyze(data);
+  const target = player == null ? null : data.game.players.find((p) => p.number === player);
+  const focus = target ? target.number : null;
+  const who = target && `${S.player}${target.number} ${target.name}`;
   const lines = [
-    ...header(S, data),
+    ...header(S, data, focus),
+    ...(who ? ['', S.focus(who)] : []),
     ...analysisLines(S, analysis),
-    ...buildOrderLines(S, data),
+    ...buildOrderLines(S, data, focus),
     ...chatLines(S, data),
-    ...(full ? commandLines(S, data) : []),
+    ...(full ? commandLines(S, data, focus) : []),
     '',
     '---',
-    S.outro,
+    who ? S.outroFocus(who) : S.outro,
   ];
   const text = lines.join('\n');
   return { text, tokens: Math.round(text.length / 4) };

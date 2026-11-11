@@ -120,9 +120,19 @@ export function AnalysisPanel({ data, onSeek }: { data: ReplayData; onSeek: (ms:
                 <td>{s?.apm ?? "—"}</td>
                 {AGES.map((a) => {
                   const up = s?.ageUps.find((u) => u.key === a.key);
+                  if (!up) return <td key={a.key}>—</td>;
+                  const clicked = formatTime(up.clickedAt);
+                  if (up.reachedAt == null) {
+                    return (
+                      <td key={a.key} className="muted" title={t.analysis.notReachedTitle(clicked)}>
+                        {t.analysis.notReached}
+                      </td>
+                    );
+                  }
                   return (
-                    <td key={a.key} title={up ? t.analysis.reached(formatTime(up.reachedAt)) : undefined}>
-                      {up ? formatTime(up.clickedAt) : "—"}
+                    <td key={a.key} title={t.analysis.clicked(clicked)}>
+                      {up.exact ? "" : "~"}
+                      {formatTime(up.reachedAt)}
                     </td>
                   );
                 })}

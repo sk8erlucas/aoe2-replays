@@ -19,12 +19,20 @@ Hecho el 09/11/2026: registro y login con email y contraseña, vincular el jugad
 - Next 16 y ESLint 10 en una rama aparte ([12](./12-next-16.md)).
 - **Para probar en el navegador** (no hubo navegador en la sesión; la API se probó contra la base local): la estrella, "Guardar momento", `/favorites` (con y sin cuenta, y pasar los del navegador a la cuenta), la ayuda de atajos y "Renombrar".
 
+## Sesión del 11/11/2026 (tarde): reportes de jugadores
+Detalle en [15-orientacion-chat-y-herramientas](./15-orientacion-chat-y-herramientas.md).
+- **El mapa se veía girado 90°** (reporte confirmado con la guía de RMS y las puertas del juego). Corregido.
+- **Aldeanos quietos en el TC**: los que salían con punto de reunión en una oveja o en el suelo no se movían. Ahora salen hacia el punto de reunión.
+- **Chat con avisos del juego** ("ha avanzado a la Edad Feudal"): fuera del chat; ahora dan la hora exacta de llegada a cada edad.
+- **Resumen para IA por jugador** y sección **Herramientas** (`/tools` y portada) con AoE2 Overlay.
+- **Falta**: rehacer las capturas (`public/images/visor`, `og.jpg`, `docs/screenshots`) porque muestran el mapa con la orientación vieja, probar en el navegador y pedir el replay del reporte de "aldeanos a oro".
+
 ## Próxima sesión
 Quedó a medio revisar o detectado al cerrar la sesión del 29/10/2026:
 - [x] **Capturas desactualizadas** (rehechas el 30/10/2026 con el terreno nuevo): las de `docs/screenshots`, `public/images/visor`, `og.jpg` y la vista previa de GitHub son de antes de las texturas de terreno. Rehacerlas desde la web con la partida de demo anonimizada (necesita Docker con la base local).
 - [ ] **GitHub**: subir la imagen de Settings → Social preview (nueva, con el terreno) y publicar un primer Release (por ejemplo `v0.1.0`).
 - [x] **Muros**: las diagonales estaban invertidas (corregido), los tramos escalonados se ven continuos y las puertas reemplazan los tramos de muro que tapan.
-- [ ] **Puertas**: en `long.json` una puerta "n" (673) cae en un muro horizontal en pantalla; revisar si la orientación de las puertas (`ne`, `se`, `e`, `n`) coincide con la del juego.
+- [x] **Puertas**: la puerta 673 caía en un muro horizontal porque el mapa entero estaba girado 90°. Corregido el 11/11/2026 ([15](./15-orientacion-chat-y-herramientas.md)).
 - [x] **Tipo de unidad mal asignado**: los IDs nuevos se vinculan con la unidad entrenada cuando se creó ese ID (el juego los asigna en orden de creación; los IDs conocidos acotan la ventana de tiempo), y el tipo de orden desempata (construir/recolectar → aldeano, atacar → militar). Hecho en `ee72b67`; si aparecen casos raros, revisar con partidas completas.
 - [x] **Centro urbano incompleto / piezas negras**: los anexos se ubicaban sobre el eje equivocado (corregido: el anexo `(dx, dy)` va en `(-dx, +dy)`).
 - [x] Ovejas con dueño dibujadas como milicia (ahora usan su sprite de animal con el color del jugador).
