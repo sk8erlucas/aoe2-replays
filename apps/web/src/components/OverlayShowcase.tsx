@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { DemoVideo } from "@/components/DemoVideo";
 import { useI18n } from "@/i18n/I18nProvider";
 
 const OVERLAY_SITE = "https://aoe2overlay.sitemaster.com.ar";
@@ -15,40 +15,11 @@ function tracked(path: string, placement: string) {
 export function OverlayShowcase({ placement }: { placement: "home" | "tools" }) {
   const { t } = useI18n();
   const o = t.tools.overlay;
-  const video = useRef<HTMLVideoElement>(null);
-
-  // Plays only while on screen (the file is fetched then, not with the page), and
-  // never on its own for people who ask for reduced motion: they get the controls.
-  useEffect(() => {
-    const v = video.current;
-    if (!v || matchMedia("(prefers-reduced-motion: reduce)").matches) return;
-    const seen = new IntersectionObserver(
-      ([entry]) => {
-        if (entry.isIntersecting) v.play().catch(() => {});
-        else v.pause();
-      },
-      { threshold: 0.4 },
-    );
-    seen.observe(v);
-    return () => seen.disconnect();
-  }, []);
 
   return (
     <article className="tool-showcase frame">
       <div className="tool-video">
-        <video
-          ref={video}
-          src="/videos/aoe2-overlay-demo.mp4"
-          poster="/videos/aoe2-overlay-demo.webp"
-          width={1280}
-          height={720}
-          muted
-          loop
-          playsInline
-          controls
-          preload="none"
-          aria-label={o.videoLabel}
-        />
+        <DemoVideo src="/videos/aoe2-overlay-demo.mp4" poster="/videos/aoe2-overlay-demo.webp" label={o.videoLabel} />
         {o.videoLang && <p className="muted small">{o.videoLang}</p>}
       </div>
       <div className="tool-body">

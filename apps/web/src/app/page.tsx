@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { formatTime } from "@aoe2-replays/viewer";
+import { DemoVideo } from "@/components/DemoVideo";
 import { OverlayShowcase } from "@/components/OverlayShowcase";
 import { PlayerSearch } from "@/components/PlayerSearch";
 import { Uploader } from "@/components/Uploader";
@@ -16,7 +17,7 @@ const ROMAN = ["I", "II", "III"];
 
 export default function Home() {
   const router = useRouter();
-  const { t } = useI18n();
+  const { t, locale } = useI18n();
   const h = t.home;
   const [owned, setOwned] = useState<OwnedReplay[]>([]);
 
@@ -46,6 +47,13 @@ export default function Home() {
         <h2 className="section-title">{h.howTitle}</h2>
         <div className="ornament" aria-hidden="true">
           ◆
+        </div>
+        <div className="home-demo">
+          <DemoVideo
+            src={`/videos/aoe2-replays-demo-${locale}.mp4`}
+            poster={`/videos/aoe2-replays-demo-${locale}.webp`}
+            label={h.demoLabel}
+          />
         </div>
         <ol className="steps">
           {h.steps.map((s, i) => (

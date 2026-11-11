@@ -27,6 +27,11 @@ Detalle en [15-orientacion-chat-y-herramientas](./15-orientacion-chat-y-herramie
 - **Resumen para IA por jugador** y sección **Herramientas** (`/tools` y portada) con AoE2 Overlay.
 - **Falta**: rehacer las capturas (`public/images/visor`, `og.jpg`, `docs/screenshots`) porque muestran el mapa con la orientación vieja, probar en el navegador y pedir el replay del reporte de "aldeanos a oro".
 
+## Sesión del 11/11/2026 (noche)
+- **Producción caída para ver partidas** desde Next 16 (gzip doble): hotfix en el PR #23.
+- Motor: jabalíes atraídos, animales compartidos, IDs por orden de creación, bengalas que ya no cortan el trabajo, campamentos y molino, investigaciones en la cola. Detalle y números en [16](./16-animales-ids-y-video.md).
+- Video demo en la portada.
+
 ## Próxima sesión
 Quedó a medio revisar o detectado al cerrar la sesión del 29/10/2026:
 - [x] **Capturas desactualizadas** (rehechas el 30/10/2026 con el terreno nuevo): las de `docs/screenshots`, `public/images/visor`, `og.jpg` y la vista previa de GitHub son de antes de las texturas de terreno. Rehacerlas desde la web con la partida de demo anonimizada (necesita Docker con la base local).
