@@ -14,6 +14,8 @@ import {
   formatTime,
   lowerQuality,
   pickQuality,
+  playerChat,
+  toGameOrientation,
   type FollowMode,
   type LogEntry,
   type GameData,
@@ -114,7 +116,9 @@ export function ReplayViewer(props: ViewerProps) {
 
 function ReplayStage({ data, actions, extras, moment, gameData }: ViewerProps & { gameData: GameData | null }) {
   const { t: tr } = useI18n();
-  const replay = useMemo(() => new Replay(data, { gameData }), [data, gameData]);
+  // The engine and renderer get the map turned to the game's orientation; panels keep the original.
+  const replay = useMemo(() => new Replay(toGameOrientation(data), { gameData }), [data, gameData]);
+  const chatCount = useMemo(() => playerChat(data).length, [data]);
   const canvas = useRef<HTMLCanvasElement>(null);
   const minimap = useRef<HTMLCanvasElement>(null);
   const renderer = useRef<Renderer | null>(null);
@@ -584,7 +588,7 @@ function ReplayStage({ data, actions, extras, moment, gameData }: ViewerProps & 
                 onClick={() => setTab(key)}
               >
                 {tr.viewer.tabs[key]}
-                {key === "chat" && data.chat?.length ? ` (${data.chat.length})` : ""}
+                {key === "chat" && chatCount ? ` (${chatCount})` : ""}
               </button>
             ))}
           </div>

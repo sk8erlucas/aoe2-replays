@@ -29,7 +29,7 @@ const data = {
 test('summary has players, analysis, merged build order and chat', () => {
   const { text, tokens } = buildAiContext(data);
   assert.match(text, /- J1: Ana — Franks, empieza en \(10,10\)/);
-  assert.match(text, /\| J1 \| \d+ \| 6:40 \|/);
+  assert.match(text, /\| J1 \| \d+ \| ~8:50 \(clic 6:40\) \|/);
   assert.match(text, /- 0:01 entrena 3× Villager \(hasta 0:20\)/);
   assert.match(text, /- 0:30 construye House en \(12,14\)/);
   assert.match(text, /- 9:10 Beto: gg/);
@@ -56,4 +56,23 @@ test('English context', () => {
   assert.match(text, /- P1: Ana — Franks, starts at \(10,10\)/);
   assert.match(text, /- 0:01 trains 3× Villager \(until 0:20\)/);
   assert.match(text, /- 0:30 builds House at \(12,14\)/);
+});
+
+test('focus on one player: their build order and commands only, notices out of the chat', () => {
+  const withNotice = {
+    ...data,
+    chat: [...data.chat, { t: 530_000, player: 1, channel: 0, message: '<player_id,1,0> ha avanzado a la Edad Feudal.' }],
+  };
+  const { text } = buildAiContext(withNotice, { full: true, player: 2 });
+  assert.match(text, /- J2: Beto — Mayans ← foco/);
+  assert.match(text, /Foco: J2 Beto\./);
+  assert.match(text, /\| J1 \| \d+ \| 8:50 \(clic 6:40\) \|/); // exact, from the notice
+  assert.match(text, /### J2 Beto/);
+  assert.doesNotMatch(text, /### J1 Ana/);
+  assert.match(text, /0:40 J2 mueve/);
+  assert.doesNotMatch(text, /J1 entrena/);
+  assert.doesNotMatch(text, /player_id/);
+  assert.match(text, /cómo jugó J2 Beto/);
+  // An unknown player number is ignored.
+  assert.doesNotMatch(buildAiContext(data, { player: 9 }).text, /Foco/);
 });

@@ -7,8 +7,9 @@ import { useI18n } from "@/i18n/I18nProvider";
 
 export function AiContextPanel({ data }: { data: ReplayData }) {
   const { t, locale } = useI18n();
-  const summary = useMemo(() => buildAiContext(data, { locale }), [data, locale]);
-  const full = useMemo(() => buildAiContext(data, { full: true, locale }), [data, locale]);
+  const [player, setPlayer] = useState<number | null>(null); // focus on one player, or the whole match
+  const summary = useMemo(() => buildAiContext(data, { locale, player }), [data, locale, player]);
+  const full = useMemo(() => buildAiContext(data, { full: true, locale, player }), [data, locale, player]);
   const [notice, setNotice] = useState<string | null>(null);
 
   async function copy(text: string, what: string) {
@@ -33,6 +34,26 @@ export function AiContextPanel({ data }: { data: ReplayData }) {
   return (
     <div className="ai-panel">
       <p>{t.ai.intro}</p>
+      <div className="ai-focus">
+        <label>
+          {t.ai.focusLabel}{" "}
+          <select
+            value={player ?? ""}
+            onChange={(e) => {
+              setPlayer(e.target.value === "" ? null : Number(e.target.value));
+              setNotice(null);
+            }}
+          >
+            <option value="">{t.ai.focusAll}</option>
+            {data.game.players.map((p) => (
+              <option key={p.number} value={p.number}>
+                {p.name}
+              </option>
+            ))}
+          </select>
+        </label>
+        <p className="muted small">{t.ai.focusNote}</p>
+      </div>
       <div className="ai-actions">
         <button type="button" className="primary" onClick={() => copy(summary.text, t.ai.summaryName)}>
           {t.ai.copySummary}

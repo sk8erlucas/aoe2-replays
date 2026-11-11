@@ -199,10 +199,16 @@ export interface BuildOrderItem {
 export interface AgeUp {
   key: 'feudal' | 'castle' | 'imperial';
   label: string;
-  /** Exact: when the research was clicked. */
+  /** Exact: when the research was first clicked. */
   clickedAt: number;
-  /** Estimated: click time plus research time. */
-  reachedAt: number;
+  /**
+   * When the age was reached. With the game's age-up notices (stored as chat) it
+   * is exact, and null if it never was (cancelled, or the game ended first).
+   * Without them, estimated: click time plus research time.
+   */
+  reachedAt: number | null;
+  /** True when reachedAt comes from the game's notices. */
+  exact: boolean;
 }
 
 export interface PlayerAnalysis {
@@ -232,8 +238,19 @@ export const AGES: Array<{ key: AgeUp['key']; label: string; tech: string; secon
 export function analyze(data: ReplayData): Analysis;
 export function bucketSize(durationMs: number, maxBars?: number): number;
 
-/** Plain-text match context for pasting into an AI chat; `full` adds every command. */
+/**
+ * Plain-text match context for pasting into an AI chat; `full` adds every command,
+ * `player` focuses it on one player (their build order and commands only).
+ */
 export function buildAiContext(
   data: ReplayData,
-  options?: { full?: boolean; locale?: 'es' | 'en' },
+  options?: { full?: boolean; locale?: 'es' | 'en'; player?: number | null },
 ): { text: string; tokens: number };
+
+/** The map turned to the game's orientation, for the engine and renderer (analysis keeps the original). */
+export function toGameOrientation(data: ReplayData): ReplayData;
+
+/** True for a game announcement (e.g. an age-up) that the replay stores as chat. */
+export function isSystemMessage(message: { message: string }): boolean;
+/** The chat without the game's announcements: only what players wrote. */
+export function playerChat(data: ReplayData): ReplayData['chat'];

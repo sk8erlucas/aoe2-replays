@@ -516,3 +516,54 @@ test('gather points are kept over time for each building', () => {
   assert.deepEqual(r.rallyAt(tc, 5_000), { x: 14, y: 12 });
   assert.deepEqual(r.rallyAt(tc, 20_000), { x: 6, y: 7 });
 });
+
+test('trained units walk to a gather point on the ground', () => {
+  const r = forest([
+    { t: 0, type: 'GATHER_POINT', player: 1, object_ids: [100], target_id: -1, x: 15, y: 5 },
+    { t: 0, type: 'DE_QUEUE', player: 1, object_ids: [100], amount: 1, unit_id: 83 },
+  ]);
+  const v = r.units.find((u) => u.id == null);
+  const at = v.positionAt(200_000);
+  assert.ok(Math.hypot(at.x - 15, at.y - 5) < 0.01, `${at.x},${at.y}`);
+});
+
+test('trained villagers with a gather point on their own sheep herd it', () => {
+  const r = forest(
+    [
+      { t: 0, type: 'GATHER_POINT', player: 1, object_ids: [100], target_id: 300, x: 14, y: 14 },
+      { t: 0, type: 'DE_QUEUE', player: 1, object_ids: [100], amount: 1, unit_id: 83 },
+    ],
+    [{ id: 300, player: 1, type_id: 594, class_id: 58, x: 14, y: 14 }],
+    { 594: { name: 'Sheep', category: 'unit' } },
+  );
+  const v = r.units.find((u) => u.id == null);
+  assert.equal(v.activityAt(v.spawnT + 30_000), 'shepherd');
+  assert.ok(r.unitById.get(300).removedAt < Infinity); // eaten
+});
+
+test('a trained unit already ordered by its player ignores the gather point', () => {
+  const r = forest([
+    { t: 0, type: 'GATHER_POINT', player: 1, object_ids: [100], target_id: -1, x: 15, y: 5 },
+    { t: 0, type: 'DE_QUEUE', player: 1, object_ids: [100], amount: 1, unit_id: 83 },
+    { t: 10_000, type: 'MOVE', player: 1, object_ids: [900], x: 30, y: 30 },
+  ]);
+  const at = r.unitById.get(900).positionAt(500_000);
+  assert.ok(Math.hypot(at.x - 30, at.y - 30) < 0.01, `${at.x},${at.y}`);
+});
+
+test("age arrival comes from the game's notices; game notices are not chat", () => {
+  const r = replay([
+    { t: 10_000, type: 'RESEARCH', player: 1, object_ids: [100], technology_id: 101 },
+    { t: 30_000, type: 'RESEARCH', player: 1, object_ids: [100], technology_id: 102 },
+  ], {
+    chat: [
+      { t: 150_000, player: 1, channel: 0, message: '<player_id,1,0> ha avanzado a la Edad Feudal.' },
+      { t: 160_000, player: 1, channel: 0, message: 'gg' },
+    ],
+  });
+  assert.equal(r.ageAt(1, 149_999), 1);
+  assert.equal(r.ageAt(1, 150_000), 2);
+  // Castle was clicked but never announced: cancelled, so never reached.
+  assert.equal(r.ageAt(1, 59_000), 1);
+  assert.deepEqual(r.log.filter((e) => e.kind === 'chat').map((e) => e.text), ['gg']);
+});

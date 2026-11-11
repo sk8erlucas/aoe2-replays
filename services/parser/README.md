@@ -20,6 +20,7 @@ Límites contra archivos armados a propósito: el header descomprimido no puede 
 ## Cómo funciona
 
 - **Cuerpo**: `mgz.fast` (acciones, sync, chat, postgame). El tiempo `t` de cada evento es la suma de los incrementos de sync, en ms de juego.
+- **Chat**: se pasa tal cual. Además de lo que escriben los jugadores trae avisos del propio juego, en el idioma de quien grabó y con un marcador del jugador: `"<player_id,5,0> advanced to the Feudal Age."` (en DE, sin `destinationMap`). El visor los separa (`packages/viewer/src/notices.js`) y los usa como hora exacta de llegada a cada edad.
 - **Header**: copia parcheada de `mgz/fast/header.py` en [`vendor/mgz_header.py`](src/aoe2_parser/vendor/mgz_header.py) (MIT, ver `LICENSE.mgz`). `mgz` 1.8.51 soporta hasta save 66.6; los parches están marcados con `aoe2-replays patch`:
   - 68.9: cada registro de jugador en la sección DE termina con un `de_string` extra.
   - 68.9: el final de la sección DE trae dos `de_string` más antes del último.

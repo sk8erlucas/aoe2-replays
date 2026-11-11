@@ -55,7 +55,7 @@ test('build order, trained units and age-up estimate', () => {
     ['queue', 'Villager'], ['build', 'House'], ['research', 'Loom'], ['queue', 'Villager'], ['age', 'Feudal Age'],
   ]);
   assert.deepEqual(p1.trained, [{ name: 'Villager', amount: 4, kind: 'economy' }]);
-  assert.deepEqual(p1.ageUps, [{ key: 'feudal', label: 'Feudal', clickedAt: 500_000, reachedAt: 630_000 }]);
+  assert.deepEqual(p1.ageUps, [{ key: 'feudal', label: 'Feudal', clickedAt: 500_000, reachedAt: 630_000, exact: false }]);
 });
 
 test('activity buckets add up to the action count', () => {
