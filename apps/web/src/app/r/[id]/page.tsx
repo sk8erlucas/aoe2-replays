@@ -10,6 +10,7 @@ import { FavoriteButton } from "@/components/FavoriteButton";
 import { ShareMenu } from "@/components/ShareMenu";
 import { errorText, useI18n } from "@/i18n/I18nProvider";
 import { forgetOwned, rememberOwned, tokenFor } from "@/lib/owned";
+import { readReplayJson } from "@/lib/replayJson";
 
 type Meta = {
   id: string;
@@ -66,7 +67,7 @@ export default function ReplayPage() {
         const meta: Meta = await metaRes.json();
         const dataRes = await fetch(`/api/replays/${id}/data`, { headers });
         if (!dataRes.ok) throw new Error(`HTTP ${dataRes.status}`);
-        const data: ReplayData = await dataRes.json();
+        const data: ReplayData = await readReplayJson(dataRes);
         if (meta.tokenValid && token) {
           rememberOwned({
             id,

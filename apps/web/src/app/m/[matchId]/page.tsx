@@ -9,6 +9,7 @@ import { FavoriteButton } from "@/components/FavoriteButton";
 import { ShareMenu } from "@/components/ShareMenu";
 import { errorText, useI18n } from "@/i18n/I18nProvider";
 import type { MatchSummary } from "@/lib/aoe2companion";
+import { readReplayJson } from "@/lib/replayJson";
 
 type Load =
   | { kind: "loading"; message: string }
@@ -90,7 +91,7 @@ function MatchView() {
         set({ kind: "error", message: t.errors.generic(dataRes.status) });
         return;
       }
-      set({ kind: "ready", data: await dataRes.json() });
+      set({ kind: "ready", data: await readReplayJson(dataRes) });
     })().catch(() => set({ kind: "error", message: t.errors.network }));
     return () => {
       cancelled = true;
