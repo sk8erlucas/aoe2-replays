@@ -136,6 +136,18 @@ export const FADE_MS = 2_000;
 
 // Animals a villager herds (shepherd) rather than hunts.
 export const HERDABLE = /^(Sheep|Goose|Turkey|Llama|Cow|Pig|Water Buffalo|Goat)\b/;
+// Hunted only after luring them one at a time: hunters never move on to the next by themselves.
+export const DANGEROUS_ANIMALS = /\b(Boar|Javelina|Elephant|Rhinoceros|Bear)\b/;
+
+// Builders of a drop site start gathering the closest of these within reach (tiles).
+export const DROP_SITES = { 'Lumber Camp': ['tree'], 'Mining Camp': ['gold', 'stone'], Mill: ['berries'] };
+export const DROP_SITE_REACH = 8;
+
+// Research time (game seconds) of the techs that hold up a town center's queue, by legend name.
+export const RESEARCH_TIMES = {
+  Loom: 25, Wheelbarrow: 75, 'Hand Cart': 55, 'Town Watch': 25, 'Town Patrol': 40,
+  'Feudal Age': 130, 'Castle Age': 160, 'Imperial Age': 190,
+};
 
 // Age techs: id -> [age it leads to, research time in game seconds].
 export const AGE_TECHS = {

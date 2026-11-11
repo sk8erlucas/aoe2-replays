@@ -121,6 +121,7 @@ const es = {
       { term: "Build order", text: "qué construyó, entrenó e investigó, en orden" },
     ],
     faqTitle: "Preguntas frecuentes",
+    demoLabel: "Demo de AoE2 Replays: buscar o subir una partida, verla en el mapa, el mapa completo, el análisis por jugador y el resumen para IA",
     faq: [
       {
         q: "¿Dónde encuentro mis replays?",
@@ -292,7 +293,7 @@ const es = {
   analysis: {
     player: "Jugador",
     apmTitle: "Acciones por minuto mientras jugó",
-    ages: { feudal: "Feudal", castle: "Castillos", imperial: "Imperial" },
+    ages: { feudal: "Feudal", castle: "Castillo", imperial: "Imperial" },
     ageTitle: (age: string) =>
       `Llegada a ${age}. Sin ~ es exacta (avisos del juego); con ~ es estimada (clic + tiempo de investigación).`,
     clicked: (time: string) => `Clic en ${time}`,
@@ -619,6 +620,7 @@ const en: Messages = {
       { term: "Build order", text: "what they built, trained and researched, in order" },
     ],
     faqTitle: "FAQ",
+    demoLabel: "AoE2 Replays demo: find or upload a match, watch it on the map, the whole map, per-player analysis and the AI summary",
     faq: [
       {
         q: "Where are my replays?",

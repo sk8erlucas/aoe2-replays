@@ -354,6 +354,18 @@ button.primary:hover:not(:disabled), .button-primary:hover { border-color: var(-
 .feature-stats dt { font-family: var(--font-display); font-weight: 700; letter-spacing: 0.06em; color: var(--bronze-dark); }
 .feature-stats dd { margin: 2px 0 0; color: var(--ink-soft); }
 
+/* Home demo video */
+.home-demo { max-width: 960px; margin: 0 auto 40px; }
+.home-demo video {
+  width: 100%;
+  height: auto;
+  display: block;
+  background: var(--charcoal);
+  border: 3px solid var(--charcoal);
+  border-radius: 4px;
+  box-shadow: 0 8px 24px rgba(47, 38, 32, 0.25);
+}
+
 /* Tools (sibling projects) */
 .tools .section-lead { text-align: center; color: var(--ink-soft); margin: -8px auto 28px; max-width: 620px; line-height: 1.6; }
 .tool-showcase {
