@@ -12,15 +12,13 @@ updates:
       # Types follow the Node version we run (22); bump together with the Docker images.
       - dependency-name: "@types/node"
         update-types: ["version-update:semver-major"]
-      # TypeScript 7 (native port) is not supported by Next.js 15 yet.
+      # TypeScript 7 (native port) goes in by hand once Next.js supports it: tasks/12-next-16.md
       - dependency-name: "typescript"
         update-types: ["version-update:semver-major"]
-      # Next 16 and ESLint 10 are a manual migration: tasks/12-next-16.md
+      # Next.js majors are manual migrations (read its upgrade guide first).
       - dependency-name: "next"
         update-types: ["version-update:semver-major"]
       - dependency-name: "eslint-config-next"
-        update-types: ["version-update:semver-major"]
-      - dependency-name: "eslint"
         update-types: ["version-update:semver-major"]
   - package-ecosystem: pip
     directory: /services/parser
