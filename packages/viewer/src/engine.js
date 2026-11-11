@@ -9,22 +9,45 @@
 // when one runs out they move on to the nearest of the same kind, like in-game.
 // Orders on animals become hunting or herding, orders on enemies an attack of a
 // fixed length (the replay never says who won), and deleted objects disappear.
-// Deaths are guessed: hunted animals vanish when their food runs out; a unit last
+// Animals only move in the replay through the clicks on them: an order on an
+// animal says where it was right then, so it walks there (a boar lured to the
+// town center, a sheep pushed home). Animals are food shared by everyone eating
+// them; when one is finished its eaters move on to the nearest of the same kind.
+// Deaths are guessed: eaten animals vanish when their food runs out; a unit last
 // sent to fight (or into enemy ground) and never ordered again is taken as fallen;
 // so are units over the population limit (others must have died) and everything
 // of a player who resigns.
 
 import {
-  AGE_TECHS, ANIMAL_FOOD, ATTACK_HOLD_MS, BUILD_TIMES, DEFAULT_ANIMAL_FOOD, DEFAULT_BUILD_TIME, DEFAULT_FOOTPRINT,
+  AGE_TECHS, ANIMAL_FOOD, DANGEROUS_ANIMALS, DROP_SITE_REACH, DROP_SITES, RESEARCH_TIMES, ATTACK_HOLD_MS, BUILD_TIMES, DEFAULT_ANIMAL_FOOD, DEFAULT_BUILD_TIME, DEFAULT_FOOTPRINT,
   DEFAULT_SPEED, DEFAULT_TRAIN_TIME, FADE_MS, FALLEN_AFTER_MS, FOOTPRINTS, GATHER_RATES, HERDABLE, HIDDEN_OBJECT_TYPES,
   ENEMY_BASE_RADIUS, ENEMY_BUILDING_REACH, MEAT_RATE, MELEE_STOP, RANGED_CLASSES, RANGED_STOP, RESOURCE_AMOUNTS, RETARGET_RADIUS, SPEEDS, TRAIN_TIMES,
 } from './palette.js';
 import { isSystemMessage, noticeTimes, settleAgeUps } from './notices.js';
 
 const MOVING_COMMANDS = new Set(['MOVE', 'ORDER', 'BUILD', 'WALL', 'GATHER_POINT']);
+// Commands that don't tell the selected units to do anything else: a flare, a
+// market trade or a building's queue doesn't stop villagers working.
+const KEEPS_WORKING = new Set([
+  'GAME', 'DE_TRANSFORM', 'DE_QUEUE', 'RESEARCH', 'GATHER_POINT', 'DE_MULTI_GATHERPOINT', 'STANCE', 'FORMATION',
+  'FLARE', 'SELL', 'BUY', 'DE_TRIBUTE', 'RESIGN', 'UNGARRISON', 'DE_107_A',
+]);
+// Commands whose selection is units (not a building being told to train or rally).
+const UNIT_COMMANDS = new Set(['MOVE', 'ORDER', 'BUILD', 'WALL', 'PATROL', 'ATTACK_GROUND', 'DE_ATTACK_MOVE']);
+// A unit first commanded this long before its estimated training end can still be it:
+// the estimate ignores what speeds training up (civ bonuses).
+const BIND_SLACK_MS = 30_000;
+// Beyond this gap between an ID's creation and a unit's training end, a pair is as bad as it gets.
+const BIND_DRIFT_MS = 300_000;
 const GATHER_STEP_MS = 1000;
 const GRID_CELL = 4; // tiles per spatial-grid cell for resource lookups
 const GATHER_REACH = 1.5; // tiles: closer than this to a resource counts as gathering it
+
+// The ANIMAL_FOOD key in an animal's name, if any: "Wild Boar" -> "Boar", "Cow A" -> "Cow".
+const ANIMAL_KINDS = Object.keys(ANIMAL_FOOD).map((k) => [k, new RegExp(`\\b${k}\\b`)]);
+function animalKind(name) {
+  return ANIMAL_KINDS.find(([, re]) => re.test(name))?.[0] ?? null;
+}
 
 export function formatTime(ms) {
   const s = Math.max(0, Math.floor(ms / 1000));
@@ -121,7 +144,7 @@ export class Replay {
    * `gameData` (optional, from tools/sprites game-data.json) replaces guessed
    * speeds, train and build times, and says where each unit is trained.
    */
-  constructor(data, { gameData = null } = {}) {
+  constructor(data, { gameData = null, dry = false } = {}) {
     this.data = data;
     this.game = gameData;
     this.legend = data.legend ?? { objects: {}, terrain: {}, technologies: {} };
@@ -139,17 +162,24 @@ export class Replay {
     this.focusPoints = [];
     this.resourceById = new Map();
     this.resourceGrid = new Map();
-    this.gatherers = new Map(); // unit -> resource being gathered
+    this.gatherers = new Map(); // unit -> resource or animal food being gathered
+    this.animalFood = new Map(); // animal unit -> { animal, kind, remaining, depletedAt }
     this.exits = []; // trained units about to leave their building: { unit, t, building }
+    this.afterBuild = []; // builders of a drop site, to start gathering when it is done
     this.simT = 0;
     this.ageUps = new Map(); // player -> [{ age, t }] (arrival: exact with the game's notices, else estimated)
 
     // Object IDs are handed out in creation order: (id, time) pairs that are known
     // place an unknown ID in time, to bind it to the unit trained around then.
     this.idAnchors = [];
+    this.trainedByKey = new Map(); // `${event index}:${i}` -> unit trained by that queue command
+    this.dry = dry;
 
     this.#loadInitialObjects();
+    // A dry run only trains: when each unit comes out, to match it with its ID.
+    this.plannedIds = dry ? new Map() : Replay.#planIds(new Replay(data, { gameData, dry: true }));
     this.#processTimeline();
+    if (dry) return;
     this.#settleAgeUps();
     this.#estimateFalls();
     this.#applyResigns();
@@ -192,7 +222,8 @@ export class Replay {
   }
 
   #loadInitialObjects() {
-    for (const o of this.data.initial_objects) this.#anchor(o.id, 0);
+    // All at time 0: sorted once rather than inserted one by one.
+    this.idAnchors = this.data.initial_objects.map((o) => ({ id: o.id, t: 0 })).sort((a, b) => a.id - b.id);
     for (const o of this.data.initial_objects) {
       if (HIDDEN_OBJECT_TYPES.has(o.type_id)) continue;
       const category = this.objectCategory(o.type_id);
@@ -243,6 +274,8 @@ export class Replay {
     const known = this.unitById.get(id);
     if (known) return known;
     if (this.buildingById.has(id)) return null;
+    const planned = this.trainedByKey.get(this.plannedIds.get(id));
+    if (planned && planned.id == null && planned.player === player) return this.#bind(planned, id, t);
     // Prefer the unit trained when this ID was created (IDs grow in creation
     // order), then one already out of its building, then the kind the order wants.
     const [from, to] = this.#idWindow(id);
@@ -252,32 +285,102 @@ export class Replay {
       .filter((u) => u.id == null && u.player === player)
       .sort((a, b) => Math.round((gap(a) - gap(b)) / 5000) || (a.spawnT > t) - (b.spawnT > t)
         || kindMiss(a) - kindMiss(b) || a.spawnT - b.spawnT);
-    const pending = unbound[0];
-    if (pending) {
-      pending.id = id;
-      pending.lastOrderT = t; // this is its player's order: it no longer walks to the gather point
-      this.#anchor(id, Math.min(pending.spawnT, t));
-      if (pending.spawnT > t) {
-        pending.spawnT = t;
-        pending.path[0].t0 = t;
-      }
-      this.unitById.set(id, pending);
-      return pending;
-    }
+    if (unbound[0]) return this.#bind(unbound[0], id, t);
     const start = this.playerByNumber.get(player)?.start ?? { x: 0, y: 0 };
     return this.#addUnit(new Unit({ id, player, typeId: null, x: start.x + 2, y: start.y + 2, t, approx: true }));
   }
 
+  #bind(unit, id, t) {
+    unit.id = id;
+    unit.lastOrderT = t; // this is its player's order: it no longer walks to the gather point
+    this.#anchor(id, Math.min(unit.spawnT, t));
+    if (unit.spawnT > t) {
+      unit.spawnT = t;
+      unit.path[0].t0 = t;
+    }
+    this.unitById.set(id, unit);
+    return unit;
+  }
+
+  /**
+   * IDs are handed out in creation order, so a player's unknown IDs sorted by
+   * number are their trained units in the order they came out. Matches the two
+   * lists keeping that order (most pairs; a unit may never be commanded, and an
+   * ID can't be a unit that came out well after its first command, nor a
+   * villager if the order was an attack). Returns id -> trained unit key.
+   */
+  static #planIds(dry) {
+    const seen = new Map(); // unknown id -> { t, player, want }
+    for (const e of dry.data.timeline) {
+      if (!UNIT_COMMANDS.has(e.type)) continue;
+      for (const id of e.object_ids ?? []) {
+        if (seen.has(id) || dry.unitById.has(id) || dry.buildingById.has(id)) continue;
+        seen.set(id, { id, t: e.t, player: e.player, want: dry.#orderWants(e) });
+      }
+    }
+    // When each ID was created, roughly: no later than the first order to any
+    // higher ID (of any player), and new units usually get an order soon.
+    const all = [...seen.values()].sort((a, b) => b.id - a.id);
+    let soonest = Infinity;
+    for (const x of all) x.created = soonest = Math.min(soonest, x.t);
+
+    const plan = new Map();
+    for (const p of dry.players) {
+      const ids = all.filter((x) => x.player === p.number).reverse();
+      const units = dry.units.filter((u) => u.key && u.player === p.number).sort((a, b) => a.spawnT - b.spawnT);
+      const n = ids.length;
+      const m = units.length;
+      if (!n || !m) continue;
+      // A pair is worth 1 to 2: as many pairs as possible, then the ones whose
+      // creation time agrees with the unit's training end.
+      const gain = (i, j) => {
+        const id = ids[i];
+        const u = units[j];
+        if (u.spawnT > id.t + BIND_SLACK_MS) return 0;
+        if (id.want && dry.#isVillager(u) !== (id.want === 'villager')) return 0;
+        return 2 - Math.min(Math.abs(id.created - u.spawnT), BIND_DRIFT_MS) / BIND_DRIFT_MS;
+      };
+      // Best order-keeping matching: score[i][j] over the first i ids and j units.
+      const score = new Float32Array((n + 1) * (m + 1));
+      const w = m + 1;
+      for (let i = 1; i <= n; i++) {
+        for (let j = 1; j <= m; j++) {
+          const skip = Math.max(score[(i - 1) * w + j], score[i * w + j - 1]);
+          const g = gain(i - 1, j - 1);
+          score[i * w + j] = g > 0 ? Math.max(skip, score[(i - 1) * w + j - 1] + g) : skip;
+        }
+      }
+      for (let i = n, j = m; i > 0 && j > 0;) {
+        const here = score[i * w + j];
+        const g = gain(i - 1, j - 1);
+        if (g > 0 && here === Math.fround(score[(i - 1) * w + j - 1] + g)) {
+          plan.set(ids[i - 1].id, units[j - 1].key);
+          i--;
+          j--;
+        } else if (here === score[(i - 1) * w + j]) i--;
+        else j--;
+      }
+    }
+    return plan;
+  }
+
   #processTimeline() {
     const selection = new Map();
-    for (const e of this.data.timeline) {
-      this.#advanceGathering(e.t);
+    for (const [index, e] of this.data.timeline.entries()) {
+      if (!this.dry) this.#advanceGathering(e.t);
       let ids = e.object_ids ?? [];
       if (ids.length) selection.set(e.player, ids);
       else ids = selection.get(e.player) ?? [];
+      if (this.dry) {
+        if (e.type === 'DE_QUEUE') this.#queue(e, ids, index);
+        else if (e.type === 'BUILD') this.#build(e);
+        else if (e.type === 'WALL') this.#wall(e);
+        else if (e.type === 'RESEARCH') this.#occupy(e, ids);
+        continue;
+      }
 
-      // Any new command for a unit interrupts what it was gathering.
-      for (const id of ids) {
+      // Any new order for a unit interrupts what it was gathering.
+      for (const id of KEEPS_WORKING.has(e.type) ? [] : ids) {
         const unit = this.unitById.get(id);
         if (unit) {
           this.#stopGathering(unit, e.t);
@@ -295,7 +398,7 @@ export class Replay {
       }
 
       let built = null;
-      if (e.type === 'DE_QUEUE') this.#queue(e, ids);
+      if (e.type === 'DE_QUEUE') this.#queue(e, ids, index);
       else if (e.type === 'BUILD') built = this.#build(e);
       else if (e.type === 'WALL') built = this.#wall(e);
       else if (e.type === 'RESIGN') {
@@ -311,6 +414,7 @@ export class Replay {
         }
         continue;
       } else if (e.type === 'RESEARCH') {
+        this.#occupy(e, ids);
         const age = AGE_TECHS[e.technology_id];
         if (age) {
           const list = this.ageUps.get(e.player) ?? [];
@@ -343,15 +447,12 @@ export class Replay {
             unit.moveTo(e.t, e.x + ox, e.y + oy);
             // Builders work until the building is done (or a new order comes);
             // whoever builds a farm then farms it, like in the game.
-            if (built) {
-              const done = built.t + built.buildTime;
-              unit.startActivity(e.t, 'build', done);
-              if (this.objectName(built.typeId) === 'Farm') unit.queueActivity(done, 'farm');
-            }
+            if (built) this.#buildThen(unit, built, e.t);
           });
       }
     }
     this.#advanceGathering(this.duration);
+    this.#dropUncommanded();
     for (const c of this.data.chat ?? []) {
       if (!isSystemMessage(c)) this.log.push({ t: c.t, player: c.player, kind: 'chat', text: c.message });
     }
@@ -410,26 +511,26 @@ export class Replay {
     if (/Fishing|Trade|Transport/.test(this.objectName(unit.typeId))) return false;
     const villager = this.#isVillager(unit);
     const reach = RANGED_CLASSES.has(this.game?.units?.[unit.typeId]?.class) ? RANGED_STOP : MELEE_STOP;
-    const other = this.unitById.get(e.target_id);
-    if (other && other !== unit && other.removedAt > t) {
+    let other = this.unitById.get(e.target_id);
+    if (other && other !== unit && (other.removedAt > t || this.animalFood.has(other))) {
       const herdable = HERDABLE.test(this.objectName(other.typeId));
       // Wild animals, and the player's own sheep (herdables belong to whoever found them).
       const animal = other.player === 0 || (herdable && villager && other.player === unit.player);
       if (!animal && !this.#enemies(unit.player, other.player)) return false;
-      const herd = animal && villager && herdable;
-      const kind = animal && villager ? (herd ? 'shepherd' : 'hunt') : 'attack';
-      this.#approach(unit, t, other.positionAt(t), villager ? MELEE_STOP : reach, i);
-      let until = kind === 'attack' ? t + ATTACK_HOLD_MS : Infinity;
-      if (kind !== 'attack') {
-        // The animal is eaten: it disappears when its food runs out.
-        const name = this.objectName(other.typeId).split(' ')[0];
-        const food = ANIMAL_FOOD[this.objectName(other.typeId)] ?? ANIMAL_FOOD[name] ?? DEFAULT_ANIMAL_FOOD;
-        const walk = Math.hypot(unit.positionAt(t).x - other.positionAt(t).x, unit.positionAt(t).y - other.positionAt(t).y)
-          / Math.max(0.1, unit.speed);
-        other.removedAt = Math.min(other.removedAt, t + (walk + food / MEAT_RATE) * 1000);
-        until = other.removedAt;
+      if (animal) this.#placeAnimal(other, t, e.x, e.y);
+      if (animal && villager) {
+        let food = this.#foodOf(other);
+        // Already eaten (several sent to one sheep): the nearest like it, as in the game.
+        if (food.remaining <= 0) food = this.#nextAnimal(food, unit, t);
+        if (!food) return false;
+        other = food.animal;
+        this.#approach(unit, t, other.positionAt(t), MELEE_STOP, i);
+        unit.startActivity(t, food.kind);
+        this.gatherers.set(unit, food);
+        return true;
       }
-      unit.startActivity(t, kind, until);
+      this.#approach(unit, t, other.positionAt(t), reach, i);
+      unit.startActivity(t, 'attack', t + ATTACK_HOLD_MS);
       return true;
     }
     const place = this.buildingById.get(e.target_id) ?? this.#bindClicked(e);
@@ -442,9 +543,102 @@ export class Replay {
     const done = place.t + place.buildTime;
     if (!villager || place.player !== unit.player || t >= done) return false;
     this.#approach(unit, t, place, place.size / 2 + MELEE_STOP, i);
-    unit.startActivity(t, 'build', done);
-    if (this.objectName(place.typeId) === 'Farm') unit.queueActivity(done, 'farm');
+    this.#buildThen(unit, place, t);
     return true;
+  }
+
+  // The click of an order on an animal is where the animal was: it walks there,
+  // arriving at the time of the click (or as soon as it can from where it was).
+  #placeAnimal(animal, t, x, y) {
+    if (x == null || y == null || x < 0) return;
+    const from = animal.positionAt(t);
+    const d = Math.hypot(from.x - x, from.y - y);
+    if (d <= GATHER_REACH) return;
+    const start = Math.max(animal.placedAt ?? animal.spawnT, t - (d / Math.max(0.1, animal.speed)) * 1000);
+    animal.moveTo(start, x, y);
+    animal.placedAt = t;
+  }
+
+  #foodOf(animal) {
+    let food = this.animalFood.get(animal);
+    if (!food) {
+      const name = this.objectName(animal.typeId);
+      const known = animalKind(name);
+      food = {
+        animal,
+        kind: HERDABLE.test(name) ? 'shepherd' : 'hunt',
+        // Boars and the like must be lured one by one: eaters never move on to the next.
+        retarget: !DANGEROUS_ANIMALS.test(name),
+        name: known ?? name,
+        remaining: known ? ANIMAL_FOOD[known] : DEFAULT_ANIMAL_FOOD,
+        depletedAt: Infinity,
+      };
+      this.animalFood.set(animal, food);
+    }
+    return food;
+  }
+
+  /** Nearest animal like `food`'s (any herdable for sheep) that `unit` can eat at `now`. */
+  #nextAnimal(food, unit, now) {
+    if (!food.retarget) return null;
+    const from = food.animal.positionAt(now);
+    let best = null;
+    let bestD = RETARGET_RADIUS;
+    for (const other of this.units) {
+      if (other === food.animal || other.spawnT > now || other.removedAt <= now) continue;
+      if (other.player !== 0 && !(food.kind === 'shepherd' && other.player === unit.player)) continue;
+      const name = this.objectName(other.typeId);
+      if (food.kind === 'shepherd' ? !HERDABLE.test(name) : (animalKind(name) ?? name) !== food.name) continue;
+      if ((this.animalFood.get(other)?.remaining ?? 1) <= 0) continue;
+      const at = other.positionAt(now);
+      const d = Math.hypot(at.x - from.x, at.y - from.y);
+      if (d < bestD) {
+        best = other;
+        bestD = d;
+      }
+    }
+    return best && this.#foodOf(best);
+  }
+
+  // Builders work until the building is done (or a new order comes). Then, like
+  // in the game, whoever built a farm farms it, and whoever built a drop site
+  // (lumber or mining camp, mill) starts gathering what is next to it.
+  #buildThen(unit, building, t) {
+    const done = building.t + building.buildTime;
+    unit.startActivity(t, 'build', done);
+    const name = this.objectName(building.typeId);
+    if (name === 'Farm') unit.queueActivity(done, 'farm');
+    else if (DROP_SITES[name]) this.afterBuild.push({ unit, t: done, orderT: t, building, kinds: DROP_SITES[name] });
+  }
+
+  // The research queues in its building like a unit: what is queued after it waits.
+  #occupy(e, ids) {
+    const seconds = RESEARCH_TIMES[this.legend.technologies?.[e.technology_id]];
+    const building = this.buildingById.get(ids[0]);
+    if (!seconds || !building) return;
+    building.queueEnd = Math.max(e.t, building.queueEnd) + seconds * 1000;
+  }
+
+  /** Closest resource of one of `kinds` with something left, within reach of (x, y). */
+  #resourceNear(x, y, kinds, radius) {
+    const reach = Math.ceil(radius / GRID_CELL);
+    const cx = Math.floor(x / GRID_CELL);
+    const cy = Math.floor(y / GRID_CELL);
+    let best = null;
+    let bestD = radius;
+    for (let gx = cx - reach; gx <= cx + reach; gx++) {
+      for (let gy = cy - reach; gy <= cy + reach; gy++) {
+        for (const r of this.resourceGrid.get(`${gx},${gy}`) ?? []) {
+          if (!kinds.includes(r.category) || r.remaining <= 0) continue;
+          const d = Math.hypot(r.x - x, r.y - y);
+          if (d < bestD) {
+            best = r;
+            bestD = d;
+          }
+        }
+      }
+    }
+    return best;
   }
 
   // An order on a building placed during the game (no known ID yet): the clicked
@@ -474,7 +668,7 @@ export class Replay {
     return building;
   }
 
-  #queue(e, ids) {
+  #queue(e, ids, index) {
     const building = this.buildingById.get(ids[0]) ?? this.#bindBuilding(ids[0], e.player, e.unit_id, e.t);
     const name = this.objectName(e.unit_id);
     this.log.push({ t: e.t, player: e.player, kind: 'queue', name, amount: e.amount });
@@ -491,6 +685,8 @@ export class Replay {
         x: building.x + building.size / 2 + 0.5 + ox, y: building.y + building.size / 2 + 0.5 + oy,
         t: building.queueEnd, approx: true,
       }));
+      unit.key = `${index}:${i}`;
+      this.trainedByKey.set(unit.key, unit);
       this.exits.push({ unit, t: building.queueEnd, building });
     }
   }
@@ -539,24 +735,7 @@ export class Replay {
 
   /** Closest resource of the same kind that still has something left. */
   #nextResource(from) {
-    const reach = Math.ceil(RETARGET_RADIUS / GRID_CELL);
-    const cx = Math.floor(from.x / GRID_CELL);
-    const cy = Math.floor(from.y / GRID_CELL);
-    let best = null;
-    let bestD = RETARGET_RADIUS;
-    for (let gx = cx - reach; gx <= cx + reach; gx++) {
-      for (let gy = cy - reach; gy <= cy + reach; gy++) {
-        for (const r of this.resourceGrid.get(`${gx},${gy}`) ?? []) {
-          if (r.category !== from.category || r.remaining <= 0) continue;
-          const d = Math.hypot(r.x - from.x, r.y - from.y);
-          if (d < bestD) {
-            best = r;
-            bestD = d;
-          }
-        }
-      }
-    }
-    return best;
+    return this.#resourceNear(from.x, from.y, [from.category], RETARGET_RADIUS);
   }
 
   // Runs the gathering estimate up to time `to`, one game second at a time.
@@ -565,10 +744,22 @@ export class Replay {
     while (this.simT + GATHER_STEP_MS <= to) {
       this.simT += GATHER_STEP_MS;
       const now = this.simT;
-      if (this.exits.length) {
+      if (this.exits.length && this.exits.some((g) => g.t <= now)) {
         const ready = this.exits.filter((g) => g.t <= now);
         this.exits = this.exits.filter((g) => g.t > now);
         ready.forEach((g, i) => this.#leaveBuilding(g, now, i));
+      }
+      if (this.afterBuild.length && this.afterBuild.some((g) => g.t <= now)) {
+        const ready = this.afterBuild.filter((g) => g.t <= now);
+        this.afterBuild = this.afterBuild.filter((g) => g.t > now);
+        for (const g of ready) {
+          if (g.unit.lastOrderT > g.orderT || g.unit.removedAt <= now) continue; // ordered elsewhere meanwhile
+          const r = this.#resourceNear(g.building.x, g.building.y, g.kinds, DROP_SITE_REACH);
+          if (!r) continue;
+          g.unit.moveTo(now, r.x, r.y);
+          this.gatherers.set(g.unit, r);
+          g.unit.startActivity(now, r.category);
+        }
       }
       for (const [unit, resource] of this.gatherers) {
         const resigned = this.resignedAt.get(unit.player);
@@ -577,12 +768,15 @@ export class Replay {
           unit.stopActivity(now);
           continue;
         }
-        if (resource.remaining <= 0) {
-          const next = this.#nextResource(resource);
+        const animal = resource.animal;
+        if (resource.remaining <= 0 || (animal && animal.removedAt <= now)) {
+          const next = animal ? this.#nextAnimal(resource, unit, now) : this.#nextResource(resource);
           if (next) {
             this.gatherers.set(unit, next);
-            unit.moveTo(now, next.x, next.y);
-            unit.startActivity(now, next.category);
+            const to = next.animal ? next.animal.positionAt(now) : next;
+            if (next.animal) this.#approach(unit, now, to, MELEE_STOP, 0);
+            else unit.moveTo(now, to.x, to.y);
+            unit.startActivity(now, next.kind ?? next.category);
           } else {
             this.gatherers.delete(unit);
             unit.stopActivity(now);
@@ -590,9 +784,18 @@ export class Replay {
           continue;
         }
         const at = unit.positionAt(now);
-        if (Math.hypot(at.x - resource.x, at.y - resource.y) > GATHER_REACH) continue; // still walking
-        resource.remaining -= (GATHER_RATES[resource.category] ?? 0) * (GATHER_STEP_MS / 1000);
-        if (resource.remaining <= 0) resource.depletedAt = now;
+        const spot = animal ? animal.positionAt(now) : resource;
+        if (Math.hypot(at.x - spot.x, at.y - spot.y) > GATHER_REACH) {
+          // Arrived but the animal had moved on (lured or pushed): follow it.
+          if (animal && !at.moving) this.#approach(unit, now, spot, MELEE_STOP, 0);
+          continue; // still walking
+        }
+        const rate = animal ? MEAT_RATE : GATHER_RATES[resource.category] ?? 0;
+        resource.remaining -= rate * (GATHER_STEP_MS / 1000);
+        if (resource.remaining <= 0) {
+          resource.depletedAt = now;
+          if (animal) animal.removedAt = Math.min(animal.removedAt, now);
+        }
       }
     }
   }
@@ -621,6 +824,26 @@ export class Replay {
     for (const [player, clicks] of this.ageUps) {
       const settled = settleAgeUps(clicks.sort((a, b) => a.age - b.age), notices && (notices.get(player) ?? []));
       this.ageUps.set(player, settled.filter((a) => a.reachedAt != null).map((a) => ({ age: a.age, t: a.reachedAt })));
+    }
+  }
+
+  // A trained unit whose ID never shows up in any command of the whole match is
+  // doubtful: it may have been dequeued (cancellations are not in a replay) or
+  // have died early. It does its first job (gather point) and then leaves, rather
+  // than standing idle for the rest of the game.
+  #dropUncommanded() {
+    for (const u of this.units) {
+      if (!u.key || u.id != null || u.removedAt < Infinity) continue;
+      const last = u.activities[u.activities.length - 1];
+      let idleFrom;
+      if (last) idleFrom = last.t1;
+      else {
+        const seg = u.path[u.path.length - 1];
+        idleFrom = seg.t0 + (Math.hypot(seg.x1 - seg.x0, seg.y1 - seg.y0) / Math.max(0.1, seg.speed)) * 1000;
+      }
+      if (idleFrom >= this.duration) continue;
+      u.removedAt = Math.max(u.spawnT, idleFrom);
+      u.fell = true; // fades out
     }
   }
 

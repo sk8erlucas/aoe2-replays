@@ -62,14 +62,17 @@ test('empty object_ids reuse the last selection', () => {
   assert.equal(v.path.at(-1).x1, 2);
 });
 
-test('trained units spawn after the train time and bind to unknown ids', () => {
+test('trained units spawn after the train time and bind to unknown ids in creation order', () => {
   const r = replay([
     { t: 1000, type: 'DE_QUEUE', player: 1, object_ids: [100], amount: 2, unit_id: 83 },
-    { t: 60000, type: 'MOVE', player: 1, object_ids: [555], x: 5, y: 5 },
+    // Commanded in the opposite order: the lower id was still created first.
+    { t: 55000, type: 'MOVE', player: 1, object_ids: [556], x: 5, y: 5 },
+    { t: 58000, type: 'MOVE', player: 1, object_ids: [555], x: 6, y: 6 },
   ]);
   const trained = r.units.filter((u) => u.approx);
   assert.deepEqual(trained.map((u) => u.spawnT), [26000, 51000]);
   assert.equal(r.unitById.get(555), trained[0]);
+  assert.equal(r.unitById.get(556), trained[1]);
   assert.equal(r.stateAt(25999).units.length, 1);
   assert.equal(r.stateAt(26000).units.length, 2);
 });
@@ -450,11 +453,61 @@ test('a unit last sent to attack and never ordered again falls, and fades out', 
   assert.ok(!r.stateAt(30_000).units.some((u) => u.unit === m));
 });
 
+const DEER = [{ id: 402, player: 0, type_id: 1060, class_id: 58, x: 22, y: 20 }];
+const ANIMALS = { 1060: { name: 'Deer', category: 'animal' }, 594: { name: 'Sheep', category: 'animal' }, 48: { name: 'Wild Boar', category: 'animal' } };
+
 test('hunted animals disappear when their food runs out', () => {
-  const r = skirmish([{ t: 0, type: 'ORDER', player: 1, object_ids: [101], target_id: 402, x: 16, y: 10 }]);
+  const r = forest([{ t: 0, type: 'ORDER', player: 1, object_ids: [101], target_id: 402, x: 22, y: 20 }], DEER, ANIMALS);
   const deer = r.unitById.get(402);
-  assert.ok(deer.removedAt > 300_000 && deer.removedAt < 400_000, `deer gone at ${deer.removedAt}`);
+  // 140 food at 0.4/s: 350 s, plus a few seconds walking.
+  assert.ok(deer.removedAt >= 350_000 && deer.removedAt < 360_000, `deer gone at ${deer.removedAt}`);
   assert.equal(r.unitById.get(101).activityAt(deer.removedAt + 1000), null);
+});
+
+test('several villagers share an animal and move on to the next sheep', () => {
+  const r = forest(
+    [{ t: 0, type: 'ORDER', player: 1, object_ids: [101, 102], target_id: 403, x: 20, y: 22 }],
+    [
+      { id: 102, player: 1, type_id: 83, class_id: 70, x: 20, y: 21 },
+      { id: 403, player: 1, type_id: 594, class_id: 58, x: 20, y: 22 },
+      { id: 404, player: 1, type_id: 594, class_id: 58, x: 23, y: 22 },
+    ],
+    ANIMALS,
+  );
+  const first = r.unitById.get(403);
+  // 100 food eaten by two: about 125 s.
+  assert.ok(first.removedAt > 120_000 && first.removedAt < 135_000, `${first.removedAt}`);
+  const v = r.unitById.get(101);
+  assert.equal(v.activityAt(first.removedAt + 10_000), 'shepherd');
+  const at = v.positionAt(first.removedAt + 10_000);
+  assert.ok(Math.hypot(at.x - 23, at.y - 22) < 1.5, `${at.x},${at.y}`);
+});
+
+test('a lured boar walks to where the hunters clicked it, and they eat it there', () => {
+  const r = forest(
+    [
+      { t: 0, type: 'ORDER', player: 1, object_ids: [101], target_id: 405, x: 30, y: 30 },
+      { t: 30_000, type: 'MOVE', player: 1, object_ids: [101], x: 11, y: 12 },
+      { t: 60_000, type: 'ORDER', player: 1, object_ids: [101, 102], target_id: 405, x: 12, y: 13 },
+    ],
+    [
+      { id: 102, player: 1, type_id: 83, class_id: 70, x: 12, y: 12 },
+      { id: 405, player: 0, type_id: 48, class_id: 58, x: 30, y: 30 },
+      { id: 406, player: 0, type_id: 48, class_id: 58, x: 13, y: 14 }, // another boar: never taken by itself
+    ],
+    ANIMALS,
+  );
+  const boar = r.unitById.get(405);
+  const at = boar.positionAt(60_000);
+  assert.ok(Math.hypot(at.x - 12, at.y - 13) < 0.01, `${at.x},${at.y}`);
+  assert.ok(Math.hypot(boar.positionAt(20_000).x - 30, boar.positionAt(20_000).y - 30) < 5); // still out there while hit
+  // 340 food: two hunters next to the town center, not out at the boar's start.
+  const hunter = r.unitById.get(102);
+  assert.equal(hunter.activityAt(100_000), 'hunt');
+  assert.ok(Math.hypot(hunter.positionAt(100_000).x - 12, hunter.positionAt(100_000).y - 13) < 1.5);
+  assert.ok(boar.removedAt < Infinity);
+  assert.equal(hunter.activityAt(boar.removedAt + 5_000), null);
+  assert.equal(r.unitById.get(406).removedAt, Infinity);
 });
 
 test('a player who resigns loses every unit and building', () => {
@@ -474,7 +527,10 @@ test('units over the population limit are taken as fallen, army first', () => {
       { id: 101, player: 1, type_id: 83, x: 12, y: 10 },
       { id: 102, player: 1, type_id: 74, x: 12, y: 12 },
     ],
-    timeline: [{ t: 0, type: 'DE_QUEUE', player: 1, object_ids: [100], unit_id: 83, amount: 1 }],
+    timeline: [
+      { t: 0, type: 'DE_QUEUE', player: 1, object_ids: [100], unit_id: 83, amount: 1 },
+      { t: 100_000, type: 'MOVE', player: 1, object_ids: [900], x: 15, y: 15 },
+    ],
     chat: [],
     legend: { objects: { 109: { name: 'Town Center', category: 'building' }, 83: { name: 'Villager', category: 'unit' }, 74: { name: 'Militia', category: 'unit' } } },
   };
@@ -566,4 +622,32 @@ test("age arrival comes from the game's notices; game notices are not chat", () 
   // Castle was clicked but never announced: cancelled, so never reached.
   assert.equal(r.ageAt(1, 59_000), 1);
   assert.deepEqual(r.log.filter((e) => e.kind === 'chat').map((e) => e.text), ['gg']);
+});
+
+test('a research holds up the queue of its building', () => {
+  const r = replay([
+    { t: 0, type: 'RESEARCH', player: 1, object_ids: [100], technology_id: 22 }, // Loom, 25 s
+    { t: 1000, type: 'DE_QUEUE', player: 1, object_ids: [100], amount: 1, unit_id: 83 },
+  ]);
+  assert.deepEqual(r.units.filter((u) => u.approx).map((u) => u.spawnT), [50_000]);
+});
+
+test('builders of a lumber camp start chopping next to it; a flare does not stop them', () => {
+  const r = forest(
+    [
+      { t: 0, type: 'BUILD', player: 1, building_id: 562, object_ids: [101], x: 22, y: 22 },
+      { t: 100_000, type: 'FLARE', player: 1, object_ids: [], x: 5, y: 5 },
+    ],
+    [],
+    { 562: { name: 'Lumber Camp', category: 'building' } },
+  );
+  const v = r.unitById.get(101);
+  assert.equal(v.activityAt(10_000), 'build');
+  assert.equal(v.activityAt(200_000), 'tree');
+});
+
+test('a trained unit never commanded in the whole match leaves once idle', () => {
+  const r = replay([{ t: 1000, type: 'DE_QUEUE', player: 1, object_ids: [100], amount: 1, unit_id: 83 }]);
+  const [u] = r.units.filter((x) => x.approx);
+  assert.equal(u.removedAt, u.spawnT);
 });
