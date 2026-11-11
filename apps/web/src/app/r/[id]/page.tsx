@@ -6,6 +6,7 @@ import { useEffect, useState } from "react";
 import type { ReplayData } from "@aoe2-replays/shared";
 import { useAccount } from "@/components/AccountProvider";
 import { ReplayViewer } from "@/components/ReplayViewer";
+import { FavoriteButton } from "@/components/FavoriteButton";
 import { ShareMenu } from "@/components/ShareMenu";
 import { errorText, useI18n } from "@/i18n/I18nProvider";
 import { forgetOwned, rememberOwned, tokenFor } from "@/lib/owned";
@@ -19,6 +20,8 @@ type Meta = {
   /** It belongs to the logged-in account. */
   inAccount: boolean;
   fileName: string | null;
+  /** Name given by the owner; only sent to whoever can manage it. */
+  title: string | null;
   createdAt: string;
   expiresAt: string | null;
   mapName: string | null;
@@ -157,21 +160,44 @@ export default function ReplayPage() {
     router.push("/");
   }
 
+  async function rename() {
+    const value = window.prompt(t.replay.renamePrompt, meta.title ?? "");
+    if (value === null) return;
+    const res = await fetch(`/api/replays/${meta.id}`, {
+      method: "PATCH",
+      headers: { "content-type": "application/json", "x-manage-token": token ?? "" },
+      body: JSON.stringify({ title: value.trim().slice(0, 80) }),
+    });
+    const json = await res.json().catch(() => null);
+    if (!res.ok) {
+      setNotice(errorText(t, json?.error?.code, res.status));
+      return;
+    }
+    setLoad({ ...load, meta: { ...meta, title: json?.title ?? null } } as Load);
+    setNotice(t.replay.renamed);
+  }
+
   const shareUrl = `${location.origin}/r/${meta.id}`;
-  const share = meta.isPublic && (
-    <ShareMenu
-      url={shareUrl}
-      title={t.share.matchTitle(data.map.name ?? t.common.mapNumber(data.map.id), data.game.players.map((p) => p.name).join(", "))}
-      onCopied={() => setNotice(t.replay.shareCopied)}
-    />
+  const title = t.share.matchTitle(data.map.name ?? t.common.mapNumber(data.map.id), data.game.players.map((p) => p.name).join(", "));
+  const share = meta.isPublic && <ShareMenu url={shareUrl} title={title} onCopied={() => setNotice(t.replay.shareCopied)} />;
+  // A private replay only goes to the account's favorites if it's in that account; without
+  // an account it goes to this browser, which already holds its management token.
+  const canStar = meta.isPublic || meta.inAccount || !account;
+  const star = canStar && (
+    <FavoriteButton kind="replay" targetId={meta.id} title={meta.title ?? title} onNotice={setNotice} />
   );
   const actions = meta.canManage ? (
     <div className="replay-actions">
+      {meta.title && <strong className="replay-title">{meta.title}</strong>}
       <span className={`badge${meta.isPublic ? " public" : ""}`}>{meta.isPublic ? t.replay.public : t.replay.private}</span>
       {meta.inAccount && <span className="badge">{t.replay.inAccount}</span>}
       <button type="button" onClick={() => setPublic(!meta.isPublic)}>
         {meta.isPublic ? t.replay.makePrivate : t.replay.makePublic}
       </button>
+      <button type="button" onClick={rename} title={t.replay.renameTitle}>
+        {t.replay.rename}
+      </button>
+      {star}
       {share}
       {token && (
         <button
@@ -197,10 +223,17 @@ export default function ReplayPage() {
     </div>
   ) : share ? (
     <div className="replay-actions">
+      {star}
       {share}
       {notice && <p className="notice">{notice}</p>}
     </div>
   ) : null;
 
-  return <ReplayViewer data={data} actions={actions} />;
+  return (
+    <ReplayViewer
+      data={data}
+      actions={actions}
+      moment={canStar ? { kind: "replay", targetId: meta.id, title: meta.title ?? title } : undefined}
+    />
+  );
 }

@@ -48,6 +48,7 @@ MATCH_IMPORTS_PER_HOUR_GLOBAL=300  # lo mismo, para todo el sitio; 0 = sin lími
 REGISTRATIONS_PER_HOUR=10           # cuentas creadas por IP; 0 = sin límite
 LOGINS_PER_15_MINUTES=20            # intentos de login por IP y por email; 0 = sin límite
 MAX_FOLLOWS=20                      # jugadores que puede seguir una cuenta
+MAX_FAVORITES=500                   # favoritos y momentos guardados por cuenta
 MAX_ACCOUNT_REPLAYS=200             # replays que guarda una cuenta (no vencen); 0 = sin límite
 NOTIFICATION_CHECKS_PER_MINUTE=120  # chequeos de partidas nuevas de todo el sitio; 0 = sin límite
 SITE_URL=https://aoe2replays.sitemaster.com.ar   # dirección pública: enlaces canónicos, vista previa en redes, sitemap

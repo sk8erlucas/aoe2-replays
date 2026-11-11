@@ -74,7 +74,7 @@ Elegido: **B1** con un subconjunto (edificios y unidades principales, por arquit
   - Pistas en archivos comprimidos (Opus/OGG o MP3, ~128 kbps) cargadas solo al activar la música; lista que pasa de una pista a otra.
   - Opcional: pistas según la civilización del jugador seguido o el momento de la partida.
 - [ ] Sonidos del juego (efectos: construir, avanzar de edad, chat) con el mismo control de volumen
-- [ ] Atajos de teclado parecidos a los del juego para el espectador
+- [x] Atajos de teclado para el espectador (botón `?` en la barra, o la tecla `?`): espacio, ← → (Mayús: 30 s), Inicio/Fin, `[` `]` velocidad, `+` `−`, WASD, `F` cámara automática, `1`–`8` seguir jugador, `M` mapa completo. No se activan escribiendo ni con Ctrl/Alt
 
 ## Cómo se integra
 `packages/viewer/src/render.js` separa cámara y dibujo. Los métodos `#drawBuilding`, `#drawUnit`, `#drawResource`, `#drawStump` y la capa de terreno se reemplazan por versiones con sprites sin tocar la cámara, el motor ni el análisis.

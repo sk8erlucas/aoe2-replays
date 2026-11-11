@@ -151,6 +151,6 @@ export async function accountReplays(userId: string) {
   return db().replay.findMany({
     where: { userId },
     orderBy: { createdAt: "desc" },
-    select: { id: true, isPublic: true, createdAt: true, fileName: true, mapName: true, durationMs: true, players: true },
+    select: { id: true, isPublic: true, createdAt: true, fileName: true, title: true, mapName: true, durationMs: true, players: true },
   });
 }

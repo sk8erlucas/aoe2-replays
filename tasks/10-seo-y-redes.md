@@ -11,7 +11,7 @@ Hoy las páginas de jugador (`/p/<id>`) y de partida (`/m/<id>`) se arman en el 
   - Indexar: portada, jugadores, partidas online.
   - **No indexar** replays subidos (`/r/<id>`, son privados o de enlace) ni páginas de gestión: `noindex` además de excluirlos del sitemap.
 - [~] Sitemap dinámico: incluye las últimas 1000 partidas guardadas. Faltan los jugadores, que hoy no se registran al verlos.
-- [ ] Datos estructurados (JSON-LD): `WebSite` con buscador (`SearchAction` hacia la búsqueda de jugadores), `BreadcrumbList`, y para partidas un tipo genérico (`Event`/`SportsEvent`) si aporta
+- [-] Datos estructurados (JSON-LD): descartado por ahora. Google retiró en noviembre de 2024 el cuadro de búsqueda de sitelinks (lo único que daba `SearchAction`), y `BreadcrumbList` o `Event` no suman con dos niveles de páginas. Revisar si aparecen páginas por mapa o civilización
 - [ ] URLs legibles: además del número, slug descriptivo (`/m/516586396-black-forest-4v4`), redirigiendo al canónico
 - [ ] Rendimiento (Core Web Vitals): imágenes con tamaño fijo, fuentes autoalojadas (ya), cargar el visor y los sprites solo cuando se usan, medir con Lighthouse en CI
 - [x] Página 404 útil, con buscador
@@ -19,7 +19,7 @@ Hoy las páginas de jugador (`/p/<id>`) y de partida (`/m/<id>`) se arman en el 
 ## Compartir en redes
 - [x] Open Graph y Twitter Cards generales (`SITE_URL`, imagen `og.jpg` 1200×630)
 - [x] Open Graph propio de cada partida y jugador (título y descripción; la imagen sigue siendo la general)
-- [ ] **Imágenes de vista previa generadas** (`next/og`, 1200×630) con el estilo pergamino:
+- [x] **Imágenes de vista previa generadas** (`opengraph-image.tsx` en `/m/` y `/p/`, `src/lib/ogImage.tsx`, 1200×630, estilo pergamino). Partida: modo, mapa, duración y equipos con color, civilización, ELO y resultado. Jugador: nombre, país, partidas y ELO y % de victorias por modo. Caché HTTP de 1 h. Falta el minimapa en miniatura y las civilizaciones más jugadas. Plan original:
   - Partida: mapa en miniatura (minimapa isométrico), jugadores con civilización y color, duración y ganador.
   - Jugador: nombre, país, ELO por modo, civilizaciones más jugadas.
   - Cacheadas por partida y por jugador.

@@ -449,6 +449,7 @@ button.primary:hover:not(:disabled), .button-primary:hover { border-color: var(-
 .table-scroll { overflow-x: auto; }
 .ratings { table-layout: auto; font-size: 14px; }
 .stats.ratings th[scope="row"] { white-space: normal; overflow: visible; }
+.load-more { display: grid; justify-items: center; gap: 6px; margin-top: 16px; }
 .match-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 16px; }
 .match-card {
   padding: 16px;
@@ -629,6 +630,8 @@ button.primary:hover:not(:disabled), .button-primary:hover { border-color: var(-
 }
 .players .player-jump:hover .name,
 .players .player-jump:focus-visible .name { text-decoration: underline; }
+.players .player-jump:has(.result) { grid-template-columns: 12px minmax(0, 1fr) auto auto; }
+.players .result { font-size: 10px; padding: 0 6px; letter-spacing: 0.04em; }
 .players li.resigned { opacity: 0.5; }
 .players .name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 600; }
 .players .meta { color: var(--ink-faint); font-size: 12px; }
@@ -800,6 +803,27 @@ button.link:hover { color: var(--bronze); }
 .controls .share-notice { color: var(--ink-faint); font-size: 12px; white-space: nowrap; }
 .zoom-buttons { display: flex; gap: 4px; }
 .zoom-buttons button { min-width: 32px; }
+.keys-help > button { min-width: 32px; }
+/* Opens upwards: the playback bar is at the bottom of the screen. */
+.keys-help .keys-panel {
+  top: auto;
+  bottom: calc(100% + 6px);
+  width: min(340px, calc(100vw - 32px));
+  padding: 12px 14px;
+}
+.keys-panel h2 { margin: 0 0 8px; font-size: 14px; }
+.keys-panel dl { display: grid; gap: 4px; margin: 0; font-size: 13px; }
+.keys-panel dl > div { display: grid; grid-template-columns: 92px 1fr; gap: 8px; align-items: baseline; }
+.keys-panel dd { margin: 0; }
+.keys-panel kbd {
+  font: 12px ui-monospace, "Cascadia Code", Consolas, monospace;
+  padding: 1px 5px;
+  border: 1px solid var(--rule);
+  border-radius: 3px;
+  background: var(--paper);
+  white-space: nowrap;
+}
+@media (pointer: coarse) { .keys-help { display: none; } }
 
 /* Account: top bar controls */
 .account-area { display: flex; align-items: center; gap: 8px; }
@@ -981,3 +1005,42 @@ button.danger:hover:not(:disabled) { background: var(--danger); color: var(--pap
 
 /* Share menu next to the match actions: opens below its button, on the left. */
 .share-menu .share-panel { left: 0; right: auto; min-width: 170px; }
+
+/* Favorites */
+.favorites { max-width: 820px; padding-top: 40px; padding-bottom: 40px; }
+.favorites h1 { text-transform: uppercase; margin: 0 0 6px; }
+.favorites .notice { margin: 10px 0; font-size: 13px; }
+.notice-box {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 16px;
+  margin: 14px 0;
+  padding: 10px 14px;
+  border: 1px solid var(--bronze-dark);
+  border-radius: 4px;
+  background: var(--paper-raised);
+}
+.favorite-list a { font-weight: 600; }
+.moment-time {
+  display: inline-block;
+  margin-right: 8px;
+  font-variant-numeric: tabular-nums;
+  color: var(--bronze-dark);
+}
+.favorite-button[aria-pressed="true"] { border-color: var(--bronze); }
+.favorite-button span { color: var(--bronze-dark); }
+.replay-title { font-family: var(--font-display); }
+/* Opens upwards, like the shortcuts help. */
+.save-moment .moment-panel {
+  top: auto;
+  bottom: calc(100% + 6px);
+  left: 0;
+  right: auto;
+  display: grid;
+  gap: 8px;
+  width: min(300px, calc(100vw - 32px));
+  padding: 12px 14px;
+}
+.moment-panel input { width: 100%; }
+.moment-panel button { justify-self: start; }

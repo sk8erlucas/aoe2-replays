@@ -55,6 +55,9 @@ export function AccountControls() {
             <Link href="/account" role="menuitem" onClick={() => setOpen(false)}>
               {t.nav.account}
             </Link>
+            <Link href="/favorites" role="menuitem" onClick={() => setOpen(false)}>
+              {t.nav.favorites}
+            </Link>
             {account.profileId && (
               <Link href={`/p/${account.profileId}`} role="menuitem" onClick={() => setOpen(false)}>
                 {t.nav.myMatches}

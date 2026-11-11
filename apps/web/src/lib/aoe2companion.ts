@@ -105,16 +105,29 @@ export async function getProfile(profileId: number): Promise<Profile> {
   };
 }
 
-export function getMatches(profileId: number): Promise<MatchSummary[]> {
-  return getMatchesOf([profileId]);
+export function getMatches(profileId: number, page = 1): Promise<MatchSummary[]> {
+  return getMatchesOf([profileId], page);
 }
 
-/** The latest matches of any of these players, in one request. */
-export async function getMatchesOf(profileIds: number[]): Promise<MatchSummary[]> {
+/** The latest matches of any of these players, in one request (20 per page). */
+export async function getMatchesOf(profileIds: number[], page = 1): Promise<MatchSummary[]> {
   // Sorted so that the same set of players shares a cache entry.
   const ids = [...new Set(profileIds)].sort((a, b) => a - b).join(",");
-  const body = await getJson<{ matches?: Raw[] }>(`/matches?profile_ids=${ids}&page=1`);
-  return (body.matches ?? []).map((m) => ({
+  const body = await getJson<{ matches?: Raw[] }>(`/matches?profile_ids=${ids}&page=${page}`);
+  return (body.matches ?? []).map(toSummary);
+}
+
+/** One match: teams, ratings and who won. Null if aoe2companion doesn't know it. */
+export async function getMatch(matchId: number): Promise<MatchSummary | null> {
+  const m = await getJson<Raw>(`/matches/${matchId}`).catch((err: Error) => {
+    if (err.message.endsWith(" 404")) return null;
+    throw err;
+  });
+  return m && num(m.matchId) === matchId ? toSummary(m) : null;
+}
+
+function toSummary(m: Raw): MatchSummary {
+  return {
     matchId: num(m.matchId) ?? 0,
     started: str(m.started),
     finished: str(m.finished),
@@ -133,5 +146,5 @@ export async function getMatchesOf(profileIds: number[]): Promise<MatchSummary[]
         won: typeof pl.won === "boolean" ? pl.won : null,
       })),
     })),
-  }));
+  };
 }

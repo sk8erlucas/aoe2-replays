@@ -32,16 +32,16 @@ Objetivo: que quien quiera pueda tener una cuenta para guardar lo suyo (replays,
 ## Favoritos y listas
 - [x] **Jugadores seguidos**: botón en `/p/<id>` y buscador en `/account`, hasta `MAX_FOLLOWS` (20). Sus partidas llegan a la campanita.
 - [ ] La portada muestra las últimas partidas de los jugadores seguidos.
-- [ ] **Partidas favoritas**: estrella en `/m/<id>` y `/r/<id>` (solo si quien la marca puede verla).
-- [ ] **Momentos guardados**: guardar un `?t=` con una nota corta ("la pelea en el centro"), para volver o compartir.
-- [ ] Página "Favoritos" con pestañas (jugadores, partidas, momentos).
-- [ ] Sin cuenta: favoritos en el navegador (`localStorage`), como hoy "Tus replays en este navegador"; al iniciar sesión, ofrecer pasarlos a la cuenta.
+- [x] **Partidas favoritas**: estrella en `/m/<id>` y `/r/<id>` (solo si quien la marca puede verla). Tabla `favorites` (migración `favorites_and_replay_titles`), hasta `MAX_FAVORITES` (500). Un replay privado solo se guarda en la cuenta dueña, y si después pasa a privado o se borra, desaparece de la lista de los demás.
+- [x] **Momentos guardados**: "Guardar momento" en la barra del visor, con una nota de hasta 140 caracteres (son favoritos con `second > 0`; guardar el mismo segundo de nuevo cambia la nota).
+- [x] Página `/favorites` con pestañas (partidas, momentos, jugadores), en la barra superior y en el menú de cuenta.
+- [x] Sin cuenta: favoritos en el navegador (`localStorage`, hasta 100); con sesión, `/favorites` ofrece pasarlos a la cuenta (los que no se puedan, como replays privados ajenos, quedan en el navegador).
 
 ## Mis replays
 - [x] Los replays subidos con sesión iniciada quedan asociados a la cuenta (columna `user_id`, migración `account_replays`, se borran con la cuenta) y no vencen, hasta `MAX_ACCOUNT_REPLAYS` (200). "Mis replays" en `/account`. Solo cuenta la sesión si la subida viene del propio sitio (`sameSiteUserId`); desde otro sitio la subida queda anónima.
 - [x] Reclamar replays subidos antes sin cuenta: "Guardar en mi cuenta" en `/r/<id>` con el enlace de gestión (`PATCH { saveToAccount: true }`, pide token y sesión).
-- [~] Gestión desde la cuenta: el dueño hace público/privado y borra sin token (desde `/r/<id>` y "Mis replays"). Falta renombrar.
-- Probado contra la base local el 10/11/2026: permisos entre dos cuentas, pedido desde otro sitio, reclamo y borrado de cuenta. Falta dejarlo en el CI.
+- [x] Gestión desde la cuenta: el dueño hace público/privado, renombra (`PATCH { title }`, hasta 80 caracteres, solo lo ve quien gestiona) y borra sin token (desde `/r/<id>` y "Mis replays").
+- Probado contra la base local el 10/11/2026: permisos entre dos cuentas, pedido desde otro sitio, reclamo y borrado de cuenta. El 11/11/2026, lo mismo para favoritos y renombrar (favorito de un replay privado ajeno → 404, borrar el de otro → 404, cascada al borrar la cuenta). Falta dejarlo en el CI.
 
 ## Seguridad y privacidad
 - [x] Protección CSRF en las rutas que cambian datos: cookie `sameSite=lax` y verificación de `Origin` (`rejectCrossSite`).

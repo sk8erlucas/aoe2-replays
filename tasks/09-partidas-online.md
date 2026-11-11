@@ -37,12 +37,13 @@ Ninguna de estas APIs está documentada como pública ni tiene acuerdo de uso co
 - [x] Buscador con autocompletado en la barra superior y en la portada (debounce, teclado, sin resultados)
 - [x] Página de perfil `/p/<profileId>` con rankings, récord y partidas recientes (resultado, civilizaciones, ELO y su cambio)
 - [x] Página de partida `/m/<matchId>` con visor y análisis; botón "Ver partida" desde el perfil
-- [ ] Paginación de partidas (hoy muestra la primera página)
-- [ ] Enlaces compartibles a un momento: `/m/<matchId>?t=12:34`
-- [ ] Datos extra que vienen de la API en el análisis: ganador, ELO de cada jugador, ranking de la partida
+- [x] Paginación de partidas: "Ver más partidas" en el perfil (`/api/players/<id>?page=N`, 20 por página, hasta 50)
+- [x] Enlaces compartibles a un momento: `/m/<matchId>?t=<segundos>` (botón "Compartir momento")
+- [x] Datos extra de la API (`/api/matches/<id>/info`, aoe2companion): ganador y ELO (con su cambio) junto a cada jugador del visor, y el modo de la partida. Se emparejan por `profile_id` y, si no, por nombre
+- [x] Abrir `/m/<id>` sin `?p=` (enlace compartido): se busca un jugador de la partida en aoe2companion y se descarga su copia
 - [x] Atribución visible a las fuentes de datos
 
 ### Más adelante
-- [ ] Seguir jugadores y ver sus partidas nuevas
+- [x] Seguir jugadores y ver sus partidas nuevas (cuentas, [13](./13-cuentas.md))
 - [ ] Estadísticas agregadas por jugador (civilizaciones más usadas, build orders, APM promedio)
 - [ ] Partidas destacadas (jugadores de ELO alto) en la portada

@@ -1,10 +1,11 @@
-// GET: replay metadata. PATCH: change visibility, or save it to the account.
+// GET: replay metadata. PATCH: change visibility, rename it, or save it to the account.
 // DELETE: remove it. PATCH and DELETE need the management token in the
 // x-manage-token header, or the owning account (from this site only).
 import { NextResponse } from "next/server";
 import { currentSession, sameSiteUserId, unauthorized } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { apiError, readJson, withErrors } from "@/lib/http";
+import { TITLE_MAX, cleanLine } from "@/lib/validate";
 import {
   TOKEN_HEADER,
   accountFull,
@@ -42,6 +43,7 @@ async function show(request: Request, { params }: Context) {
     tokenValid,
     inAccount,
     fileName: canManage ? replay.fileName : null,
+    title: canManage ? replay.title : null,
     createdAt: replay.createdAt,
     expiresAt: replay.expiresAt,
     mapName: replay.mapName,
@@ -66,6 +68,13 @@ async function update(request: Request, { params }: Context) {
     }
     await db().replay.update({ where: { id }, data: { userId, expiresAt: null } });
     return NextResponse.json({ id, inAccount: true });
+  }
+  if (body && "title" in body) {
+    // An empty name goes back to showing the map.
+    const title = body.title === null || body.title === "" ? null : cleanLine(body.title, TITLE_MAX);
+    if (title === null && body.title !== null && body.title !== "") return apiError(400, "bad_request", "Invalid name.");
+    await db().replay.update({ where: { id }, data: { title } });
+    return NextResponse.json({ id, title });
   }
   if (typeof body?.isPublic !== "boolean") return apiError(400, "bad_request", "Missing isPublic (true/false).");
   await db().replay.update({ where: { id }, data: { isPublic: body.isPublic } });

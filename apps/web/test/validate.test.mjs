@@ -6,7 +6,7 @@ import { test } from "node:test";
 import { zipSync } from "fflate";
 import { allow, hasRoom } from "../src/lib/ratelimit.ts";
 import { MAX_REPLAY_BYTES, extractReplay, replayUrl } from "../src/lib/replayZip.ts";
-import { envInt, isManageToken, isMatchId, isReplayId } from "../src/lib/validate.ts";
+import { cleanLine, envInt, isManageToken, isMatchId, isReplayId, parseFavorite, parsePage } from "../src/lib/validate.ts";
 
 test("replay ids and tokens match what the server generates", () => {
   for (let i = 0; i < 50; i++) {
@@ -104,4 +104,52 @@ test("an entry lying about its size can't inflate past what it declared", () => 
     return; // refusing it outright is fine too
   }
   assert.ok(out === null || out.length <= 16, `inflated ${out?.length} bytes`);
+});
+
+test("list pages: 1 by default, small positive numbers only", () => {
+  assert.equal(parsePage(null), 1);
+  assert.equal(parsePage(""), 1);
+  assert.equal(parsePage("3"), 3);
+  assert.equal(parsePage("50"), 50);
+  for (const bad of ["0", "51", "-1", "1.5", "abc", "1e2", "9999", " 2"]) assert.equal(parsePage(bad), null, bad);
+});
+
+test("user text: one trimmed line, no control characters, bounded", () => {
+  assert.equal(cleanLine("  la pelea del centro  ", 140), "la pelea del centro");
+  assert.equal(cleanLine("a\u0000b\nc", 140), "a b c");
+  assert.equal(cleanLine("   ", 140), null);
+  assert.equal(cleanLine("x".repeat(141), 140), null);
+  assert.equal(cleanLine(42, 140), null);
+});
+
+test("favorites and saved moments from a request body", () => {
+  const replayId = randomBytes(16).toString("base64url");
+  assert.deepEqual(parseFavorite({ kind: "match", targetId: "516586396" }), {
+    kind: "match",
+    targetId: "516586396",
+    second: 0,
+    note: null,
+  });
+  assert.deepEqual(parseFavorite({ kind: "replay", targetId: replayId, second: 754, note: " rush " }), {
+    kind: "replay",
+    targetId: replayId,
+    second: 754,
+    note: "rush",
+  });
+  assert.equal(parseFavorite({ kind: "replay", targetId: replayId, note: "" })?.note, null);
+  for (const bad of [
+    null,
+    {},
+    { kind: "player", targetId: "1" },
+    { kind: "match", targetId: replayId },
+    { kind: "replay", targetId: "516586396" },
+    { kind: "match", targetId: "1", second: -1 },
+    { kind: "match", targetId: "1", second: 1.5 },
+    { kind: "match", targetId: "1", second: "10" },
+    { kind: "match", targetId: "1", second: 86_401 },
+    { kind: "match", targetId: "1", note: "x".repeat(141) },
+    { kind: "match", targetId: "1", note: 5 },
+  ]) {
+    assert.equal(parseFavorite(bad), null, JSON.stringify(bad));
+  }
 });
