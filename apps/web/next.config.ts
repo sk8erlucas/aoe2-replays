@@ -7,6 +7,8 @@ const nextConfig: NextConfig = {
   transpilePackages: ["@aoe2-replays/viewer"],
   // Our images are pre-sized WebP files; skipping the optimizer avoids depending on sharp in the container.
   images: { unoptimized: true },
+  // `next dev` would write its own apps/web/AGENTS.md; the repo's AGENTS.md is the only guide.
+  agentRules: false,
   async headers() {
     // Next injects inline scripts for hydration, hence 'unsafe-inline'; dev mode also needs eval.
     const dev = process.env.NODE_ENV !== "production";

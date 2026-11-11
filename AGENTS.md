@@ -11,7 +11,7 @@ Contexto y decisiones: [`docs/CONTEXT.md`](docs/CONTEXT.md), [`docs/DECISIONS.md
 | Carpeta | Qué es | Stack |
 |---|---|---|
 | `services/parser` | `.aoe2record` → JSON. CLI y API HTTP sin estado | Python 3.11+, FastAPI, `mgz` |
-| `apps/web` | Web: portada, subida (`/r/<id>`), búsqueda de jugadores (`/p/<id>`), partidas online (`/m/<id>`), visor y análisis | Next.js 15 (App Router), TypeScript, Prisma 7, Postgres |
+| `apps/web` | Web: portada, subida (`/r/<id>`), búsqueda de jugadores (`/p/<id>`), partidas online (`/m/<id>`), visor y análisis | Next.js 16 (App Router), TypeScript, Prisma 7, Postgres |
 | `packages/viewer` | Motor de reproducción y análisis (sin DOM) y render en canvas | JavaScript ESM + `index.d.ts` |
 | `packages/shared` | Tipos TypeScript del contrato JSON del parser | Solo tipos |
 | `apps/viewer` | Prototipo estático del visor para depurar, sin build | HTML + JS |
@@ -67,6 +67,8 @@ Antes de dar algo por terminado: tests y `ruff` del parser, `npm test`, lint, ty
 - Cuentas: contraseñas solo con scrypt (`src/lib/password.ts`) y token de sesión guardado solo como hash. El email y el jugador vinculado (sin verificar) no se muestran en páginas públicas. Toda ruta que cambia datos de una cuenta empieza con `rejectCrossSite` y filtra por el `userId` de la sesión. Si se guarda algo nuevo del usuario, actualizar `/privacy` y el borrado de cuenta.
 
 **Base de datos.** Cambios de esquema solo con migraciones de Prisma (`npm run db:migrate -w apps/web -- --name <cambio>`), commiteadas en `apps/web/prisma/migrations`. En producción se aplican solas con el servicio `migrate` del compose. El cliente generado (`apps/web/src/generated`) no se commitea.
+
+**Next.js 16.** Cambió bastante respecto de versiones anteriores (Turbopack por defecto, `proxy` en vez de `middleware`, sin `next lint`): ante la duda, leer la guía que viene instalada en `node_modules/next/dist/docs/`. Las reglas de `react-hooks` para el React Compiler están apagadas en `eslint.config.mjs` (no lo usamos; ver `tasks/12-next-16.md`).
 
 **Visor y análisis.** `packages/viewer/src/engine.js` y `analysis.js` no pueden tocar el DOM (se testean en Node). Todo lo visual va en `render.js` (proyección isométrica 2:1: `u = x - y`, `v = (x + y) / 2 - z`; cámara con seguimiento y minimapa), y los números estimados (velocidades, tiempos) en `palette.js`. Los sprites y las texturas de terreno del juego vienen de `apps/web/public/sprites` (generados por `tools/sprites`) y los cargan `sprites.js` y `terrain.js`; cada `#sprite*` del render devuelve `false` si no hay sprite y entonces se dibuja la forma propia. El replay guarda solo comandos, así que todo lo que el motor infiere es aproximado: documentarlo cuando se agregue algo.
 

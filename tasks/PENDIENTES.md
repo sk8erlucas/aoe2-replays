@@ -3,7 +3,7 @@
 Separados entre lo que necesita una decisión o acción tuya y lo que se puede avanzar sin vos.
 
 ## Repo abierto
-El repo es público desde octubre de 2026. Lo que queda de seguridad e infraestructura está en [11-apertura-publica](./11-apertura-publica.md); la migración a Next 16 en [12-next-16](./12-next-16.md).
+El repo es público desde octubre de 2026. Lo que queda de seguridad e infraestructura está en [11-apertura-publica](./11-apertura-publica.md); la migración a Next 16 (hecha el 11/11/2026, falta el deploy de prueba) en [12-next-16](./12-next-16.md).
 
 ## Cuentas
 Hecho el 09/11/2026: registro y login con email y contraseña, vincular el jugador, seguir hasta 20 jugadores, campanita de partidas nuevas, borrar la cuenta y página de privacidad. El 10/11/2026: "Mis replays" (las subidas con sesión quedan en la cuenta y no vencen; se puede guardar uno subido antes). El 11/11/2026: favoritos (partidas y replays con estrella, momentos guardados con nota, página `/favorites`, también sin cuenta en el navegador) y renombrar replays. Falta recuperar la contraseña (con Resend): [13-cuentas](./13-cuentas.md).
@@ -30,7 +30,7 @@ Quedó a medio revisar o detectado al cerrar la sesión del 29/10/2026:
 - [x] Ovejas con dueño dibujadas como milicia (ahora usan su sprite de animal con el color del jugador).
 - [x] Si una página del atlas o una textura falla al bajar, se reintenta (antes el edificio quedaba invisible).
 - [x] **`manifest.json` de sprites pesaba 5,5 MB**: partido en núcleo + `civs/<id>.json`; una partida de 8 jugadores baja ~390 KB comprimidos en vez de 1,7 MB.
-- [ ] Migración a Next 16 ([12](./12-next-16.md)).
+- [x] Migración a Next 16 y ESLint 10 ([12](./12-next-16.md)), en la rama `next-16`: falta probarla en el navegador y en un deploy de prueba.
 
 ## Manual (necesita tu decisión o acción)
 | Tema | Qué hace falta | Bloquea |

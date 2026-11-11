@@ -1,16 +1,10 @@
-import { dirname } from "path";
-import { fileURLToPath } from "url";
-import { FlatCompat } from "@eslint/eslintrc";
+import { defineConfig, globalIgnores } from "eslint/config";
+import nextVitals from "eslint-config-next/core-web-vitals";
+import nextTs from "eslint-config-next/typescript";
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = dirname(__filename);
-
-const compat = new FlatCompat({
-  baseDirectory: __dirname,
-});
-
-const eslintConfig = [
-  ...compat.extends("next/core-web-vitals", "next/typescript"),
+export default defineConfig([
+  ...nextVitals,
+  ...nextTs,
   {
     // Names and chat come from replays and external APIs: always render them as text.
     rules: {
@@ -29,14 +23,17 @@ const eslintConfig = [
     },
   },
   {
-    ignores: [
-      "node_modules/**",
-      ".next/**",
-      "out/**",
-      "build/**",
-      "next-env.d.ts",
-    ],
+    // eslint-plugin-react-hooks 7 adds rules for the React Compiler, which this app
+    // doesn't use. The viewer reads and writes refs during render on purpose (the
+    // animation loop lives outside React). Revisit when adopting the compiler:
+    // tasks/12-next-16.md. rules-of-hooks and exhaustive-deps stay on, as before.
+    rules: {
+      "react-hooks/set-state-in-effect": "off",
+      "react-hooks/refs": "off",
+      "react-hooks/purity": "off",
+      "react-hooks/immutability": "off",
+      "react-hooks/preserve-manual-memoization": "off",
+    },
   },
-];
-
-export default eslintConfig;
+  globalIgnores(["node_modules/**", ".next/**", "out/**", "build/**", "next-env.d.ts", "src/generated/**"]),
+]);
