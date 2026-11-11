@@ -11,10 +11,10 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const t = await serverMessages();
   const path = `/m/${matchId}`;
   const match = await findMatch(matchId).catch(() => null);
-  if (!match) return pageMeta(t.match.online, t.meta.matchFallback, path);
+  if (!match) return pageMeta(t.match.online, t.meta.matchFallback, path, { generatedImage: true });
   const map = match.mapName ?? t.common.unknownMap;
   const players = (match.players as Array<{ name?: string }>).map((p) => p.name).filter(Boolean).join(", ");
-  return pageMeta(map, t.meta.match(map, players), path);
+  return pageMeta(map, t.meta.match(map, players), path, { generatedImage: true });
 }
 
 export default function MatchLayout({ children }: Readonly<{ children: React.ReactNode }>) {

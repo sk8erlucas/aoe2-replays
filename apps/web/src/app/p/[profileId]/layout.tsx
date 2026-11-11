@@ -11,7 +11,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const t = await serverMessages();
   // The page itself asks for the same profile, and the response is cached.
   const profile = await getProfile(Number(profileId)).catch(() => null);
-  return profile ? pageMeta(profile.name, t.meta.player(profile.name), `/p/${profileId}`) : {};
+  return profile ? pageMeta(profile.name, t.meta.player(profile.name), `/p/${profileId}`, { generatedImage: true }) : {};
 }
 
 export default function PlayerLayout({ children }: Readonly<{ children: React.ReactNode }>) {
