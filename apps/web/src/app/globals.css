@@ -960,8 +960,13 @@ button.link:hover { color: var(--bronze); }
 .bell-note { margin: 0; padding: 16px 12px; color: var(--ink-soft); }
 .bell-list { list-style: none; margin: 0; padding: 0; max-height: min(420px, 60vh); overflow-y: auto; }
 .bell-list li + li { border-top: 1px solid var(--rule); }
-.bell-list a { display: block; padding: 10px 12px; color: var(--ink); text-decoration: none; }
-.bell-list a:hover { background: var(--paper-sunken); color: var(--ink); }
+.bell-item { position: relative; padding: 10px 12px; }
+.bell-item:hover { background: var(--paper-sunken); }
+.bell-match { color: var(--ink); text-decoration: none; }
+.bell-match::after { content: ""; position: absolute; inset: 0; } /* the whole row opens the match */
+.bell-item:hover .bell-match { text-decoration: underline; }
+.bell-player { position: relative; z-index: 1; color: var(--ink); text-decoration: underline; text-decoration-color: var(--rule); text-underline-offset: 2px; }
+.bell-player:hover { color: var(--bronze); text-decoration-color: currentColor; }
 .bell-title { display: flex; align-items: baseline; gap: 6px; overflow-wrap: anywhere; }
 .bell-dot { flex: none; width: 8px; height: 8px; border-radius: 50%; background: var(--bronze); align-self: center; }
 .bell-list .unread .bell-title { font-weight: 700; }
@@ -1106,3 +1111,18 @@ button.danger:hover:not(:disabled) { background: var(--danger); color: var(--pap
 .music-control { display: flex; align-items: center; gap: 6px; }
 .music-control button[aria-pressed="true"] { border-color: var(--bronze-light); }
 .music-control input[type="range"] { width: 80px; accent-color: var(--bronze-light); }
+
+/* Video export (viewer controls) */
+.video-panel { width: min(360px, calc(100vw - 24px)); padding: 14px 16px; bottom: calc(100% + 8px); top: auto; left: 0; right: auto; }
+.video-panel h2 { font-size: 15px; margin: 0 0 10px; }
+.video-panel form, .video-panel fieldset { display: grid; gap: 10px; }
+.video-panel fieldset { border: 0; margin: 0; padding: 0; min-width: 0; }
+.video-panel p { margin: 0; font-size: 13px; line-height: 1.5; }
+.video-range { display: flex; flex-wrap: wrap; align-items: end; gap: 8px 12px; }
+.video-range label { display: grid; gap: 2px; }
+.video-check { display: flex; align-items: center; gap: 6px; }
+.video-progress { display: flex; align-items: center; gap: 10px; }
+.video-progress progress { flex: 1; }
+.controls .video-panel button.link { background: none; border: 0; padding: 0; min-height: 0; color: var(--ink-soft); font-size: 13px; }
+.controls .video-panel button.link:hover { color: var(--bronze); }
+.controls .video-panel input:not([type="checkbox"]) { width: 7em; }

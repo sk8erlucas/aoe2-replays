@@ -37,6 +37,11 @@ Detalle en [15-orientacion-chat-y-herramientas](./15-orientacion-chat-y-herramie
 - **Partidas online**: Microsoft guarda los replays ~4 meses; si falta la copia de un jugador se prueba con las de los demás (antes daba "no disponible") ([09](./09-partidas-online.md)).
 - **Para probar en el navegador**: el botón de música (también en Safari/iPhone) y el sonido de los videos de la portada.
 
+## Sesión del 12/11/2026 (noche)
+- **Exportar a video** ([05](./05-video.md)): botón "🎬 Video" en el visor; MP4 generado en el navegador con WebCodecs y Mediabunny, con rango, velocidad, 720p/1080p, marca de agua, progreso y cancelar. Probado en Chrome con la web real.
+- **Campanita**: el nombre del jugador lleva a su historial (`/p/<id>`); el resto de la fila, a la partida. También en "Partidas de los que seguís" de la portada.
+- **Para probar en el navegador**: la campanita con una cuenta que siga jugadores, y el video en Safari, Firefox y un celular.
+
 ## Sesión del 12/11/2026 (tarde)
 - **Parser cerrado**: test con un 1v1 en el build 188329, nombres para los IDs que `aocref` no tiene, `aoe2rec` descartado.
 - **Plan de la web cerrado** ([03-web-completed](./03-web-completed.md)): quedan el CAPTCHA y la publicidad, que ya están en la tabla de abajo. La cola de parseo no hace falta (0,33 s para 48 min).
@@ -96,4 +101,4 @@ Quedó a medio revisar o detectado al cerrar la sesión del 29/10/2026:
 - [x] Música de fondo en el visor ([08](./08-experiencia-de-juego.md))
 - [x] Interfaz en español e inglés
 - [~] SEO y compartir en redes: hechos los metadatos por jugador y partida, el sitemap con partidas, la página 404, el botón "Compartir" (menú nativo, WhatsApp, X, Reddit, Telegram) y las imágenes de vista previa generadas. Falta renderizar en el servidor ([10](./10-seo-y-redes.md))
-- [ ] Exportar a video con `MediaRecorder` (prueba de concepto)
+- [x] Exportar a video ([05](./05-video.md)): WebCodecs + Mediabunny, en el navegador

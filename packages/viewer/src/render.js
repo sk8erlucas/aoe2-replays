@@ -85,6 +85,7 @@ export class Renderer {
     this.k = this.#baseK();
     this.base = this.#buildBaseLayer();
     this.dpr = 1;
+    this.fixed = null; // { w, h } when not sized by the page
     this.cam = { u: 0, v: size / 2, scale: 8 };
     this.target = { ...this.cam };
     this.follow = 'auto';
@@ -169,7 +170,7 @@ export class Renderer {
   }
 
   uvToScreen(u, v) {
-    const { clientWidth: w, clientHeight: h } = this.canvas;
+    const { w, h } = this.view;
     return [(u - this.cam.u) * this.cam.scale + w / 2, (v - this.cam.v) * this.cam.scale + h / 2];
   }
 
@@ -180,7 +181,7 @@ export class Renderer {
 
   /** Screen point to ground tile coordinates (ignores elevation). */
   toWorld(sx, sy) {
-    const { clientWidth: w, clientHeight: h } = this.canvas;
+    const { w, h } = this.view;
     const u = (sx - w / 2) / this.cam.scale + this.cam.u;
     const v = (sy - h / 2) / this.cam.scale + this.cam.v;
     return [v + u / 2, v - u / 2];
@@ -372,7 +373,7 @@ export class Renderer {
     if (devicePx <= this.k * 1.5) return false;
     const k = Math.min(this.q.chunkK, 2 ** Math.ceil(Math.log2(devicePx)));
     const span = CHUNK_PX / k; // (u, v) units per chunk
-    const { clientWidth: w, clientHeight: h } = this.canvas;
+    const { w, h } = this.view;
     const uA = this.cam.u - w / 2 / scale;
     const uB = this.cam.u + w / 2 / scale;
     const vA = this.cam.v - h / 2 / scale;
@@ -457,7 +458,7 @@ export class Renderer {
     }
     if (!any) return;
     const s = this.cam.scale;
-    const { clientWidth: w, clientHeight: h } = this.canvas;
+    const { w, h } = this.view;
     const a = s / 32;
     const drift = (t / 1000) * WATER_DRIFT * 32; // in texels
     pattern.setTransform(new DOMMatrix([a, a / 2, -a, a / 2, w / 2 - this.cam.u * s, h / 2 - this.cam.v * s])
@@ -470,16 +471,30 @@ export class Renderer {
 
   // ---------- camera ----------
 
+  /** Size in CSS pixels: the canvas on the page, or the fixed one of an export. */
+  get view() {
+    return this.fixed ?? { w: this.canvas.clientWidth, h: this.canvas.clientHeight };
+  }
+
+  /** Draw at an exact size in pixels, for a canvas that is not on the page (video export). */
+  setFixedSize(w, h) {
+    this.fixed = { w, h };
+    this.canvas.width = w;
+    this.canvas.height = h;
+    this.dpr = 1;
+  }
+
   resize() {
+    if (this.fixed) return;
     const dpr = Math.min(this.q.maxDpr, window.devicePixelRatio || 1);
-    const { clientWidth: w, clientHeight: h } = this.canvas;
+    const { w, h } = this.view;
     this.canvas.width = Math.round(w * dpr);
     this.canvas.height = Math.round(h * dpr);
     this.dpr = dpr;
   }
 
   get minScale() {
-    const { clientWidth: w, clientHeight: h } = this.canvas;
+    const { w, h } = this.view;
     return Math.min(w / (2 * this.size), h / (this.size + this.elevPad)) * 0.95;
   }
 
@@ -502,7 +517,7 @@ export class Renderer {
 
   closeScale() {
     // Phones: a bit farther, or a 390 px screen shows only a couple of buildings.
-    return (this.canvas.clientWidth < 600 ? CLOSE_TILE_PX * 0.7 : CLOSE_TILE_PX) / 2;
+    return (this.view.w < 600 ? CLOSE_TILE_PX * 0.7 : CLOSE_TILE_PX) / 2;
   }
 
   /** null (free), 'auto', or a player number. */
@@ -513,7 +528,7 @@ export class Renderer {
 
   zoomAt(sx, sy, factor) {
     const scale = Math.min(this.maxScale, Math.max(this.minScale, this.target.scale * factor));
-    const { clientWidth: w, clientHeight: h } = this.canvas;
+    const { w, h } = this.view;
     // Keep the point under the cursor fixed, unless the camera is following something.
     if (this.follow == null) {
       const u = (sx - w / 2) / this.cam.scale + this.cam.u;
@@ -586,7 +601,7 @@ export class Renderer {
   }
 
   #visibleBounds(margin = 4) {
-    const { clientWidth: w, clientHeight: h } = this.canvas;
+    const { w, h } = this.view;
     const corners = [[0, 0], [w, 0], [0, h], [w, h]].map(([sx, sy]) => this.toWorld(sx, sy));
     const xs = corners.map((c) => c[0]);
     const ys = corners.map((c) => c[1]);
@@ -600,7 +615,7 @@ export class Renderer {
   draw(state, { pointer = null } = {}) {
     const { ctx } = this;
     const s = this.cam.scale;
-    const { clientWidth: w, clientHeight: h } = this.canvas;
+    const { w, h } = this.view;
     ctx.setTransform(this.dpr, 0, 0, this.dpr, 0, 0);
     ctx.fillStyle = '#0b0c0d';
     ctx.fillRect(0, 0, w, h);
@@ -862,7 +877,7 @@ export class Renderer {
     if (!tex) return null;
     this.farmPattern ??= this.ctx.createPattern(this.#scaledTexture(tex, 32), 'repeat');
     const s = this.cam.scale;
-    const { clientWidth: w, clientHeight: h } = this.canvas;
+    const { w, h } = this.view;
     const a = s / 32;
     this.farmPattern.setTransform(new DOMMatrix([a, a / 2, -a, a / 2, w / 2 - this.cam.u * s, h / 2 - (z + this.cam.v) * s]));
     return this.farmPattern;
@@ -1142,7 +1157,7 @@ export class Renderer {
     for (const u of state.units) if (u.unit.player > 0) dot(u.x, u.y, this.playerColor(u.unit.player), 1);
 
     // Current view rectangle.
-    const { clientWidth: cw, clientHeight: ch } = this.canvas;
+    const { w: cw, h: ch } = this.view;
     const vw = (cw / this.cam.scale) * m.s;
     const vh = (ch / this.cam.scale) * m.s;
     const cx = m.ox + (this.cam.u + this.size) * m.s;

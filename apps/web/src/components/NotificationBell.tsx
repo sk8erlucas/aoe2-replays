@@ -92,7 +92,7 @@ export function NotificationBell() {
           {state && state.items.length > 0 && (
             <ul className="bell-list">
               {state.items.map((n) => (
-                <NotificationEntry key={n.matchId} item={n} onOpen={() => markRead(n)} />
+                <NotificationEntry key={n.matchId} item={n} onOpen={() => markRead(n)} onPlayer={() => setOpen(false)} />
               ))}
             </ul>
           )}

@@ -9,7 +9,14 @@
     ".": {
       "types": "./src/index.d.ts",
       "default": "./src/index.js"
+    },
+    "./video": {
+      "types": "./src/video.d.ts",
+      "default": "./src/video.js"
     }
+  },
+  "dependencies": {
+    "mediabunny": "1.65.2"
   },
   "scripts": {
     "test": "node --test \"test/**/*.test.js\""
