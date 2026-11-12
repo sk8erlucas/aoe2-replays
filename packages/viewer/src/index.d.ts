@@ -102,6 +102,13 @@ export type FollowMode = null | 'auto' | number;
 export class Renderer {
   constructor(canvas: HTMLCanvasElement, replay: Replay, options?: { quality?: Quality });
   follow: FollowMode;
+  /** Camera position (map u/v) and zoom in CSS px per unit. */
+  readonly cam: { u: number; v: number; scale: number };
+  readonly target: { u: number; v: number; scale: number };
+  /** Drawing size in CSS px. */
+  readonly view: { w: number; h: number };
+  /** Draw at an exact size, for a canvas that is not on the page. */
+  setFixedSize(w: number, h: number): void;
   resize(): void;
   /** Whole map in view (switches to free camera). */
   fit(): void;
@@ -254,3 +261,9 @@ export function toGameOrientation(data: ReplayData): ReplayData;
 export function isSystemMessage(message: { message: string }): boolean;
 /** The chat without the game's announcements: only what players wrote. */
 export function playerChat(data: ReplayData): ReplayData['chat'];
+
+export type VideoHeight = 720 | 1080;
+export const VIDEO_SIZES: Record<VideoHeight, [number, number]>;
+/** Length of the video in ms: (to - from) / speed. */
+export function videoLengthMs(range: { from: number; to: number; speed: number }): number;
+export function estimateBytes(range: { from: number; to: number; speed: number; height: VideoHeight }): number;

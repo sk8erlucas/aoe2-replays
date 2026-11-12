@@ -28,6 +28,7 @@ import { ChatPanel } from "@/components/ChatPanel";
 import { MusicControl } from "@/components/MusicControl";
 import { SaveMoment, type MomentTarget } from "@/components/SaveMoment";
 import { usePopup } from "@/components/usePopup";
+import { VideoExport } from "@/components/VideoExport";
 import { useI18n } from "@/i18n/I18nProvider";
 
 const SPEEDS = [1, 2, 4, 8, 16];
@@ -716,6 +717,16 @@ function ReplayStage({ data, actions, extras, moment, gameData }: ViewerProps & 
           </select>
         </label>
         <MusicControl />
+        <VideoExport
+          replay={replay}
+          renderer={renderer}
+          now={() => time.current}
+          pause={() => setPlaying(false)}
+          players={players.map((p) => ({ name: p.name, color: playerColor(p.number) ?? "#fff" }))}
+          quality={quality}
+          mapName={data.map.name ?? null}
+          loadGraphics={() => Promise.all([loadSprites(), loadTerrain()])}
+        />
         <div className="zoom-buttons">
           <button type="button" onClick={() => zoom(1.25)} aria-label={tr.viewer.zoomIn} title={`${tr.viewer.zoomIn} (+)`}>
             +
