@@ -57,4 +57,4 @@ Límites contra archivos armados a propósito: el header descomprimido no puede 
 
 ## Pendiente
 
-Servicio FastAPI con límites de tiempo y memoria, más fixtures de otras versiones, ver [`tasks/01-parser.md`](../../tasks/01-parser.md).
+Servicio FastAPI con límites de tiempo y memoria, más fixtures de otras versiones, ver [`tasks/01-parser-completed.md`](../../tasks/01-parser-completed.md).

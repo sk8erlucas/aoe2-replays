@@ -25,6 +25,7 @@
 - Experiencia del visor: simular la partida lo más parecido posible al juego, por etapas (`tasks/08-experiencia-de-juego.md`). Se usan los gráficos y el arte del juego bajo las Game Content Usage Rules de Microsoft (ver `docs/LEGAL.md`). Los sprites se extraen una vez del juego y los sirve la web (opción B1).
 - Contexto para IA: el visor ofrece la partida como texto para pegar en una IA (resumen ~15 mil tokens o completo), en lugar del JSON crudo, que es casi todo mapa y objetos de Gaia.
 - Partidas online (hecho): buscar jugadores con aoe2companion y reproducir sus partidas descargando el replay de Microsoft (`tasks/09-partidas-online.md`). Se guardan una vez por número de partida y son públicas; los replays subidos a mano siguen privados.
+- Parser: se sigue con `mgz` parcheado; `aoe2rec` (Rust) queda descartado (12/11/2026). Anda con todos los replays probados (4v4, partida completa y 1v1 en el build 188329) y mantener dos parsers duplicaría el trabajo con cada versión del juego. Se reconsidera solo si se quiere parsear en el navegador (WASM).
 - Portada con hero (arte oficial del juego), cómo funciona, subida, funciones y preguntas frecuentes.
 - Repo público pronto: README público, `CONTRIBUTING.md`, sin replays ni datos personales en los archivos.
 

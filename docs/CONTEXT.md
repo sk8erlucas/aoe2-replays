@@ -13,7 +13,7 @@ Herramienta de análisis: además del visor, estadísticas, build orders y anál
 - Librería probada: [`mgz`](https://github.com/happyleavesaoc/aoc-mgz) 1.8.51 (Python, MIT).
   - Cuerpo: se parsea bien con `mgz.fast` (acciones con `player_id`, `object_ids`, `x`, `y`).
   - Header: falla en `parse_de` (`de_string`, assert `0x600a`) porque la versión 68.9 es más nueva que la soportada. Hay que parchear los campos nuevos.
-- Alternativa: crate Rust [`aoe2rec`](https://lib.rs/crates/aoe2rec) (MIT). Sin verificar si soporta 68.9.
+- Alternativa: crate Rust [`aoe2rec`](https://lib.rs/crates/aoe2rec) (MIT). Descartado el 12/11/2026 (ver `DECISIONS.md`).
 - Posiciones vistas: BUILD (building_id 70) en (99, 209), (64, 19), (152, 182). El mapa parece grande (coordenadas de más de 200).
 
 ## Límite fundamental

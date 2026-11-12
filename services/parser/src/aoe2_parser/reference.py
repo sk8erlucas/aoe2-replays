@@ -8,10 +8,38 @@ import json
 import pkgutil
 from functools import cache
 
-# IDs missing from aocref, identified from the sample replay (save 68.9):
-# 1984 trees sit on terrain 113 tiles almost one to one.
+# IDs missing from aocref (save 68.9, builds 185872 and 188329). Names read
+# from the game's own data file and string table; used only when aocref has none.
 TERRAIN_OVERRIDES = {113: 'forest'}
 OBJECT_OVERRIDES = {1984: 'tree'}
+NAME_OVERRIDES = {
+    'terrain': {113: 'Forest, Lush Bamboo'},
+    'objects': {
+        697: 'Flare',
+        890: 'Empty TC annex',
+        1538: 'Lush Bamboo Stump',
+        1539: 'Felled Tree',
+        1542: 'Felled Tree (Lush Bamboo)',
+        1649: 'Trophy',
+        1902: 'Placeholder',
+        1909: 'Placeholder (amphibious)',
+        1984: 'Tree (Lush Bamboo Forest)',
+        2069: 'Cliff (Limestone)',
+        2070: 'Cliff (Limestone)',
+        2071: 'Cliff (Limestone)',
+        2072: 'Cliff (Limestone)',
+        2074: 'Cliff (Limestone)',
+        2076: 'Cliff (Limestone)',
+        2092: 'Wild Horse',
+        2098: 'Hare',
+        2099: 'Hare',
+        2340: 'Mouflon',
+        2556: 'Settlement',
+        2595: 'Black Panther',
+        2596: 'Flamingo',
+    },
+    'technologies': {906: 'Fishing Lines', 1402: 'Champi Runner'},
+}
 
 # Ordered: first match wins.
 TERRAIN_KEYWORDS = [
@@ -59,8 +87,8 @@ def constants():
 def _lookup(table, key):
     value = _dataset()[table].get(str(key))
     if isinstance(value, dict):
-        return value.get('name')
-    return value or None
+        value = value.get('name')
+    return value or NAME_OVERRIDES.get(table, {}).get(int(key))
 
 
 def civilization_name(civ_id):

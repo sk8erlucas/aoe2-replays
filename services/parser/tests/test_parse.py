@@ -99,3 +99,22 @@ def test_full_length_match_is_json_serializable():
     assert result['game']['duration_ms'] > 45 * 60_000
     assert any(e['type'] == 'DE_TRIBUTE' for e in result['timeline'])
     json.dumps(result)
+
+
+ONE_V_ONE = FIXTURES / 'AgeIIDE_Replay_519012025.aoe2record'
+
+
+def test_one_v_one_on_newer_build():
+    if not ONE_V_ONE.exists():
+        pytest.skip(f'missing fixture {ONE_V_ONE.name}')
+    result = parse_replay(ONE_V_ONE.read_bytes())
+    game = result['game']
+    assert (game['save_version'], game['build']) == (68.9, 188329)
+    assert not game['untested_version']
+    assert game['duration_ms'] == 1368499
+    assert [p['civilization'] for p in game['players']] == ['Franks', 'Muisca']
+    assert result['map']['name'] == 'Arabian Desert'
+    assert result['map']['size'] == 120
+    legend = result['legend']
+    assert all(v['name'] for table in ('terrain', 'objects') for v in legend[table].values())
+    assert all(legend['technologies'].values())
