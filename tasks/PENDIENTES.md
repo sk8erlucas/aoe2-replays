@@ -32,6 +32,11 @@ Detalle en [15-orientacion-chat-y-herramientas](./15-orientacion-chat-y-herramie
 - Motor: jabalíes atraídos, animales compartidos, IDs por orden de creación, bengalas que ya no cortan el trabajo, campamentos y molino, investigaciones en la cola. Detalle y números en [16](./16-animales-ids-y-video.md).
 - Video demo en la portada.
 
+## Sesión del 12/11/2026
+- **Música del juego**: en los videos demo y en el visor (botón "♪ Música", no arranca sola). Extraída de la instalación con [`tools/music`](../tools/music) ([08](./08-experiencia-de-juego.md)).
+- **Partidas online**: Microsoft guarda los replays ~4 meses; si falta la copia de un jugador se prueba con las de los demás (antes daba "no disponible") ([09](./09-partidas-online.md)).
+- **Para probar en el navegador**: el botón de música (también en Safari/iPhone) y el sonido de los videos de la portada.
+
 ## Próxima sesión
 Quedó a medio revisar o detectado al cerrar la sesión del 29/10/2026:
 - [x] **Capturas desactualizadas** (rehechas el 30/10/2026 con el terreno nuevo): las de `docs/screenshots`, `public/images/visor`, `og.jpg` y la vista previa de GitHub son de antes de las texturas de terreno. Rehacerlas desde la web con la partida de demo anonimizada (necesita Docker con la base local).
@@ -77,7 +82,7 @@ Quedó a medio revisar o detectado al cerrar la sesión del 29/10/2026:
 - [x] Búsqueda de jugadores, perfiles y partidas online `/m/<matchId>` ([09](./09-partidas-online.md))
 - [x] Portada con hero, contenido y capturas; README público y CONTRIBUTING
 - [x] Plantillas de issue y pull request, código de conducta ([06](./06-comunidad-completed.md))
-- [ ] Música de fondo en el visor ([08](./08-experiencia-de-juego.md))
+- [x] Música de fondo en el visor ([08](./08-experiencia-de-juego.md))
 - [x] Interfaz en español e inglés
 - [~] SEO y compartir en redes: hechos los metadatos por jugador y partida, el sitemap con partidas, la página 404, el botón "Compartir" (menú nativo, WhatsApp, X, Reddit, Telegram) y las imágenes de vista previa generadas. Falta renderizar en el servidor ([10](./10-seo-y-redes.md))
 - [ ] Exportar a video con `MediaRecorder` (prueba de concepto)

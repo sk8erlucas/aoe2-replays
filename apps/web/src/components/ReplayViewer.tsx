@@ -25,6 +25,7 @@ import {
 import { AiContextPanel } from "@/components/AiContextPanel";
 import { AnalysisPanel } from "@/components/AnalysisPanel";
 import { ChatPanel } from "@/components/ChatPanel";
+import { MusicControl } from "@/components/MusicControl";
 import { SaveMoment, type MomentTarget } from "@/components/SaveMoment";
 import { usePopup } from "@/components/usePopup";
 import { useI18n } from "@/i18n/I18nProvider";
@@ -714,6 +715,7 @@ function ReplayStage({ data, actions, extras, moment, gameData }: ViewerProps & 
             ))}
           </select>
         </label>
+        <MusicControl />
         <div className="zoom-buttons">
           <button type="button" onClick={() => zoom(1.25)} aria-label={tr.viewer.zoomIn} title={`${tr.viewer.zoomIn} (+)`}>
             +

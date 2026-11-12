@@ -25,4 +25,5 @@ Next 16 descarta el `Content-Encoding` de las respuestas de las rutas (`FORBIDDE
 - [ ] Mirar la partida de Santiago en el navegador después del deploy y pedirle que confirme.
 - [ ] Costo del motor: ~300 ms para 46 min con 8 jugadores (antes ~260). Si molesta en celulares, mover la construcción a un Web Worker.
 - [ ] Los tiempos de investigación fuera del TC (herrería, cuarteles…) no se conocen: no frenan la cola. Se podrían sacar con `tools/sprites` a `game-data.json`.
-- [ ] Rehacer las capturas estáticas (`public/images/visor/*`, `og.jpg`) con la orientación nueva: se puede reusar el grabador del video.
+- [ ] Rehacer las capturas estáticas (`public/images/visor/*`, `og.jpg`, `docs/screenshots`) con la orientación nueva. El grabador del video no quedó en el repo: la próxima vez, guardarlo en `tools/` (se puede manejar Chrome por CDP con el `WebSocket` de Node, sin dependencias).
+- [x] Música del juego de fondo en los videos demo (12/11/2026), con fundido al entrar y al salir; la imagen no se recomprimió.

@@ -1100,3 +1100,8 @@ button.danger:hover:not(:disabled) { background: var(--danger); color: var(--pap
 }
 .moment-panel input { width: 100%; }
 .moment-panel button { justify-self: start; }
+
+/* Music in the viewer */
+.music-control { display: flex; align-items: center; gap: 6px; }
+.music-control button[aria-pressed="true"] { border-color: var(--bronze-light); }
+.music-control input[type="range"] { width: 80px; accent-color: var(--bronze-light); }
