@@ -93,6 +93,7 @@ const es = {
     ],
     uploadTitle: "Subí tu replay",
     ownedTitle: "Tus replays en este navegador",
+    watchedTitle: "Partidas de los que seguís",
     featuresTitle: "Qué podés hacer",
     features: {
       close: {
@@ -596,6 +597,7 @@ const en: Messages = {
     ],
     uploadTitle: "Upload your replay",
     ownedTitle: "Your replays in this browser",
+    watchedTitle: "From the players you follow",
     featuresTitle: "What you can do",
     features: {
       close: {

@@ -37,6 +37,12 @@ Detalle en [15-orientacion-chat-y-herramientas](./15-orientacion-chat-y-herramie
 - **Partidas online**: Microsoft guarda los replays ~4 meses; si falta la copia de un jugador se prueba con las de los demás (antes daba "no disponible") ([09](./09-partidas-online.md)).
 - **Para probar en el navegador**: el botón de música (también en Safari/iPhone) y el sonido de los videos de la portada.
 
+## Sesión del 12/11/2026 (tarde)
+- **Parser cerrado**: test con un 1v1 en el build 188329, nombres para los IDs que `aocref` no tiene, `aoe2rec` descartado.
+- **Plan de la web cerrado** ([03-web-completed](./03-web-completed.md)): quedan el CAPTCHA y la publicidad, que ya están en la tabla de abajo. La cola de parseo no hace falta (0,33 s para 48 min).
+- **Portada**: sección "Partidas de los que seguís" con las últimas partidas de la campanita, solo con sesión iniciada.
+- **Para probar en el navegador**: esa sección con una cuenta que siga jugadores, y que al abrir una partida desde ahí se marque como leída en la campanita.
+
 ## Parser (cerrado el 12/11/2026)
 Plan en [01-parser-completed](./01-parser-completed.md). Queda abierto:
 - [ ] Probar contra la primera versión del juego con un save distinto de 68.9 (hoy se parsea y se marca `untested_version`).

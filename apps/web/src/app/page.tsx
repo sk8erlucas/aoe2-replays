@@ -9,6 +9,7 @@ import { DemoVideo } from "@/components/DemoVideo";
 import { OverlayShowcase } from "@/components/OverlayShowcase";
 import { PlayerSearch } from "@/components/PlayerSearch";
 import { Uploader } from "@/components/Uploader";
+import { WatchedMatches } from "@/components/WatchedMatches";
 import { useI18n } from "@/i18n/I18nProvider";
 import { REPO_URL } from "@/i18n/messages";
 import { listOwned, rememberOwned, type OwnedReplay } from "@/lib/owned";
@@ -42,6 +43,8 @@ export default function Home() {
         </div>
         <p className="hero-credit">{h.artCredit}</p>
       </section>
+
+      <WatchedMatches />
 
       <section className="section container">
         <h2 className="section-title">{h.howTitle}</h2>

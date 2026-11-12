@@ -31,7 +31,7 @@ Objetivo: que quien quiera pueda tener una cuenta para guardar lo suyo (replays,
 
 ## Favoritos y listas
 - [x] **Jugadores seguidos**: botón en `/p/<id>` y buscador en `/account`, hasta `MAX_FOLLOWS` (20). Sus partidas llegan a la campanita.
-- [ ] La portada muestra las últimas partidas de los jugadores seguidos.
+- [x] La portada muestra las últimas partidas de los jugadores seguidos y del vinculado (hasta 6, las mismas de la campanita; sin sección si no hay ninguna). 12/11/2026.
 - [x] **Partidas favoritas**: estrella en `/m/<id>` y `/r/<id>` (solo si quien la marca puede verla). Tabla `favorites` (migración `favorites_and_replay_titles`), hasta `MAX_FAVORITES` (500). Un replay privado solo se guarda en la cuenta dueña, y si después pasa a privado o se borra, desaparece de la lista de los demás.
 - [x] **Momentos guardados**: "Guardar momento" en la barra del visor, con una nota de hasta 140 caracteres (son favoritos con `second > 0`; guardar el mismo segundo de nuevo cambia la nota).
 - [x] Página `/favorites` con pestañas (partidas, momentos, jugadores), en la barra superior y en el menú de cuenta.
