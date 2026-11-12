@@ -68,7 +68,7 @@ Elegido: **B1** con un subconjunto (edificios y unidades principales, por arquit
 - [ ] Panel de producción: qué está entrenando/investigando cada uno
 - [x] Banderas de avance de edad en la línea de tiempo: una por jugador y edad en la llegada estimada (`Replay.ageMarks()`), apiladas en filas cuando se superponen; clic para ir a ese momento
 - [ ] Niebla de guerra opcional por jugador
-- [ ] **Música de fondo** como en el juego, mientras se mira una partida:
+- [x] **Música de fondo** (12/11/2026): botón "♪ Música" en la barra del visor (`MusicControl.tsx`) con seis pistas del juego en orden aleatorio, volumen guardado en el navegador; no arranca sola y los archivos (`public/music`, AAC 96 kbps, ~3 MB cada uno) se bajan recién al activarla. Extraídas con [`tools/music`](../tools/music). Plan original:
   - Pistas de la banda sonora del juego (bajo las Game Content Usage Rules, registradas en `CREDITS.md`) o música libre como alternativa.
   - Que **no arranque sola** (los navegadores bloquean el audio automático y molesta): botón de música en la barra de controles, con volumen y silencio recordados en el navegador.
   - Pistas en archivos comprimidos (Opus/OGG o MP3, ~128 kbps) cargadas solo al activar la música; lista que pasa de una pista a otra.

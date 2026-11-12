@@ -22,7 +22,8 @@ Ninguna de estas APIs está documentada como pública ni tiene acuerdo de uso co
 ## Tareas
 ### Investigación
 - [x] aoe2companion: uso aprobado; se atribuye en la web
-- [ ] Averiguar cuánto tiempo se pueden descargar los replays desde Microsoft (¿días? ¿semanas?) y qué pasa con partidas viejas
+- [x] Cuánto tiempo guarda Microsoft los replays (medido el 12/11/2026 con el historial de un jugador): **unos 4 meses**. Una partida de 111 días se bajaba; las de 118, 122, 145 días y más viejas daban 404. El mensaje de error ahora lo dice.
+- [x] **Copias que faltan**: cada jugador sube su copia y a veces falta (en dos 4v4 recientes, 3 y 4 de las 8 copias daban 404). Si falla la del jugador elegido, `importMatch` prueba las de los demás jugadores de la partida (lista de aoe2companion, hasta 7 más) y guarda de quién la bajó.
 - [ ] Mecanismo para que un jugador pida ocultar su perfil
 
 ### Servidor
@@ -31,7 +32,7 @@ Ninguna de estas APIs está documentada como pública ni tiene acuerdo de uso co
 - [x] Caché de búsquedas, perfiles y partidas (5 min, en memoria); límites por IP (60 búsquedas/min, 20 descargas/hora)
 - [ ] Caché y límites compartidos si hay más de una instancia de la web (hoy son en memoria)
 - [ ] Cola para descargas y parseo si se vuelve lento (partidas largas)
-- [ ] Manejar errores claros: replay no disponible, versión no soportada, API caída
+- [x] Errores claros: replay no disponible (con el plazo de ~4 meses), versión no soportada, fuente o servicio caído (códigos de la API traducidos en `messages.ts`)
 
 ### Web
 - [x] Buscador con autocompletado en la barra superior y en la portada (debounce, teclado, sin resultados)

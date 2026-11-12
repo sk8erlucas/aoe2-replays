@@ -1,5 +1,6 @@
 // Online matches: download the replay from Microsoft, parse it and store it
 // once per match id. Matches are public, so there is no access token.
+import { getMatch } from "@/lib/aoe2companion";
 import { db } from "@/lib/db";
 import { MAX_UPLOAD_BYTES, parseReplay } from "@/lib/parser";
 import { storedGame } from "@/lib/replays";
@@ -97,6 +98,32 @@ async function download(matchId: string, profileId: string): Promise<Uint8Array>
   return replay;
 }
 
+// Each player's game uploads its own copy, and some are missing (in two 4v4s
+// tested on 12/11/2026, 3 and 4 of 8 copies gave 404 while the rest were there).
+const MAX_OTHER_COPIES = 7;
+
+/** The given player's copy, or else the first copy found among the other players of the match. */
+async function downloadAny(matchId: string, profileId: string): Promise<{ replay: Uint8Array; source: string }> {
+  try {
+    return { replay: await download(matchId, profileId), source: profileId };
+  } catch (err) {
+    if (!(err instanceof ImportError && err.code === "replay_unavailable" && err.status === 404)) throw err;
+    const match = await getMatch(Number(matchId)).catch(() => null);
+    const others = (match?.teams ?? [])
+      .flatMap((team) => team.players.map((p) => p.profileId))
+      .filter((id): id is number => id != null && String(id) !== profileId)
+      .slice(0, MAX_OTHER_COPIES);
+    for (const id of others) {
+      try {
+        return { replay: await download(matchId, String(id)), source: String(id) };
+      } catch (other) {
+        if (!(other instanceof ImportError && other.code === "replay_unavailable" && other.status === 404)) throw other;
+      }
+    }
+    throw err;
+  }
+}
+
 const inFlight = new Map<string, Promise<void>>();
 
 /** Downloads, parses and stores a match unless it is already stored. */
@@ -105,12 +132,12 @@ export async function importMatch(matchId: string, profileId: string): Promise<v
   const running = inFlight.get(matchId);
   if (running) return running;
   const job = (async () => {
-    const replay = await download(matchId, profileId);
+    const { replay, source } = await downloadAny(matchId, profileId);
     const parsed = await parseReplay(new Blob([replay as BlobPart]));
     if (!parsed.ok) throw new ImportError(parsed.status, parsed.code, parsed.message);
     await db().match.upsert({
       where: { id: matchId },
-      create: { id: matchId, sourceProfileId: profileId, ...storedGame(parsed.data, parsed.raw) },
+      create: { id: matchId, sourceProfileId: source, ...storedGame(parsed.data, parsed.raw) },
       update: {},
     });
   })();
