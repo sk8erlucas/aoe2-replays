@@ -967,6 +967,7 @@ button.link:hover { color: var(--bronze); }
 .bell-list .unread .bell-title { font-weight: 700; }
 .bell-meta { display: flex; justify-content: space-between; align-items: center; gap: 8px; margin-top: 2px; color: var(--ink-faint); font-size: 12px; }
 .bell-meta .result { font-size: 11px; padding: 0 8px; }
+.watched .bell-list { max-height: none; overflow: visible; padding: 4px 0; }
 
 /* Forms: login, register and account */
 .auth-page { max-width: 440px; margin: 0 auto; padding: 48px 16px; }

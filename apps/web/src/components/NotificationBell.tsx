@@ -2,39 +2,16 @@
 
 import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
+import { NotificationEntry, postRead, type NotificationItem, type NotificationState } from "@/components/NotificationEntry";
 import { usePopup } from "@/components/usePopup";
 import { useI18n } from "@/i18n/I18nProvider";
 
-type Item = {
-  matchId: string;
-  profileId: string;
-  playerName: string;
-  mine: boolean;
-  won: boolean | null;
-  mapName: string | null;
-  leaderboardName: string | null;
-  finishedAt: string;
-  read: boolean;
-};
-
-type State = { unread: number; items: Item[]; watching: boolean };
-
 const REFRESH_MS = 5 * 60_000;
-
-function postRead(body: object) {
-  // keepalive: the read mark must survive the navigation to the match.
-  return fetch("/api/notifications/read", {
-    method: "POST",
-    headers: { "content-type": "application/json" },
-    body: JSON.stringify(body),
-    keepalive: true,
-  }).catch(() => null);
-}
 
 export function NotificationBell() {
   const { t } = useI18n();
   const { open, setOpen, box } = usePopup();
-  const [state, setState] = useState<State | null>(null);
+  const [state, setState] = useState<NotificationState | null>(null);
   const loadedAt = useRef(0);
 
   const load = useCallback(async () => {
@@ -60,7 +37,7 @@ export function NotificationBell() {
     };
   }, [load]);
 
-  function markRead(item: Item) {
+  function markRead(item: NotificationItem) {
     setOpen(false);
     if (item.read) return;
     setState((s) =>
@@ -114,31 +91,9 @@ export function NotificationBell() {
           {state && state.items.length === 0 && state.watching && <p className="bell-note">{t.notifications.empty}</p>}
           {state && state.items.length > 0 && (
             <ul className="bell-list">
-              {state.items.map((n) => {
-                const map = n.mapName ?? t.common.unknownMap;
-                return (
-                  <li key={n.matchId} className={n.read ? "" : "unread"}>
-                    <Link href={`/m/${n.matchId}?p=${n.profileId}`} onClick={() => markRead(n)}>
-                      <span className="bell-title">
-                        {!n.read && (
-                          <span className="bell-dot" role="img" aria-label={t.notifications.unread} />
-                        )}
-                        <span>{n.mine ? t.notifications.mine(map) : t.notifications.theirs(n.playerName, map)}</span>
-                      </span>
-                      <span className="bell-meta">
-                        <span>
-                          {[n.leaderboardName, new Date(n.finishedAt).toLocaleString(t.common.dateLocale, { dateStyle: "short", timeStyle: "short" })]
-                            .filter(Boolean)
-                            .join(" · ")}
-                        </span>
-                        {n.won != null && (
-                          <span className={`result ${n.won ? "win" : "loss"}`}>{n.won ? t.profile.win : t.profile.loss}</span>
-                        )}
-                      </span>
-                    </Link>
-                  </li>
-                );
-              })}
+              {state.items.map((n) => (
+                <NotificationEntry key={n.matchId} item={n} onOpen={() => markRead(n)} />
+              ))}
             </ul>
           )}
         </div>
