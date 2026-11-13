@@ -651,3 +651,105 @@ test('a trained unit never commanded in the whole match leaves once idle', () =>
   const [u] = r.units.filter((x) => x.approx);
   assert.equal(u.removedAt, u.spawnT);
 });
+
+// One villager (101) at (10, 12) and a palisade that takes 6 s per piece alone.
+function palisade(timeline) {
+  return new Replay({
+    game: { duration_ms: 120_000, players: [{ number: 1, name: 'A', color_id: 0, team_id: 1, start: { x: 5, y: 5 } }] },
+    map: { size: 30, terrain: [], elevation: [] },
+    initial_objects: [{ id: 101, player: 1, type_id: 83, class_id: 70, x: 10, y: 12 }],
+    timeline,
+    chat: [],
+    legend: { objects: { 83: { name: 'Villager', category: 'unit' }, 72: { name: 'Palisade Wall', category: 'building' } } },
+  }, { gameData: { units: { 83: { speed: 1 } }, buildings: { 72: { size: 1, buildTime: 6 } } } });
+}
+
+const pieces = (r, t) => Object.fromEntries(r.stateAt(t).buildings
+  .filter((b) => b.building.typeId === 72)
+  .map((b) => [b.building.x, b.planned ? 'planned' : Math.round(b.progress * 100) / 100]));
+
+test('wall pieces go up one after another and stay foundations when the builders leave', () => {
+  const r = palisade([
+    { t: 0, type: 'WALL', player: 1, building_id: 72, object_ids: [101], x: 10, y: 10, x_end: 14, y_end: 10 },
+    { t: 15_000, type: 'MOVE', player: 1, object_ids: [101], x: 2, y: 2 },
+  ]);
+  // 2 s walking to the near end, then 6 s per piece.
+  assert.deepEqual(pieces(r, 1_000), { 10: 'planned', 11: 'planned', 12: 'planned', 13: 'planned', 14: 'planned' });
+  assert.deepEqual(pieces(r, 5_000), { 10: 0.5, 11: 'planned', 12: 'planned', 13: 'planned', 14: 'planned' });
+  // Sent away at 15 s: the third piece stays half started, the rest foundations.
+  assert.deepEqual(pieces(r, 60_000), { 10: 1, 11: 1, 12: 0.17, 13: 'planned', 14: 'planned' });
+});
+
+test('deleted wall foundations go away without rubble, and the log says it was cancelled', () => {
+  const r = palisade([
+    { t: 0, type: 'WALL', player: 1, building_id: 72, object_ids: [101], x: 10, y: 10, x_end: 14, y_end: 10 },
+    { t: 1_000, type: 'MOVE', player: 1, object_ids: [101], x: 2, y: 2 },
+    // One DELETE per piece, with IDs the engine never saw, split in two batches.
+    ...[500, 501, 502].map((id) => ({ t: 5_000, type: 'DELETE', player: 1, object_ids: [id] })),
+    ...[503, 504].map((id) => ({ t: 5_200, type: 'DELETE', player: 1, object_ids: [id] })),
+  ]);
+  const after = r.stateAt(10_000);
+  assert.equal(after.buildings.filter((b) => b.building.typeId === 72).length, 0);
+  assert.equal(after.ruins.length, 0);
+  assert.equal(r.log.find((l) => l.segments === 5).cancelled, true);
+});
+
+test('villagers done with their sheep move on to a boar already lured nearby', () => {
+  const r = forest(
+    [
+      { t: 0, type: 'ORDER', player: 1, object_ids: [101], target_id: 403, x: 20, y: 22 },
+      // Someone lured the boar next to the sheep: a click on it there.
+      // (the sheep, 100 food for one villager, lasts until ~255 s)
+      { t: 200_000, type: 'ORDER', player: 1, object_ids: [102], target_id: 405, x: 25, y: 22 },
+      { t: 205_000, type: 'MOVE', player: 1, object_ids: [102], x: 5, y: 5 },
+    ],
+    [
+      { id: 102, player: 1, type_id: 83, class_id: 70, x: 25, y: 24 },
+      { id: 403, player: 1, type_id: 594, class_id: 58, x: 20, y: 22 },
+      { id: 405, player: 0, type_id: 48, class_id: 58, x: 26, y: 22 },
+    ],
+    ANIMALS,
+  );
+  const sheep = r.unitById.get(403);
+  const v = r.unitById.get(101);
+  assert.equal(v.activityAt(sheep.removedAt + 10_000), 'hunt');
+  const at = v.positionAt(sheep.removedAt + 20_000);
+  assert.ok(Math.hypot(at.x - 25, at.y - 22) < 1.5, `${at.x},${at.y}`);
+});
+
+test('a carcass left with food rots away', () => {
+  const r = forest(
+    [
+      { t: 0, type: 'ORDER', player: 1, object_ids: [101], target_id: 402, x: 22, y: 20 },
+      { t: 60_000, type: 'MOVE', player: 1, object_ids: [101], x: 5, y: 5 },
+    ],
+    DEER,
+    ANIMALS,
+  );
+  const deer = r.unitById.get(402);
+  assert.ok(deer.removedAt > 60_000 && deer.removedAt < 200_000, `${deer.removedAt}`);
+});
+
+test('shift-queued farms are shared out, one villager each', () => {
+  const farm = { 50: { name: 'Farm', category: 'building' } };
+  const r = forest(
+    [
+      { t: 0, type: 'BUILD', player: 1, building_id: 50, object_ids: [101, 102, 103], x: 22, y: 22 },
+      { t: 500, type: 'BUILD', player: 1, building_id: 50, object_ids: [101, 102, 103], x: 26, y: 22 },
+      { t: 900, type: 'BUILD', player: 1, building_id: 50, object_ids: [101, 102, 103], x: 26, y: 22 }, // same spot again
+      { t: 1_200, type: 'BUILD', player: 1, building_id: 50, object_ids: [101, 102, 103], x: 22, y: 26 },
+    ],
+    [
+      { id: 102, player: 1, type_id: 83, class_id: 70, x: 20, y: 21 },
+      { id: 103, player: 1, type_id: 83, class_id: 70, x: 21, y: 20 },
+    ],
+    farm,
+  );
+  assert.equal(r.buildings.filter((b) => b.typeId === 50).length, 3);
+  const spots = [101, 102, 103].map((id) => {
+    const at = r.unitById.get(id).positionAt(300_000);
+    assert.equal(r.unitById.get(id).activityAt(300_000), 'farm', `villager ${id}`);
+    return `${Math.round(at.x / 4)},${Math.round(at.y / 4)}`;
+  });
+  assert.equal(new Set(spots).size, 3, spots.join(' '));
+});

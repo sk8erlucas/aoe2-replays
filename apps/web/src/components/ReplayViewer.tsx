@@ -223,7 +223,8 @@ function ReplayStage({ data, actions, extras, moment, gameData }: ViewerProps & 
     if (!hit || !at) return null;
     const obj = hit.kind === "unit" ? hit.unit : hit.building;
     const parts = [obj.typeId != null ? replay.objectName(obj.typeId) : tr.viewer.unit, playerName(obj.player)];
-    if (hit.kind === "building" && hit.progress < 1) parts.push(tr.viewer.built(Math.round(hit.progress * 100)));
+    if (hit.kind === "building" && hit.planned) parts.push(tr.viewer.planned);
+    else if (hit.kind === "building" && hit.progress < 1) parts.push(tr.viewer.built(Math.round(hit.progress * 100)));
     if (hit.kind === "unit" && hit.unit.approx) parts.push(tr.viewer.approx);
     return { x: at.x, y: at.y, text: parts.join(" · ") };
   }
@@ -463,6 +464,7 @@ function ReplayStage({ data, actions, extras, moment, gameData }: ViewerProps & 
     if (e.kind === "resign") return ` ${l.resign}`;
     if (e.kind === "queue") return ` ${l.queue(e.amount ?? 1, e.name ?? "")}`;
     if (e.kind === "research") return ` ${l.research(e.name ?? "")}`;
+    if (e.cancelled && e.segments) return ` ${l.buildCancelled(e.name ?? "", e.segments)}`;
     return ` ${l.build(e.name ?? "", e.segments)}`;
   };
   const g = data.game;

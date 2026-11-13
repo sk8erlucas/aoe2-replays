@@ -111,6 +111,9 @@ export const GATHER_RATES = {
 
 // How far (tiles) a gatherer looks for the next resource of the same kind.
 export const RETARGET_RADIUS = 8;
+// Villagers done with their food look this far for an animal already being hunted
+// (a lured boar sits by the town center, a few tiles from the sheep under it). Estimated.
+export const HUNTED_REACH = 12;
 
 // Fighting. A replay says who was told to attack what, never who won or when the
 // target fell: an attacker walks up to its target and fights for this long, or
@@ -125,6 +128,9 @@ export const MELEE_STOP = 0.8;
 export const ANIMAL_FOOD = { Sheep: 100, Goose: 100, Turkey: 100, Llama: 100, Pig: 100, Cow: 150, 'Water Buffalo': 150, Goat: 100, Deer: 140, Zebra: 140, Ostrich: 140, Boar: 340, Elephant: 340, Rhinoceros: 340 };
 export const DEFAULT_ANIMAL_FOOD = 140;
 export const MEAT_RATE = 0.4;
+// A carcass left with some food rots away in the game; here it vanishes after this long
+// without eaters. Estimated.
+export const CARCASS_ROT_MS = 120_000;
 // A unit whose last order was an attack, and that its player never ordered again
 // though they kept playing this long, is taken as fallen in that fight.
 export const FALLEN_AFTER_MS = 60_000;

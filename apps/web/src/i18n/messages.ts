@@ -236,6 +236,7 @@ const es = {
     tabs: { events: "Eventos", chat: "Chat", analysis: "Análisis", ai: "IA" },
     unit: "Unidad",
     built: (pct: number) => `${pct}% construido`,
+    planned: "cimiento, sin empezar",
     approx: "posición aproximada",
     play: "Reproducir",
     pause: "Pausar",
@@ -305,6 +306,7 @@ const es = {
     },
     log: {
       build: (name: string, segments?: number) => (segments ? `construye ${name} (${segments} tramos)` : `construye ${name}`),
+      buildCancelled: (name: string, segments: number) => `planifica ${name} (${segments} tramos) y la cancela`,
       queue: (amount: number, name: string) => `entrena ${amount}× ${name}`,
       research: (name: string) => `investiga ${name}`,
       resign: "abandona",
@@ -763,6 +765,7 @@ const en: Messages = {
     tabs: { events: "Events", chat: "Chat", analysis: "Analysis", ai: "AI" },
     unit: "Unit",
     built: (pct: number) => `${pct}% built`,
+    planned: "foundation, not started",
     approx: "approximate position",
     play: "Play",
     pause: "Pause",
@@ -832,6 +835,7 @@ const en: Messages = {
     },
     log: {
       build: (name: string, segments?: number) => (segments ? `builds ${name} (${segments} pieces)` : `builds ${name}`),
+      buildCancelled: (name: string, segments: number) => `plans ${name} (${segments} pieces) and cancels it`,
       queue: (amount: number, name: string) => `trains ${amount}× ${name}`,
       research: (name: string) => `researches ${name}`,
       resign: "resigns",
