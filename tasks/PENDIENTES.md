@@ -2,6 +2,9 @@
 
 Separados entre lo que necesita una decisión o acción tuya y lo que se puede avanzar sin vos.
 
+## Idea nueva: visores de partida
+Paneles arriba del visor, que se eligen y ordenan, con los aldeanos de cada jugador por recurso y los puntajes como arriba del minimapa del juego (estimados). Plan en [18-visores-de-partida](./18-visores-de-partida.md).
+
 ## Repo abierto
 El repo es público desde octubre de 2026. Lo que queda de seguridad e infraestructura está en [11-apertura-publica](./11-apertura-publica.md); la migración a Next 16 (hecha el 11/11/2026, falta el deploy de prueba) en [12-next-16](./12-next-16.md).
 
