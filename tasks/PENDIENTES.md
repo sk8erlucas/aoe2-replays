@@ -37,6 +37,13 @@ Detalle en [15-orientacion-chat-y-herramientas](./15-orientacion-chat-y-herramie
 - **Partidas online**: Microsoft guarda los replays ~4 meses; si falta la copia de un jugador se prueba con las de los demás (antes daba "no disponible") ([09](./09-partidas-online.md)).
 - **Para probar en el navegador**: el botón de música (también en Safari/iPhone) y el sonido de los videos de la portada.
 
+## Sesión del 13/11/2026: reporte de Santiago
+Detalle en [17](./17-murallas-jabalies-granjas.md).
+- **Murallas**: las canceladas ya no quedan dibujadas ("dos murallas que no hice"); los tramos se ven planificados, en construcción o terminados, y se levantan de a uno.
+- **Jabalíes**: el atraído al TC llega y se lo comen los pastores al terminar las ovejas; los abandonados se pudren; las unidades detrás de un edificio se ven en silueta.
+- **Granjas**: las encoladas con Shift se reparten, un granjero por granja, sin duplicadas.
+- **Para probar**: la partida del reporte (`/m/520532792`).
+
 ## Sesión del 12/11/2026 (noche)
 - **Exportar a video** ([05](./05-video.md)): botón "🎬 Video" en el visor; MP4 generado en el navegador con WebCodecs y Mediabunny, con rango, velocidad, 720p/1080p, marca de agua, progreso y cancelar. Probado en Chrome con la web real.
 - **Campanita**: el nombre del jugador lleva a su historial (`/p/<id>`); el resto de la fila, a la partida. También en "Partidas de los que seguís" de la portada.

@@ -643,7 +643,7 @@ export class Renderer {
       if (!inView(bd.x, bd.y)) continue;
       // Farms lie flat on the ground: under everything that stands on them.
       const flat = this.replay.objectName(bd.typeId) === 'Farm';
-      items.push({ depth: flat ? -Infinity : bd.x + bd.y + bd.size / 2, draw: () => this.#drawBuilding(bd, it.progress, state) });
+      items.push({ depth: flat ? -Infinity : bd.x + bd.y + bd.size / 2, draw: () => this.#drawBuilding(bd, it.progress, state, it.planned) });
     }
     for (const bd of state.ruins ?? []) {
       if (!inView(bd.x, bd.y)) continue;
@@ -661,11 +661,38 @@ export class Renderer {
       if (u.moving && u.unit.player > 0 && inView(u.x, u.y)) this.#drawPath(u, state);
     }
     for (const it of items) it.draw();
+    if (detail) this.#drawHidden(state, inView);
     ctx.globalAlpha = 1;
     this.sprites?.endFrame();
     if (pointer) {
       const hit = this.pick(state, pointer.x, pointer.y);
       if (hit?.kind === 'building') this.#drawRally(hit.building, state);
+    }
+  }
+
+  // Units behind a building show through it faintly, as the game outlines them
+  // (hunters around a boar lured behind the town center, villagers at a mill).
+  #drawHidden(state, inView) {
+    const s = this.cam.scale;
+    const boxes = [];
+    for (const { building: b, planned } of state.buildings) {
+      if (planned || b.size < 2 || !inView(b.x, b.y) || this.replay.objectName(b.typeId) === 'Farm') continue;
+      const h = b.size / 2;
+      const [lx] = this.toScreen(b.x - h, b.y + h);
+      const [rx] = this.toScreen(b.x + h, b.y - h);
+      const [, by] = this.toScreen(b.x + h, b.y + h);
+      const [, ty] = this.toScreen(b.x - h, b.y - h);
+      boxes.push({ x0: lx, x1: rx, y0: ty - b.size * s * 1.2, y1: by, depth: b.x + b.y + b.size / 2 });
+    }
+    if (!boxes.length) return;
+    for (const u of state.units) {
+      if (!inView(u.x, u.y)) continue;
+      const [x, y] = this.toScreen(u.x, u.y);
+      const mid = y - s * 0.4;
+      const depth = u.x + u.y;
+      if (boxes.some((bx) => depth < bx.depth && x > bx.x0 && x < bx.x1 && mid > bx.y0 && mid < bx.y1)) {
+        this.#drawUnit({ ...u, fading: (u.fading ?? 1) * 0.45 }, state, true);
+      }
     }
   }
 
@@ -792,8 +819,13 @@ export class Renderer {
     ctx.fill();
   }
 
-  #drawBuilding(b, progress, state) {
-    if (this.sprites && this.cam.scale >= DETAIL_SCALE && this.#spriteBuilding(b, progress, state)) return;
+  // Three looks: planned (a foundation nobody started: dashed outline and a
+  // ghost of the building), under construction (faded, more solid as it rises)
+  // and finished.
+  #drawBuilding(b, progress, state, planned = false) {
+    if (planned) this.#foundation(b, state);
+    if (this.sprites && this.cam.scale >= DETAIL_SCALE && this.#spriteBuilding(b, progress, state, planned)) return;
+    if (planned) return;
     const { ctx } = this;
     const s = this.cam.scale;
     const half = b.size / 2;
@@ -1033,7 +1065,29 @@ export class Renderer {
     return this.replay.playerByNumber.get(player)?.civilization_id;
   }
 
-  #spriteBuilding(b, progress, state) {
+  // Dashed footprint in the player's colour, like a foundation in the game.
+  #foundation(b, state) {
+    const { ctx } = this;
+    const s = this.cam.scale;
+    const half = b.size / 2;
+    const z = this.heightAt(b.x, b.y);
+    const pts = [[b.x - half, b.y - half], [b.x + half, b.y - half], [b.x + half, b.y + half], [b.x - half, b.y + half]]
+      .map(([x, y]) => this.toScreen(x, y, z));
+    ctx.globalAlpha = this.#alpha(b.player, state) * 0.85;
+    ctx.fillStyle = 'rgba(255,255,255,0.1)';
+    ctx.strokeStyle = this.playerColor(b.player);
+    ctx.lineWidth = Math.max(1, s / 20);
+    ctx.setLineDash([Math.max(2, s / 5), Math.max(2, s / 6)]);
+    ctx.beginPath();
+    pts.forEach(([x, y], i) => (i ? ctx.lineTo(x, y) : ctx.moveTo(x, y)));
+    ctx.closePath();
+    ctx.fill();
+    ctx.stroke();
+    ctx.setLineDash([]);
+    ctx.globalAlpha = 1;
+  }
+
+  #spriteBuilding(b, progress, state, planned = false) {
     const civ = this.#civ(b.player);
     const parts = civ != null && this.sprites.building(civ, b.typeId, this.replay.ageAt(b.player, state.t));
     if (!parts) return false;
@@ -1045,7 +1099,7 @@ export class Renderer {
     if (parts.some(([key]) => !this.sprites.frame(keyOf(key)))) return true;
     const color = this.playerColor(b.player);
     // Foundations show the finished building faded until construction ends.
-    this.ctx.globalAlpha = this.#alpha(b.player, state) * (progress < 1 ? 0.4 + progress * 0.3 : 1);
+    this.ctx.globalAlpha = this.#alpha(b.player, state) * (planned ? 0.2 : progress < 1 ? 0.45 + progress * 0.3 : 1);
     for (const [key, dx, dy, ox = 0, oy = 0] of parts) {
       // Annex offsets (town center parts) are in game tiles; the engine's map is
       // turned (see orientation.js), so game (dx, dy) is (dy, -dx) here.

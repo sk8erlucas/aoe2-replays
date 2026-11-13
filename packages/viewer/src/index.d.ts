@@ -10,6 +10,8 @@ export interface LogEntry {
   amount?: number;
   /** Wall pieces in one command. */
   segments?: number;
+  /** A wall whose foundations were all deleted before anyone started them. */
+  cancelled?: boolean;
   /** Chat message. */
   text?: string;
 }
@@ -56,7 +58,8 @@ export interface State {
     /** 1 → 0 while a fallen unit fades out. */
     fading?: number;
   }>;
-  buildings: Array<{ building: Building; progress: number }>;
+  /** `planned`: placed but not started yet (a foundation; walls only, see #wall). */
+  buildings: Array<{ building: Building; progress: number; planned: boolean }>;
   /** Buildings deleted by their owner: drawn as rubble. */
   ruins: Building[];
   resigned: Set<number>;

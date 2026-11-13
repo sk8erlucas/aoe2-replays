@@ -9,5 +9,6 @@ Los tests del parser esperan:
 | `AgeIIDE_Replay_516585531.aoe2record` | VER 9.4, save 68.9, build 185872 | 4v4, mapa 220×220, ~51 s (abandonos tempranos) |
 | `AgeIIDE_Replay_516586396.aoe2record` | save 68.9 | 4v4 Black Forest, 48 min, partida completa. Se descarga con `https://aoe.ms/replay/?gameId=516586396&profileId=5675276` (ZIP) |
 | `AgeIIDE_Replay_519012025.aoe2record` | save 68.9, build 188329 | 1v1 Arabia, ~23 min. `https://aoe.ms/replay/?gameId=519012025&profileId=199325` (ZIP) |
+| `AgeIIDE_Replay_520532792.aoe2record` | save 68.9 | 4v4 Black Forest, 54 min: murallas canceladas, jabalíes y granjas en cola (reporte de [17](../tasks/17-murallas-jabalies-granjas.md)). `https://aoe.ms/replay/?gameId=520532792&profileId=3172411` (ZIP) |
 
 Si falta un archivo, los tests que lo usan se saltean.

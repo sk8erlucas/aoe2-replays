@@ -19,12 +19,16 @@
 // of a player who resigns.
 
 import {
-  AGE_TECHS, ANIMAL_FOOD, DANGEROUS_ANIMALS, DROP_SITE_REACH, DROP_SITES, RESEARCH_TIMES, ATTACK_HOLD_MS, BUILD_TIMES, DEFAULT_ANIMAL_FOOD, DEFAULT_BUILD_TIME, DEFAULT_FOOTPRINT,
+  AGE_TECHS, ANIMAL_FOOD, CARCASS_ROT_MS, DANGEROUS_ANIMALS, DROP_SITE_REACH, DROP_SITES, RESEARCH_TIMES, ATTACK_HOLD_MS, BUILD_TIMES, DEFAULT_ANIMAL_FOOD, DEFAULT_BUILD_TIME, DEFAULT_FOOTPRINT,
   DEFAULT_SPEED, DEFAULT_TRAIN_TIME, FADE_MS, FALLEN_AFTER_MS, FOOTPRINTS, GATHER_RATES, HERDABLE, HIDDEN_OBJECT_TYPES,
-  ENEMY_BASE_RADIUS, ENEMY_BUILDING_REACH, MEAT_RATE, MELEE_STOP, RANGED_CLASSES, RANGED_STOP, RESOURCE_AMOUNTS, RETARGET_RADIUS, SPEEDS, TRAIN_TIMES,
+  ENEMY_BASE_RADIUS, ENEMY_BUILDING_REACH, HUNTED_REACH, MEAT_RATE, MELEE_STOP, RANGED_CLASSES, RANGED_STOP, RESOURCE_AMOUNTS, RETARGET_RADIUS, SPEEDS, TRAIN_TIMES,
 } from './palette.js';
 import { isSystemMessage, noticeTimes, settleAgeUps } from './notices.js';
 
+// How far a villager sent to a taken farm looks for a free one (tiles). Estimated.
+const FARM_SEARCH = 10;
+// Build orders from the same group this close together are one shift-queue.
+const BUILD_QUEUE_GAP_MS = 3000;
 const MOVING_COMMANDS = new Set(['MOVE', 'ORDER', 'BUILD', 'WALL', 'GATHER_POINT']);
 // Commands that don't tell the selected units to do anything else: a flare, a
 // market trade or a building's queue doesn't stop villagers working.
@@ -166,6 +170,9 @@ export class Replay {
     this.animalFood = new Map(); // animal unit -> { animal, kind, remaining, depletedAt }
     this.exits = []; // trained units about to leave their building: { unit, t, building }
     this.afterBuild = []; // builders of a drop site, to start gathering when it is done
+    this.wallLines = []; // one per wall command: its pieces, builders and log entry
+    this.wallBuilder = new Map(); // villager id -> the wall line it is building
+    this.farmers = new Map(); // farm -> the villager last sent to farm it
     this.simT = 0;
     this.ageUps = new Map(); // player -> [{ age, t }] (arrival: exact with the game's notices, else estimated)
 
@@ -180,6 +187,7 @@ export class Replay {
     this.plannedIds = dry ? new Map() : Replay.#planIds(new Replay(data, { gameData, dry: true }));
     this.#processTimeline();
     if (dry) return;
+    this.#settleWalls();
     this.#settleAgeUps();
     this.#estimateFalls();
     this.#applyResigns();
@@ -250,13 +258,20 @@ export class Replay {
     return unit;
   }
 
+  #buildSeconds(typeId) {
+    return this.game?.buildings?.[typeId]?.buildTime ?? BUILD_TIMES[this.objectName(typeId)] ?? DEFAULT_BUILD_TIME;
+  }
+
   #addBuilding({ id = null, player, typeId, x, y, t, buildTime }) {
     const name = this.objectName(typeId);
     const known = this.game?.buildings?.[typeId];
     const b = {
       id, player, typeId, x, y, t,
       size: known?.size || FOOTPRINTS[name] || DEFAULT_FOOTPRINT,
-      buildTime: buildTime ?? (known?.buildTime ?? BUILD_TIMES[name] ?? DEFAULT_BUILD_TIME) * 1000,
+      buildTime: buildTime ?? this.#buildSeconds(typeId) * 1000,
+      // Placed at t (a foundation); construction starts at startT. Only walls
+      // differ: their pieces go up one after another (see #wall).
+      startT: t,
       queueEnd: 0,
       removedAt: Infinity, // deleted by its owner: leaves rubble
     };
@@ -373,14 +388,28 @@ export class Replay {
       else ids = selection.get(e.player) ?? [];
       if (this.dry) {
         if (e.type === 'DE_QUEUE') this.#queue(e, ids, index);
-        else if (e.type === 'BUILD') this.#build(e);
-        else if (e.type === 'WALL') this.#wall(e);
+        else if (e.type === 'BUILD') this.#build(e, this.#samePlace(e));
+        else if (e.type === 'WALL') this.#wall(e, ids);
         else if (e.type === 'RESEARCH') this.#occupy(e, ids);
         continue;
       }
 
-      // Any new order for a unit interrupts what it was gathering.
+      // Shift-queued foundations: the group shares them out, one villager each
+      // (the first gets everyone, each later one takes the next villager). The
+      // same spot clicked again places nothing new.
+      let builders = ids;
+      let samePlace = null;
+      if (e.type === 'BUILD') {
+        samePlace = this.#samePlace(e);
+        const k = this.#queuedBuild(e, ids, samePlace);
+        if (k > 0) builders = k < ids.length ? [ids[k]] : [];
+        if (samePlace && k !== 0) builders = [];
+      }
+      ids = builders;
+
+      // Any new order for a unit interrupts what it was gathering (or the wall it was building).
       for (const id of KEEPS_WORKING.has(e.type) ? [] : ids) {
+        this.#leaveWall(id, e.t);
         const unit = this.unitById.get(id);
         if (unit) {
           this.#stopGathering(unit, e.t);
@@ -399,8 +428,8 @@ export class Replay {
 
       let built = null;
       if (e.type === 'DE_QUEUE') this.#queue(e, ids, index);
-      else if (e.type === 'BUILD') built = this.#build(e);
-      else if (e.type === 'WALL') built = this.#wall(e);
+      else if (e.type === 'BUILD') built = this.#build(e, samePlace);
+      else if (e.type === 'WALL') built = this.#wall(e, ids);
       else if (e.type === 'RESIGN') {
         if (!this.resignedAt.has(e.player)) {
           this.resignedAt.set(e.player, e.t);
@@ -408,9 +437,11 @@ export class Replay {
         }
         continue;
       } else if (e.type === 'DELETE') {
+        if (ids.some((id) => !this.buildingById.has(id) && !this.unitById.has(id))) this.#bindDeletedWall(index);
         for (const id of ids) {
           const gone = this.buildingById.get(id) ?? this.unitById.get(id);
-          if (gone && gone.player === e.player) gone.removedAt = Math.min(gone.removedAt, e.t);
+          if (!gone || gone.player !== e.player) continue;
+          gone.removedAt = Math.min(gone.removedAt, e.t);
         }
         continue;
       } else if (e.type === 'RESEARCH') {
@@ -427,6 +458,14 @@ export class Replay {
 
       if (MOVING_COMMANDS.has(e.type) && e.x != null) {
         this.focusPoints.push({ t: e.t, player: e.player, x: e.x, y: e.y });
+      }
+
+      // A click on an animal says where it is, whoever gives it: after a lure the
+      // town center's arrows and gather point on the boar are often the only clicks
+      // that show it arrived.
+      const clicked = e.target_id != null && e.x != null ? this.unitById.get(e.target_id) : null;
+      if (clicked && (clicked.player === 0 || HERDABLE.test(this.objectName(clicked.typeId)))) {
+        this.#placeAnimal(clicked, e.t, e.x, e.y);
       }
 
       if (MOVING_COMMANDS.has(e.type) && e.x != null && e.type !== 'GATHER_POINT') {
@@ -485,6 +524,13 @@ export class Replay {
   }
 
   // Walk toward a point and stop `stop` tiles short of it.
+  // How many others eat this: each new eater takes the next place around it.
+  #eatersOf(food, unit) {
+    let n = 0;
+    for (const [other, f] of this.gatherers) if (f === food && other !== unit) n++;
+    return n;
+  }
+
   #approach(unit, t, at, stop, i) {
     const from = unit.positionAt(t);
     const dx = from.x - at.x;
@@ -540,9 +586,22 @@ export class Replay {
       unit.startActivity(t, 'attack', t + ATTACK_HOLD_MS);
       return true;
     }
-    const done = place.t + place.buildTime;
-    if (!villager || place.player !== unit.player || t >= done) return false;
+    if (!villager || place.player !== unit.player) return false;
+    if (t >= place.startT + place.buildTime) {
+      if (this.objectName(place.typeId) !== 'Farm') return false;
+      // One farmer per farm: if it's taken, the nearest free one, like in the game.
+      const farm = this.#freeFarm(place, unit, t);
+      this.#approach(unit, t, farm, MELEE_STOP, 0);
+      this.#farm(unit, farm, t);
+      return true;
+    }
     this.#approach(unit, t, place, place.size / 2 + MELEE_STOP, i);
+    // A wall piece nobody had reached yet: this villager starts it on arrival.
+    if (place.line) {
+      const at = unit.positionAt(t);
+      const arrive = t + (Math.hypot(place.x - at.x, place.y - at.y) / Math.max(0.1, unit.speed)) * 1000;
+      place.helpStart = Math.min(place.helpStart ?? Infinity, arrive);
+    }
     this.#buildThen(unit, place, t);
     return true;
   }
@@ -567,7 +626,8 @@ export class Replay {
       food = {
         animal,
         kind: HERDABLE.test(name) ? 'shepherd' : 'hunt',
-        // Boars and the like must be lured one by one: eaters never move on to the next.
+        // Boars and the like must be lured one by one: eaters don't walk to a live one
+        // (only to one already hunted, see #huntedNear).
         retarget: !DANGEROUS_ANIMALS.test(name),
         name: known ?? name,
         remaining: known ? ANIMAL_FOOD[known] : DEFAULT_ANIMAL_FOOD,
@@ -578,9 +638,33 @@ export class Replay {
     return food;
   }
 
-  /** Nearest animal like `food`'s (any herdable for sheep) that `unit` can eat at `now`. */
+  /**
+   * Nearest animal like `food`'s (any herdable for sheep) that `unit` can eat at
+   * `now`; failing that, like in the game, the nearest animal already being
+   * hunted (a boar lured to the town center), whatever its kind.
+   */
   #nextAnimal(food, unit, now) {
-    if (!food.retarget) return null;
+    return (food.retarget && this.#sameAnimal(food, unit, now)) || this.#huntedNear(food, unit, now);
+  }
+
+  #huntedNear(food, unit, now) {
+    const from = unit.positionAt(now);
+    let best = null;
+    let bestD = HUNTED_REACH;
+    for (const [animal, other] of this.animalFood) {
+      if (other === food || other.remaining <= 0 || animal.spawnT > now || animal.removedAt <= now) continue;
+      if (animal.player !== 0 && animal.player !== unit.player) continue; // someone else's sheep
+      const at = animal.positionAt(now);
+      const d = Math.hypot(at.x - from.x, at.y - from.y);
+      if (d < bestD) {
+        best = other;
+        bestD = d;
+      }
+    }
+    return best;
+  }
+
+  #sameAnimal(food, unit, now) {
     const from = food.animal.positionAt(now);
     let best = null;
     let bestD = RETARGET_RADIUS;
@@ -604,11 +688,38 @@ export class Replay {
   // in the game, whoever built a farm farms it, and whoever built a drop site
   // (lumber or mining camp, mill) starts gathering what is next to it.
   #buildThen(unit, building, t) {
-    const done = building.t + building.buildTime;
+    const done = building.startT + building.buildTime;
     unit.startActivity(t, 'build', done);
     const name = this.objectName(building.typeId);
-    if (name === 'Farm') unit.queueActivity(done, 'farm');
+    // Several built the farm: one farms it, the rest look for a free one (see #advanceGathering).
+    if (name === 'Farm') this.afterBuild.push({ unit, t: done, orderT: t, building, farm: true });
     else if (DROP_SITES[name]) this.afterBuild.push({ unit, t: done, orderT: t, building, kinds: DROP_SITES[name] });
+  }
+
+  #farm(unit, farm, t) {
+    unit.startActivity(t, 'farm');
+    this.farmers.set(farm, unit);
+    unit.farm = farm;
+  }
+
+  #freeFarm(farm, unit, t) {
+    const taken = (f) => {
+      const u = this.farmers.get(f);
+      return u && u !== unit && u.farm === f && u.removedAt > t && u.activityAt(t) === 'farm';
+    };
+    if (!taken(farm)) return farm;
+    let best = farm;
+    let bestD = FARM_SEARCH;
+    for (const f of this.buildings) {
+      if (f === farm || f.player !== unit.player || f.removedAt <= t || f.startT + f.buildTime > t) continue;
+      if (this.objectName(f.typeId) !== 'Farm' || taken(f)) continue;
+      const d = Math.hypot(f.x - farm.x, f.y - farm.y);
+      if (d < bestD) {
+        best = f;
+        bestD = d;
+      }
+    }
+    return best;
   }
 
   // The research queues in its building like a unit: what is queued after it waits.
@@ -648,6 +759,11 @@ export class Replay {
     const hit = this.buildings.find((b) => b.id == null && b.t <= e.t && b.removedAt > e.t
       && Math.abs(b.x - e.x) <= b.size / 2 + 0.5 && Math.abs(b.y - e.y) <= b.size / 2 + 0.5);
     if (!hit) return null;
+    if (hit.line) {
+      // A wall piece: its line has consecutive IDs, so the click binds them all.
+      this.#bindLine(hit.line, e.target_id - hit.line.placed.indexOf(hit));
+      return hit;
+    }
     hit.id = e.target_id;
     this.buildingById.set(hit.id, hit);
     this.#anchor(hit.id, hit.t);
@@ -691,7 +807,27 @@ export class Replay {
     }
   }
 
-  #build(e) {
+  // A foundation of the same type the player already has right there.
+  #samePlace(e) {
+    return this.buildings.find((b) => b.player === e.player && b.typeId === e.building_id
+      && b.removedAt > e.t && b.x === e.x && b.y === e.y) ?? null;
+  }
+
+  // Position of this BUILD in a shift-queue by the same group: 0 for the first
+  // (or a lone order), then 1, 2... Clicks on an existing foundation don't count.
+  #queuedBuild(e, ids, samePlace) {
+    const key = `${e.player}:${[...ids].sort((a, b) => a - b).join(',')}`;
+    const last = this.lastBuild;
+    if (last && last.key === key && e.t - last.t <= BUILD_QUEUE_GAP_MS) {
+      last.t = e.t;
+      return samePlace ? -1 : ++last.k;
+    }
+    this.lastBuild = { key, t: e.t, k: 0 };
+    return 0;
+  }
+
+  #build(e, samePlace = null) {
+    if (samePlace) return samePlace;
     const building = this.#addBuilding({ player: e.player, typeId: e.building_id, x: e.x, y: e.y, t: e.t });
     // A gate goes on top of the player's wall and replaces those segments (no rubble).
     if (/Gate/.test(this.objectName(e.building_id))) {
@@ -709,19 +845,111 @@ export class Replay {
     return building;
   }
 
-  #wall(e) {
+  // The game creates one foundation per wall piece, with consecutive IDs from
+  // the first clicked end. The builders walk to the nearer end and raise the
+  // pieces one after another; extra builders speed each piece up (+1/3 each,
+  // as for any building). What is left when they get other orders stays a
+  // foundation (see #settleWalls).
+  #wall(e, ids) {
     const steps = Math.max(Math.abs(e.x_end - e.x), Math.abs(e.y_end - e.y));
-    let last = null;
+    const builders = ids
+      .map((id) => (this.dry ? this.unitById.get(id) : this.#resolveUnit(id, e.player, e.t, 'villager')))
+      .filter((u) => u && u.removedAt > e.t);
+    const pieceTime = (this.#buildSeconds(e.building_id) * 1000 * 3) / (Math.max(1, builders.length) + 2);
+    const placed = [];
     for (let i = 0; i <= steps; i++) {
       const k = steps === 0 ? 0 : i / steps;
-      last = this.#addBuilding({
+      placed.push(this.#addBuilding({
         player: e.player, typeId: e.building_id,
         x: Math.round(e.x + (e.x_end - e.x) * k), y: Math.round(e.y + (e.y_end - e.y) * k),
-        t: e.t,
-      });
+        t: e.t, buildTime: pieceTime,
+      }));
     }
-    this.log.push({ t: e.t, player: e.player, kind: 'build', name: this.objectName(e.building_id), segments: steps + 1 });
-    return last;
+    const from = builders[0]?.positionAt(e.t);
+    const near = (b) => (from ? Math.hypot(b.x - from.x, b.y - from.y) : 0);
+    const order = from && near(placed[placed.length - 1]) < near(placed[0]) ? [...placed].reverse() : placed;
+    const walk = from ? (near(order[0]) / Math.max(0.1, builders[0].speed)) * 1000 : 0;
+    order.forEach((b, i) => {
+      b.startT = e.t + walk + i * pieceTime;
+    });
+    const entry = { t: e.t, player: e.player, kind: 'build', name: this.objectName(e.building_id), segments: steps + 1 };
+    this.log.push(entry);
+    const line = { player: e.player, t: e.t, placed, order, entry, builders: new Set(), stoppedAt: Infinity };
+    for (const b of placed) b.line = line;
+    for (const u of builders) {
+      if (u.id == null) continue;
+      line.builders.add(u.id);
+      this.wallBuilder.set(u.id, line);
+    }
+    this.wallLines.push(line);
+    return order[order.length - 1];
+  }
+
+  #leaveWall(id, t) {
+    const line = this.wallBuilder.get(id);
+    if (!line) return;
+    this.wallBuilder.delete(id);
+    line.builders.delete(id);
+    if (line.builders.size === 0) line.stoppedAt = Math.min(line.stoppedAt, t);
+  }
+
+  #bindLine(line, firstId) {
+    line.placed.forEach((b, i) => {
+      const id = firstId + i;
+      if (b.id != null || this.buildingById.has(id) || this.unitById.has(id)) return;
+      b.id = id;
+      this.buildingById.set(id, b);
+    });
+    this.#anchor(firstId, line.t);
+  }
+
+  // Deleting a wall's foundations sends one DELETE per piece, with IDs the
+  // engine never saw. The ones sent together (same player, within a second,
+  // consecutive IDs) go to that player's latest wall with exactly that many
+  // pieces, none of them bound yet.
+  #bindDeletedWall(index) {
+    const timeline = this.data.timeline;
+    const e = timeline[index];
+    // Other players' commands can fall in between: scan by time, not by position.
+    let first = index;
+    while (first > 0 && e.t - timeline[first - 1].t <= 1000) first--;
+    const unknown = new Set();
+    for (let i = first; i < timeline.length && timeline[i].t - e.t <= 1000; i++) {
+      const o = timeline[i];
+      if (o.type !== 'DELETE' || o.player !== e.player) continue;
+      for (const id of o.object_ids ?? []) {
+        if (!this.buildingById.has(id) && !this.unitById.has(id)) unknown.add(id);
+      }
+    }
+    const sorted = [...unknown].sort((a, b) => a - b);
+    if (sorted.length < 2 || sorted[sorted.length - 1] - sorted[0] !== sorted.length - 1) return;
+    const line = this.wallLines.findLast((l) => l.player === e.player && l.t <= e.t
+      && l.placed.length === sorted.length && l.placed.every((b) => b.id == null && b.removedAt > e.t));
+    if (line) this.#bindLine(line, sorted[0]);
+  }
+
+  // Wall pieces the builders never reached stay foundations, unless a villager
+  // was sent to one of them later (helpStart). One half built when they left
+  // stays half built.
+  #settleWalls() {
+    for (const line of this.wallLines) {
+      for (const b of line.order) {
+        const scheduled = b.startT;
+        // Deleting a piece also ends the work on it.
+        if (scheduled >= Math.min(line.stoppedAt, b.removedAt)) b.startT = b.helpStart ?? Infinity;
+        else {
+          b.startT = Math.min(scheduled, b.helpStart ?? Infinity);
+          if (scheduled + b.buildTime > line.stoppedAt && b.helpStart == null) b.pausedAt = line.stoppedAt;
+        }
+      }
+      // Every piece deleted before it was started: the wall was only planned.
+      if (line.placed.every((b) => b.removedAt < Infinity && b.removedAt <= b.startT)) line.entry.cancelled = true;
+    }
+    // A building deleted before it was finished (a foundation) leaves no rubble.
+    for (const b of this.buildings) {
+      const finished = b.pausedAt != null ? Infinity : b.startT + b.buildTime;
+      if (b.removedAt < finished) b.replaced = true;
+    }
   }
 
   #cellKey(x, y) {
@@ -754,6 +982,12 @@ export class Replay {
         this.afterBuild = this.afterBuild.filter((g) => g.t > now);
         for (const g of ready) {
           if (g.unit.lastOrderT > g.orderT || g.unit.removedAt <= now) continue; // ordered elsewhere meanwhile
+          if (g.farm) {
+            const farm = this.#freeFarm(g.building, g.unit, now);
+            if (farm !== g.building) this.#approach(g.unit, now, farm, MELEE_STOP, 0);
+            this.#farm(g.unit, farm, now);
+            continue;
+          }
           const r = this.#resourceNear(g.building.x, g.building.y, g.kinds, DROP_SITE_REACH);
           if (!r) continue;
           g.unit.moveTo(now, r.x, r.y);
@@ -774,7 +1008,7 @@ export class Replay {
           if (next) {
             this.gatherers.set(unit, next);
             const to = next.animal ? next.animal.positionAt(now) : next;
-            if (next.animal) this.#approach(unit, now, to, MELEE_STOP, 0);
+            if (next.animal) this.#approach(unit, now, to, MELEE_STOP, this.#eatersOf(next, unit));
             else unit.moveTo(now, to.x, to.y);
             unit.startActivity(now, next.kind ?? next.category);
           } else {
@@ -787,16 +1021,29 @@ export class Replay {
         const spot = animal ? animal.positionAt(now) : resource;
         if (Math.hypot(at.x - spot.x, at.y - spot.y) > GATHER_REACH) {
           // Arrived but the animal had moved on (lured or pushed): follow it.
-          if (animal && !at.moving) this.#approach(unit, now, spot, MELEE_STOP, 0);
+          if (animal && !at.moving) this.#approach(unit, now, spot, MELEE_STOP, this.#eatersOf(resource, unit));
           continue; // still walking
         }
         const rate = animal ? MEAT_RATE : GATHER_RATES[resource.category] ?? 0;
         resource.remaining -= rate * (GATHER_STEP_MS / 1000);
+        if (animal) resource.eatenAt = now;
         if (resource.remaining <= 0) {
           resource.depletedAt = now;
           if (animal) animal.removedAt = Math.min(animal.removedAt, now);
         }
       }
+      this.#rotCarcasses(now);
+    }
+  }
+
+  // Animals started and then left (eaters sent elsewhere) rot away.
+  #rotCarcasses(now) {
+    for (const [animal, food] of this.animalFood) {
+      if (food.eatenAt == null || food.remaining <= 0 || animal.removedAt <= now) continue;
+      if (now - food.eatenAt < CARCASS_ROT_MS) continue;
+      food.remaining = 0;
+      food.depletedAt = now;
+      animal.removedAt = now;
     }
   }
 
@@ -948,8 +1195,11 @@ export class Replay {
         if (!b.replaced) ruins.push(b);
         continue;
       }
-      const progress = b.buildTime > 0 ? Math.min(1, (t - b.t) / b.buildTime) : 1;
-      buildings.push({ building: b, progress });
+      // Placed but not started: a foundation (planned). Then the construction.
+      const planned = t < b.startT;
+      const until = Math.min(t, b.pausedAt ?? Infinity);
+      const progress = planned ? 0 : b.buildTime > 0 ? Math.min(1, (until - b.startT) / b.buildTime) : 1;
+      buildings.push({ building: b, progress, planned });
     }
     const resigned = new Set([...this.resignedAt].filter(([, rt]) => rt <= t).map(([p]) => p));
     return { t, units, buildings, ruins, resigned };
