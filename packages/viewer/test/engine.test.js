@@ -876,3 +876,36 @@ test('attack-move and patrol send units to the clicked point', () => {
   assert.deepEqual([v.path[1].x1, v.path[1].y1], [15, 15]);
   assert.deepEqual([v.path.at(-1).x1, v.path.at(-1).y1], [5, 5]);
 });
+
+test('more builders build faster, like in the game: n at (n + 2) / 3 the speed', () => {
+  const twoBuild = (helperT) => battle([
+      { t: 0, type: 'DE_QUEUE', player: 1, object_ids: [100], amount: 1, unit_id: 83 },
+      { t: 30_000, type: 'BUILD', player: 1, building_id: 12, object_ids: [101], x: 20, y: 10 },
+      { t: helperT, type: 'ORDER', player: 1, object_ids: [102], target_id: 500, x: 20, y: 10 },
+    ]);
+  // The barracks takes 50 s alone; a second builder at 40 s cuts the 40 s left to 30.
+  const r = twoBuild(40_000);
+  const barracks = r.buildingById.get(500);
+  assert.equal(barracks.startT + barracks.buildTime, 70_000);
+  const first = r.unitById.get(101);
+  assert.equal(first.activities.find((a) => a.kind === 'build').t1, 70_000);
+  // Too late to help: nothing changes.
+  const late = twoBuild(90_000).buildingById.get(500);
+  assert.equal(late.startT + late.buildTime, 80_000);
+});
+
+test('stop halts a walking unit; follow and guard walk up to the target', () => {
+  const r = replay([
+    { t: 0, type: 'MOVE', player: 1, object_ids: [101], x: 12, y: 30 },
+    { t: 5000, type: 'STOP', player: 1, object_ids: [101] },
+  ]);
+  const v = r.unitById.get(101);
+  const at = v.positionAt(5000);
+  const later = v.positionAt(60_000);
+  assert.ok(at.y > 10 && at.y < 30, 'stopped half way');
+  assert.deepEqual([later.x, later.y, later.moving], [at.x, at.y, false]);
+
+  const g = replay([{ t: 0, type: 'GUARD', player: 1, object_ids: [101], target_id: 100 }]);
+  const end = g.unitById.get(101).positionAt(60_000);
+  assert.ok(Math.hypot(end.x - 10, end.y - 10) < 5, 'next to the town center');
+});

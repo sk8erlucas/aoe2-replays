@@ -23,7 +23,7 @@ Los sprites estaban bien: las 8 civilizaciones tienen todas sus unidades en el a
 ## Falta
 - [ ] **Probar en el navegador** con `/m/521529321?p=397671` y con la del reporte de murallas (`/m/520532792`): que no desaparezcan edificios que siguen en pie (sobre todo murallas y casas atacadas por pocos) y que las tropas de los godos salgan de los cuarteles.
 - [ ] Comparar con el juego en algún momento de la partida (cantidad de edificios y unidades por jugador) para ajustar `RAZE_MIN_ATTACKERS` y los 25 s.
-- [ ] Aldeanos que se van: el motor saca a las unidades entrenadas que nunca reciben una orden propia y quedan sin hacer nada (`#dropUncommanded`). En esta partida le pasa a 4 aldeanos de Dekaryn a los 7:38 (estaban con las ovejas). Revisar si hace falta o si conviene dejarlos ociosos.
+- [x] Aldeanos que se van: el motor saca a las unidades entrenadas que nunca reciben una orden propia y quedan sin hacer nada (`#dropUncommanded`). En esta partida le pasa a 4 aldeanos de Dekaryn a los 7:38, cuando se terminan las ovejas. Se deja así a propósito: las cancelaciones de la cola no están en el replay, y una unidad que nadie manda en toda la partida puede ser una cancelada.
 - [ ] Muchas unidades militares entrenadas quedan sin ID asignado (Dekaryn: 43 de sus 107). Caminan al punto de reunión y ahí se quedan. Revisar el emparejamiento de IDs (`#planIds`) con colas repartidas.
-- [ ] Seguir y guardia (`FOLLOW`, `GUARD`) no traen posición: se podrían mover hacia la unidad seguida.
-- [ ] Mostrar en la interfaz que los edificios destruidos son una estimación (como lo demás que infiere el motor).
+- [x] Seguir y guardia (`FOLLOW`, `GUARD`) llevan a la unidad hasta donde está el objetivo en ese momento (no lo siguen después). Detener (`STOP`) la frena donde está.
+- [x] Mostrar en la interfaz que los edificios destruidos son una estimación: agregado a la pregunta "¿Es exactamente lo que pasó?" de la portada, junto con las muertes en combate.
