@@ -146,6 +146,8 @@ export class Unit {
 // Town centers built during the game use another id than the starting one.
 const SAME_BUILDING = { 621: 109, 109: 621 };
 const TC_FOUNDATION = 621;
+// How close a unit told to follow or guard stays to its target (tiles). Estimated.
+const FOLLOW_STOP = 1.5;
 // Siege (rams, mangonels, bombards, scorpions; trebuchets by name): one is enough to raze.
 const SIEGE_CLASSES = new Set([13, 51, 54, 55]);
 const SIEGE_NAME = /Trebuchet|Ram|Mangonel|Onager|Bombard|Cannon|Scorpion/;
@@ -482,6 +484,26 @@ export class Replay {
         this.#placeAnimal(clicked, e.t, e.x, e.y);
       }
 
+      // Stop: stand where it is. Follow and guard: walk up to the target (where it
+      // is right then; following it afterwards isn't modelled).
+      if (e.type === 'STOP') {
+        for (const id of ids) {
+          const unit = this.unitById.get(id);
+          if (!unit) continue;
+          const at = unit.positionAt(e.t);
+          unit.moveTo(e.t, at.x, at.y);
+        }
+      } else if ((e.type === 'FOLLOW' || e.type === 'GUARD') && e.target_id != null) {
+        const other = this.unitById.get(e.target_id);
+        const target = other ? other.positionAt(e.t) : this.buildingById.get(e.target_id);
+        const stop = other ? FOLLOW_STOP : (target?.size ?? 0) / 2 + FOLLOW_STOP;
+        if (target) {
+          ids.map((id) => this.unitById.get(id))
+            .filter((u) => u && u !== other && u.player === e.player)
+            .forEach((unit, i) => this.#approach(unit, e.t, target, stop, i));
+        }
+      }
+
       if (MOVING_COMMANDS.has(e.type) && e.x != null && e.type !== 'GATHER_POINT') {
         const want = this.#orderWants(e);
         ids.map((id) => this.#resolveUnit(id, e.player, e.t, want))
@@ -702,12 +724,37 @@ export class Replay {
   // in the game, whoever built a farm farms it, and whoever built a drop site
   // (lumber or mining camp, mill) starts gathering what is next to it.
   #buildThen(unit, building, t) {
+    this.#joinCrew(unit, building, t);
     const done = building.startT + building.buildTime;
     unit.startActivity(t, 'build', done);
     const name = this.objectName(building.typeId);
+    let after = null;
     // Several built the farm: one farms it, the rest look for a free one (see #advanceGathering).
-    if (name === 'Farm') this.afterBuild.push({ unit, t: done, orderT: t, building, farm: true });
-    else if (DROP_SITES[name]) this.afterBuild.push({ unit, t: done, orderT: t, building, kinds: DROP_SITES[name] });
+    if (name === 'Farm') after = { unit, t: done, orderT: t, building, farm: true };
+    else if (DROP_SITES[name]) after = { unit, t: done, orderT: t, building, kinds: DROP_SITES[name] };
+    if (after) this.afterBuild.push(after);
+    building.crew.get(unit).push({ activity: unit.activities.at(-1), after });
+  }
+
+  // More builders, faster: like in the game, n villagers build at (n + 2) / 3 the
+  // speed of one, so each newcomer cuts what is left. Builders that leave aren't
+  // tracked. Wall pieces keep their own schedule (see #wall).
+  #joinCrew(unit, building, t) {
+    building.crew ??= new Map(); // unit -> [{ activity, after }] to move when the end changes
+    if (building.crew.has(unit)) return;
+    building.crew.set(unit, []);
+    const done = building.startT + building.buildTime;
+    const from = Math.max(t, building.startT);
+    if (building.line || building.crew.size < 2 || from >= done) return;
+    const n = building.crew.size;
+    const end = from + ((done - from) * (n + 1)) / (n + 2);
+    building.buildTime = end - building.startT;
+    for (const jobs of building.crew.values()) {
+      for (const { activity, after } of jobs) {
+        if (activity.t1 === done) activity.t1 = end;
+        if (after && after.t === done) after.t = end;
+      }
+    }
   }
 
   #farm(unit, farm, t) {

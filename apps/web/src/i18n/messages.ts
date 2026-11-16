@@ -130,7 +130,7 @@ const es = {
       },
       {
         q: "¿Es exactamente lo que pasó en la partida?",
-        a: "El replay guarda las órdenes de cada jugador, no las posiciones de las unidades. Las órdenes, los tiempos y las construcciones son exactos; el recorrido de las unidades, la recolección y la llegada a cada edad son estimaciones.",
+        a: "El replay guarda las órdenes de cada jugador, no las posiciones de las unidades. Las órdenes, los tiempos y las construcciones son exactos; el recorrido de las unidades, la recolección, la llegada a cada edad, las muertes en combate y los edificios destruidos son estimaciones: el replay no dice quién ganó una pelea.",
       },
       {
         q: "¿Quién puede ver lo que subo?",
@@ -659,7 +659,7 @@ const en: Messages = {
       },
       {
         q: "Is it exactly what happened in the match?",
-        a: "A replay stores each player's commands, not unit positions. Commands, timings and buildings are exact; unit paths, gathering and age-up arrivals are estimates.",
+        a: "A replay stores each player's commands, not unit positions. Commands, timings and buildings are exact; unit paths, gathering, age-up arrivals, deaths in battle and destroyed buildings are estimates: a replay never says who won a fight.",
       },
       {
         q: "Who can see what I upload?",

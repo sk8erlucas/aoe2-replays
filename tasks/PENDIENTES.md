@@ -6,7 +6,8 @@ Separados entre lo que necesita una decisión o acción tuya y lo que se puede a
 Detalle en [19](./19-unidades-y-edificios-destruidos.md), con la partida `/m/521529321`.
 - **Unidades que faltaban**: las colas en varios cuarteles a la vez se reparten, el Huskarl encolado en el cuartel sale de ahí y el centro urbano terminado (que cambia de ID) sigue entrenando. Los godos de esa partida pasan de 116 a 417 unidades.
 - **Edificios destruidos** (estimado): arrasados si sufren un ataque de verdad y su dueño no los vuelve a usar, y despejados si alguien construye encima.
-- Ataque en movimiento y patrulla ahora mueven a las unidades.
+- Ataque en movimiento y patrulla ahora mueven a las unidades; detener las frena; seguir y guardia las llevan hasta el objetivo.
+- **Construir con varios aldeanos** es más rápido, como en el juego: n aldeanos a (n + 2) / 3 la velocidad de uno ([08](./08-experiencia-de-juego.md)).
 - Diseño (fase 7) cerrado: lo opcional que queda está en [DESIGN](../docs/DESIGN.md).
 - **Para probar en el navegador**: esa partida siguiendo a Dekaryn, y la de las murallas (`/m/520532792`).
 

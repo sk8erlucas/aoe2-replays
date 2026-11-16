@@ -43,7 +43,7 @@ Elegido: **B1** con un subconjunto (edificios y unidades principales, por arquit
 - [x] Cargar los atlas en `render.js` (`SpriteSet`, carga por página) con las formas actuales como respaldo
 - [x] Muros con su forma según los tramos vecinos (diagonales, horizontal, vertical, pilar)
 - [x] Edificios y unidades borrados por su dueño (`DELETE`): desaparecen y los edificios dejan escombros del juego
-- [ ] Puertas abiertas/cerradas y edificios destruidos en combate (no están en el replay)
+- [~] Edificios destruidos en combate (no están en el replay): estimados desde el 16/11/2026 ([19](./19-unidades-y-edificios-destruidos.md)). Falta: puertas abiertas/cerradas
 - [x] Centro urbano armado con sus anexos en el eje correcto (también resolvía las piezas negras del sudeste asiático)
 - [x] Puertas sobre muros: reemplazan los tramos que ocupan
 - [x] Todos los edificios construibles del juego (puertas, trampas de peces, edificios únicos); los gráficos contenedores incluyen su propio gráfico (arreglaba la herrería de varias civilizaciones)
@@ -58,14 +58,14 @@ Elegido: **B1** con un subconjunto (edificios y unidades principales, por arquit
 - [ ] Recorridos alrededor de obstáculos (pathfinding en la grilla de tiles) en vez de línea recta
 - [ ] Viajes a depositar recursos (aldeano ↔ campamento / centro urbano)
 - [ ] Recolección con más fuentes: punto de reunión en recursos (hecho), órdenes a granjas, caza de animales
-- [ ] Usar la cola de producción real (cancelaciones, investigaciones que bloquean el centro urbano)
-- [ ] Edificios: tiempo de construcción según cantidad de constructores
-- [~] Destrucción de edificios y muerte de unidades cuando hay evidencia: `DELETE` y muertes estimadas de unidades (hecho); falta estimar edificios destruidos por ataques
-- [ ] Revisar `DE_TRANSFORM` y `GAME` con partidas completas
+- [~] Usar la cola de producción real: las investigaciones ocupan la cola del edificio y las colas con varios edificios elegidos se reparten entre ellos (16/11/2026). Falta: cancelaciones (no están en el replay)
+- [x] Edificios: tiempo de construcción según cantidad de constructores (16/11/2026): n aldeanos construyen a (n + 2) / 3 la velocidad de uno, como en el juego; cada uno suma desde que recibe la orden. No se descuentan los que se van a otra cosa
+- [x] Destrucción de edificios y muerte de unidades cuando hay evidencia: `DELETE`, muertes estimadas de unidades y edificios arrasados o con cimientos encima (16/11/2026, [19](./19-unidades-y-edificios-destruidos.md))
+- [x] Revisar `DE_TRANSFORM` y `GAME` con partidas completas: `GAME` son comandos internos al inicio (16 y 19, uno de cada por jugador) y `DE_TRANSFORM` llega en ráfagas sobre el mismo objeto; ninguno es una orden del jugador (fuera del APM y del contexto para IA). Detener (`STOP`) frena a la unidad; seguir y guardia la llevan hasta el objetivo; ataque en movimiento y patrulla, hasta el punto
 
 ### Etapa 5: interfaz de espectador
 - [ ] Barra de jugadores como la del juego: recursos estimados, población, edad, puntaje
-- [ ] Panel de producción: qué está entrenando/investigando cada uno
+- [ ] Panel de producción: qué está entrenando/investigando cada uno (las investigaciones del jugador seguido, en [18](./18-visores-de-partida.md))
 - [x] Banderas de avance de edad en la línea de tiempo: una por jugador y edad en la llegada estimada (`Replay.ageMarks()`), apiladas en filas cuando se superponen; clic para ir a ese momento
 - [ ] Niebla de guerra opcional por jugador
 - [x] **Música de fondo** (12/11/2026): botón "♪ Música" en la barra del visor (`MusicControl.tsx`) con seis pistas del juego en orden aleatorio, volumen guardado en el navegador; no arranca sola y los archivos (`public/music`, AAC 96 kbps, ~3 MB cada uno) se bajan recién al activarla. Extraídas con [`tools/music`](../tools/music). Plan original:
