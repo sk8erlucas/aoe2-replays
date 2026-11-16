@@ -16,7 +16,9 @@
 // Deaths are guessed: eaten animals vanish when their food runs out; a unit last
 // sent to fight (or into enemy ground) and never ordered again is taken as fallen;
 // so are units over the population limit (others must have died) and everything
-// of a player who resigns.
+// of a player who resigns. A building under a real assault (siege or several
+// soldiers) that its owner never uses again is taken as razed, and one with a
+// new foundation over it as gone by then.
 
 import {
   AGE_TECHS, ANIMAL_FOOD, CARCASS_ROT_MS, DANGEROUS_ANIMALS, DROP_SITE_REACH, DROP_SITES, RESEARCH_TIMES, ATTACK_HOLD_MS, BUILD_TIMES, DEFAULT_ANIMAL_FOOD, DEFAULT_BUILD_TIME, DEFAULT_FOOTPRINT,
@@ -29,7 +31,8 @@ import { isSystemMessage, noticeTimes, settleAgeUps } from './notices.js';
 const FARM_SEARCH = 10;
 // Build orders from the same group this close together are one shift-queue.
 const BUILD_QUEUE_GAP_MS = 3000;
-const MOVING_COMMANDS = new Set(['MOVE', 'ORDER', 'BUILD', 'WALL', 'GATHER_POINT']);
+// Attack-move and patrol walk to the clicked point too (a patrol then goes back and forth; not modelled).
+const MOVING_COMMANDS = new Set(['MOVE', 'ORDER', 'BUILD', 'WALL', 'GATHER_POINT', 'DE_ATTACK_MOVE', 'PATROL']);
 // Commands that don't tell the selected units to do anything else: a flare, a
 // market trade or a building's queue doesn't stop villagers working.
 const KEEPS_WORKING = new Set([
@@ -142,6 +145,15 @@ export class Unit {
 
 // Town centers built during the game use another id than the starting one.
 const SAME_BUILDING = { 621: 109, 109: 621 };
+const TC_FOUNDATION = 621;
+// Siege (rams, mangonels, bombards, scorpions; trebuchets by name): one is enough to raze.
+const SIEGE_CLASSES = new Set([13, 51, 54, 55]);
+const SIEGE_NAME = /Trebuchet|Ram|Mangonel|Onager|Bombard|Cannon|Scorpion/;
+// Without siege, this many soldiers sent against a building is taken as an assault. Estimated.
+const RAZE_MIN_ATTACKERS = 3;
+// Footprints that overlap by more than this (tiles) can't both stand.
+const OVERLAP_SLACK = 0.25;
+const CASTLE = 82;
 
 export class Replay {
   /**
@@ -190,6 +202,8 @@ export class Replay {
     this.#settleWalls();
     this.#settleAgeUps();
     this.#estimateFalls();
+    this.#estimateRazed();
+    this.#clearBuiltOver();
     this.#applyResigns();
     this.#enforcePopulationLimit();
   }
@@ -770,29 +784,68 @@ export class Replay {
     return hit;
   }
 
+  // Where a unit can be trained: [[building type, seconds]]. A castle unit also
+  // trained elsewhere (the Goths' Huskarl at the barracks, the Huns' Tarkan at
+  // the stable) is a separate type in the game data, but the game may queue the
+  // castle one there: its twins (same class, speed and castle training) count too.
+  #trainSites(unitId) {
+    this.trainCache ??= new Map();
+    if (this.trainCache.has(unitId)) return this.trainCache.get(unitId);
+    const units = this.game?.units ?? {};
+    const own = units[unitId];
+    let sites = own?.train ?? null;
+    const castle = sites?.length === 1 && sites[0][0] === CASTLE ? sites[0] : null;
+    if (castle) {
+      const more = new Map();
+      for (const u of Object.values(units)) {
+        if (u === own || u.class !== own.class || u.speed !== own.speed) continue;
+        if (!u.train?.some(([at, s]) => at === CASTLE && s === castle[1])) continue;
+        for (const [at, s] of u.train) if (at !== CASTLE && !more.has(at)) more.set(at, s);
+      }
+      sites = [castle, ...more];
+    }
+    this.trainCache.set(unitId, sites);
+    return sites;
+  }
+
   // A building built during the game has no known ID until a command uses it.
   // Bind it to the oldest unbound building of that player that can train the unit.
+  // A finished town center gets a new ID (its foundation is another object): a
+  // town center known by its foundation's ID takes the new one too.
   #bindBuilding(id, player, unitId, t) {
-    const trainedAt = this.game?.units?.[unitId]?.train?.map(([buildingId]) => buildingId);
-    if (id == null || !trainedAt) return null;
+    const trainedAt = this.#trainSites(unitId)?.map(([buildingId]) => buildingId);
+    if (id == null || !trainedAt || this.unitById.has(id)) return null;
     const fits = (typeId) => trainedAt.includes(typeId) || trainedAt.includes(SAME_BUILDING[typeId]);
-    const building = this.buildings.find((b) => b.id == null && b.player === player && b.t <= t && fits(b.typeId));
-    if (!building) return null;
-    building.id = id;
+    const mine = (b) => b.player === player && b.t <= t && b.removedAt > t && fits(b.typeId);
+    let building = this.buildings.find((b) => b.id == null && mine(b));
+    if (building) building.id = id;
+    else {
+      building = this.buildings.find((b) => b.typeId === TC_FOUNDATION && b.id != null && b.doneId == null && mine(b));
+      if (!building) return null;
+      building.doneId = id;
+    }
     this.buildingById.set(id, building);
-    this.#anchor(id, building.t);
+    this.#anchor(id, building.id === id ? building.t : Math.min(t, building.startT + building.buildTime));
     return building;
   }
 
+  // With several buildings selected, each unit goes to the one whose queue ends
+  // first, like in the game.
   #queue(e, ids, index) {
-    const building = this.buildingById.get(ids[0]) ?? this.#bindBuilding(ids[0], e.player, e.unit_id, e.t);
+    const sites = new Set();
+    for (const id of ids) {
+      const b = this.buildingById.get(id) ?? this.#bindBuilding(id, e.player, e.unit_id, e.t);
+      if (b && b.player === e.player) sites.add(b);
+    }
     const name = this.objectName(e.unit_id);
     this.log.push({ t: e.t, player: e.player, kind: 'queue', name, amount: e.amount });
-    if (!building) return;
-    const trains = this.game?.units?.[e.unit_id]?.train;
-    const gameTime = trains?.find(([at]) => at === building.typeId || at === SAME_BUILDING[building.typeId])?.[1];
-    const trainTime = (gameTime ?? TRAIN_TIMES[name] ?? DEFAULT_TRAIN_TIME) * 1000;
+    if (!sites.size) return;
+    const trains = this.#trainSites(e.unit_id);
     for (let i = 0; i < e.amount; i++) {
+      let building = null;
+      for (const b of sites) if (!building || Math.max(e.t, b.queueEnd) < Math.max(e.t, building.queueEnd)) building = b;
+      const gameTime = trains?.find(([at]) => at === building.typeId || at === SAME_BUILDING[building.typeId])?.[1];
+      const trainTime = (gameTime ?? TRAIN_TIMES[name] ?? DEFAULT_TRAIN_TIME) * 1000;
       const start = Math.max(e.t, building.queueEnd);
       building.queueEnd = start + trainTime;
       const [ox, oy] = formationOffset(this.units.length % 12);
@@ -1119,6 +1172,89 @@ export class Replay {
       if (fellAt == null || playedOn - fellAt < FALLEN_AFTER_MS) continue;
       u.removedAt = fellAt;
       u.fell = true;
+    }
+  }
+
+  // A building enemies were sent against (a real assault: siege, or several
+  // attackers) and that its owner never used again (to train, research, set a
+  // gather point, repair or garrison) though they kept playing well after, most
+  // likely fell: when the last attack order has had time to land. Estimated.
+  #estimateRazed() {
+    const lastUse = new Map();
+    const assaults = new Map(); // building -> { attackers: Set, siege, last }
+    const lastOrderOf = new Map();
+    const selection = new Map();
+    for (const e of this.data.timeline) {
+      if (e.type !== 'GAME' && e.type !== 'DE_TRANSFORM') lastOrderOf.set(e.player, e.t);
+      let ids = e.object_ids ?? [];
+      if (ids.length) selection.set(e.player, ids);
+      else ids = selection.get(e.player) ?? [];
+      for (const id of e.object_ids ?? []) {
+        const b = this.buildingById.get(id);
+        if (b?.player === e.player) lastUse.set(b, e.t);
+      }
+      let target = this.buildingById.get(e.target_id);
+      if (!target && e.type === 'ATTACK_GROUND' && e.x != null) target = this.#buildingAt(e.x, e.y, e.t);
+      if (!target) continue;
+      if (target.player === e.player) {
+        lastUse.set(target, e.t);
+        continue;
+      }
+      if ((e.type !== 'ORDER' && e.type !== 'ATTACK_GROUND') || !this.#enemies(e.player, target.player)) continue;
+      const a = assaults.get(target) ?? { attackers: new Set(), siege: false, last: 0 };
+      for (const id of ids) {
+        const unit = this.unitById.get(id);
+        if (!unit || unit.player !== e.player || this.#isVillager(unit)) continue;
+        a.attackers.add(unit);
+        if (SIEGE_CLASSES.has(this.game?.units?.[unit.typeId]?.class) || SIEGE_NAME.test(this.objectName(unit.typeId))) a.siege = true;
+      }
+      if (e.type === 'ATTACK_GROUND') a.siege = true;
+      a.last = e.t;
+      assaults.set(target, a);
+    }
+    for (const [b, a] of assaults) {
+      if (!a.siege && a.attackers.size < RAZE_MIN_ATTACKERS) continue;
+      if ((lastUse.get(b) ?? -1) > a.last) continue;
+      const fellAt = a.last + ATTACK_HOLD_MS;
+      const playedOn = Math.min(lastOrderOf.get(b.player) ?? 0, this.resignedAt.get(b.player) ?? Infinity);
+      if (fellAt <= b.t || playedOn - fellAt < FALLEN_AFTER_MS || b.removedAt <= fellAt) continue;
+      b.removedAt = fellAt;
+      b.razed = true;
+    }
+  }
+
+  // Standing building whose footprint holds (x, y) at t.
+  #buildingAt(x, y, t) {
+    return this.buildings.find((b) => b.t <= t && b.removedAt > t
+      && Math.abs(b.x - x) <= b.size / 2 && Math.abs(b.y - y) <= b.size / 2) ?? null;
+  }
+
+  // Nothing can be placed on a standing building: whatever was there before a
+  // new foundation (a razed house, an expired farm) was gone by then. Walls are
+  // left to their own rules.
+  #clearBuiltOver() {
+    const byCell = new Map();
+    const cells = (b) => {
+      const keys = [];
+      const r = b.size / 2;
+      for (let cx = Math.floor((b.x - r) / GRID_CELL); cx <= Math.floor((b.x + r) / GRID_CELL); cx++) {
+        for (let cy = Math.floor((b.y - r) / GRID_CELL); cy <= Math.floor((b.y + r) / GRID_CELL); cy++) keys.push(`${cx},${cy}`);
+      }
+      return keys;
+    };
+    const solid = this.buildings.filter((b) => !b.line && b.size > 1).sort((a, b) => a.t - b.t);
+    for (const c of solid) {
+      const near = new Set();
+      for (const k of cells(c)) for (const b of byCell.get(k) ?? []) near.add(b);
+      for (const b of near) {
+        if (b.t >= c.t || b.removedAt <= c.t) continue;
+        const reach = (b.size + c.size) / 2 - OVERLAP_SLACK;
+        if (Math.abs(b.x - c.x) < reach && Math.abs(b.y - c.y) < reach) {
+          b.removedAt = c.t;
+          b.replaced = true;
+        }
+      }
+      for (const k of cells(c)) (byCell.get(k) ?? byCell.set(k, []).get(k)).push(c);
     }
   }
 

@@ -2,8 +2,16 @@
 
 Separados entre lo que necesita una decisión o acción tuya y lo que se puede avanzar sin vos.
 
+## Sesión del 16/11/2026: unidades que faltan y edificios destruidos
+Detalle en [19](./19-unidades-y-edificios-destruidos.md), con la partida `/m/521529321`.
+- **Unidades que faltaban**: las colas en varios cuarteles a la vez se reparten, el Huskarl encolado en el cuartel sale de ahí y el centro urbano terminado (que cambia de ID) sigue entrenando. Los godos de esa partida pasan de 116 a 417 unidades.
+- **Edificios destruidos** (estimado): arrasados si sufren un ataque de verdad y su dueño no los vuelve a usar, y despejados si alguien construye encima.
+- Ataque en movimiento y patrulla ahora mueven a las unidades.
+- Diseño (fase 7) cerrado: lo opcional que queda está en [DESIGN](../docs/DESIGN.md).
+- **Para probar en el navegador**: esa partida siguiendo a Dekaryn, y la de las murallas (`/m/520532792`).
+
 ## Idea nueva: visores de partida
-Paneles arriba del visor, que se eligen y ordenan, con los aldeanos de cada jugador por recurso y los puntajes como arriba del minimapa del juego (estimados). Plan en [18-visores-de-partida](./18-visores-de-partida.md).
+Paneles arriba del visor, que se eligen y ordenan, con los aldeanos de cada jugador por recurso y los puntajes como arriba del minimapa del juego (estimados). También las investigaciones en curso del jugador seguido, con ícono y barra de progreso como en el juego. Plan en [18-visores-de-partida](./18-visores-de-partida.md).
 
 ## Repo abierto
 El repo es público desde octubre de 2026. Lo que queda de seguridad e infraestructura está en [11-apertura-publica](./11-apertura-publica.md); la migración a Next 16 (hecha el 11/11/2026, falta el deploy de prueba) en [12-next-16](./12-next-16.md).

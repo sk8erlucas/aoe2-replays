@@ -753,3 +753,126 @@ test('shift-queued farms are shared out, one villager each', () => {
   });
   assert.equal(new Set(spots).size, 3, spots.join(' '));
 });
+
+// Two players on opposite teams, with game data for barracks, castles and town centers.
+function battle(timeline, { duration = 900_000 } = {}) {
+  const gameData = {
+    units: {
+      83: { speed: 0.8, class: 4, train: [[109, 25]] },
+      41: { speed: 1.05, class: 6, train: [[82, 13]] }, // Huskarl as the castle trains it
+      759: { speed: 1.05, class: 6, train: [[82, 13], [12, 16]] }, // ...and its barracks twin
+      74: { speed: 0.96, class: 6, train: [[12, 21]] },
+      35: { speed: 0.5, class: 13, train: [[49, 36]] },
+    },
+    buildings: { 12: { size: 3, buildTime: 50 }, 82: { size: 4, buildTime: 200 }, 621: { size: 4, buildTime: 150 }, 70: { size: 2, buildTime: 25 } },
+  };
+  return new Replay({
+    game: {
+      duration_ms: duration,
+      players: [
+        { number: 1, name: 'A', color_id: 1, team_id: 2, start: { x: 10, y: 10 } },
+        { number: 2, name: 'B', color_id: 2, team_id: 3, start: { x: 90, y: 90 } },
+      ],
+    },
+    map: { size: 100, terrain: [], elevation: [] },
+    initial_objects: [
+      { id: 100, player: 1, type_id: 109, x: 10, y: 10 },
+      { id: 101, player: 1, type_id: 83, x: 12, y: 10 },
+      { id: 200, player: 2, type_id: 109, x: 90, y: 90 },
+      { id: 201, player: 2, type_id: 83, x: 88, y: 90 },
+      { id: 202, player: 2, type_id: 70, x: 80, y: 80 },
+    ],
+    timeline,
+    chat: [],
+    legend: {
+      objects: {
+        109: { name: 'Town Center', category: 'building' }, 621: { name: 'Town Center', category: 'building' },
+        12: { name: 'Barracks', category: 'building' }, 82: { name: 'Castle', category: 'building' },
+        70: { name: 'House', category: 'building' }, 83: { name: 'Villager', category: 'unit' },
+        41: { name: 'Huskarl', category: 'unit' }, 74: { name: 'Militia', category: 'unit' },
+        35: { name: 'Battering Ram', category: 'unit' },
+      },
+    },
+  }, { gameData });
+}
+
+test('a queue on several buildings spreads the units among them', () => {
+  const r = battle([
+    { t: 1000, type: 'BUILD', player: 1, building_id: 12, object_ids: [101], x: 20, y: 10 },
+    { t: 2000, type: 'BUILD', player: 1, building_id: 12, object_ids: [101], x: 30, y: 10 },
+    { t: 120_000, type: 'DE_QUEUE', player: 1, object_ids: [500, 501], amount: 4, unit_id: 74 },
+  ]);
+  const militia = r.units.filter((u) => u.typeId === 74);
+  assert.equal(militia.length, 4);
+  assert.deepEqual(militia.map((u) => u.spawnT).sort((a, b) => a - b), [141_000, 141_000, 162_000, 162_000]);
+  assert.ok(r.buildingById.get(500) && r.buildingById.get(501) && r.buildingById.get(500) !== r.buildingById.get(501));
+});
+
+test('a castle unit queued at the barracks comes out of the barracks', () => {
+  const r = battle([
+    { t: 1000, type: 'BUILD', player: 1, building_id: 12, object_ids: [101], x: 20, y: 10 },
+    { t: 120_000, type: 'DE_QUEUE', player: 1, object_ids: [500], amount: 1, unit_id: 41 },
+  ]);
+  const huskarl = r.units.find((u) => u.typeId === 41);
+  assert.equal(r.buildingById.get(500)?.typeId, 12);
+  assert.equal(huskarl?.spawnT, 136_000);
+});
+
+test('a finished town center takes a new id, queues on it still train', () => {
+  const r = battle([
+    { t: 1000, type: 'BUILD', player: 1, building_id: 621, object_ids: [101], x: 40, y: 10 },
+    { t: 2000, type: 'ORDER', player: 1, object_ids: [101], target_id: 600, x: 40, y: 10 },
+    { t: 200_000, type: 'DE_QUEUE', player: 1, object_ids: [700], amount: 1, unit_id: 83 },
+  ]);
+  const tc = r.buildingById.get(600);
+  assert.equal(tc?.x, 40);
+  assert.equal(r.buildingById.get(700), tc);
+  assert.equal(r.units.filter((u) => u.typeId === 83 && u.key).length, 1);
+});
+
+test('a building under assault that its owner never uses again is razed', () => {
+  const villagers = battle([
+    { t: 10_000, type: 'DE_QUEUE', player: 1, object_ids: [100], amount: 3, unit_id: 83 },
+    { t: 200_000, type: 'MOVE', player: 1, object_ids: [301, 302, 303], x: 70, y: 70 },
+    { t: 300_000, type: 'ORDER', player: 1, object_ids: [301, 302, 303], target_id: 202, x: 80, y: 80 },
+    { t: 600_000, type: 'MOVE', player: 2, object_ids: [201], x: 85, y: 85 },
+  ]);
+  assert.equal(villagers.buildingById.get(202).removedAt, Infinity, 'villagers alone are not an assault');
+
+  const soldiers = battle([
+    { t: 1000, type: 'BUILD', player: 1, building_id: 12, object_ids: [101], x: 20, y: 10 },
+    { t: 60_000, type: 'DE_QUEUE', player: 1, object_ids: [500], amount: 3, unit_id: 74 },
+    { t: 200_000, type: 'ORDER', player: 1, object_ids: [301, 302, 303], target_id: 202, x: 80, y: 80 },
+    { t: 600_000, type: 'MOVE', player: 2, object_ids: [201], x: 85, y: 85 },
+  ]);
+  assert.equal(soldiers.buildingById.get(202).removedAt, 225_000);
+  assert.ok(soldiers.stateAt(300_000).ruins.some((b) => b.id === 202));
+
+  const repaired = battle([
+    { t: 1000, type: 'BUILD', player: 1, building_id: 12, object_ids: [101], x: 20, y: 10 },
+    { t: 60_000, type: 'DE_QUEUE', player: 1, object_ids: [500], amount: 3, unit_id: 74 },
+    { t: 200_000, type: 'ORDER', player: 1, object_ids: [301, 302, 303], target_id: 202, x: 80, y: 80 },
+    { t: 230_000, type: 'ORDER', player: 2, object_ids: [201], target_id: 202, x: 80, y: 80 },
+    { t: 600_000, type: 'MOVE', player: 2, object_ids: [201], x: 85, y: 85 },
+  ]);
+  assert.equal(repaired.buildingById.get(202).removedAt, Infinity);
+});
+
+test('a foundation placed over a building means it was gone', () => {
+  const r = battle([
+    { t: 300_000, type: 'BUILD', player: 2, building_id: 12, object_ids: [201], x: 80.5, y: 80.5 },
+  ]);
+  const house = r.buildingById.get(202);
+  assert.equal(house.removedAt, 300_000);
+  assert.equal(r.stateAt(400_000).buildings.filter((b) => b.building.typeId === 12).length, 1);
+});
+
+test('attack-move and patrol send units to the clicked point', () => {
+  const r = replay([
+    { t: 0, type: 'DE_ATTACK_MOVE', player: 1, object_ids: [101], x: 15, y: 15 },
+    { t: 30_000, type: 'PATROL', player: 1, object_ids: [101], x: 5, y: 5 },
+  ]);
+  const v = r.unitById.get(101);
+  assert.deepEqual([v.path[1].x1, v.path[1].y1], [15, 15]);
+  assert.deepEqual([v.path.at(-1).x1, v.path.at(-1).y1], [5, 5]);
+});
