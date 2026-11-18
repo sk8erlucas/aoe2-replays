@@ -69,7 +69,7 @@ def test_names_and_legend(sample):
     assert sample['map']['name'] == 'Black Forest'
     legend = sample['legend']
     assert legend['terrain']['113']['category'] == 'forest'
-    assert legend['terrain']['1']['category'] == 'shallows'
+    assert legend['terrain']['1']['category'] == 'water'  # Water, Shallow: not walkable, unlike Shallows
     assert legend['objects']['1984']['category'] == 'tree'
     assert legend['objects']['66']['category'] == 'gold'
     assert legend['objects']['109']['category'] == 'building'
@@ -102,13 +102,14 @@ def test_full_length_match_is_json_serializable():
 
 
 def test_special_actions_carry_real_object_ids():
-    # mgz read them one byte off in save 68.9 (28824 came out as 7378944).
+    # SPECIAL and UNGARRISON: mgz read them one byte off in save 68.9 (28824 came out as 7378944).
     if not LONG.exists():
         pytest.skip(f'missing fixture {LONG.name}')
     result = parse_replay(LONG.read_bytes())
-    used = {i for e in result['timeline'] if e['type'] != 'SPECIAL' for i in e.get('object_ids', [])}
+    fixed = ('SPECIAL', 'UNGARRISON')
+    used = {i for e in result['timeline'] if e['type'] not in fixed for i in e.get('object_ids', [])}
     used |= {o['id'] for o in result['initial_objects']}
-    special = [i for e in result['timeline'] if e['type'] == 'SPECIAL' for i in e['object_ids']]
+    special = [i for e in result['timeline'] if e['type'] in fixed for i in e['object_ids']]
     assert special
     assert max(special) < 1 << 20
     assert sum(i in used for i in special) > len(special) * 0.8

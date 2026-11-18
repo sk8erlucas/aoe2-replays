@@ -55,7 +55,7 @@ Elegido: **B1** con un subconjunto (edificios y unidades principales, por arquit
 
 ### Etapa 4: simulación más fiel
 - [x] Actualizar el home con imágenes del nuevo motor gráfico (capturas rehechas el 30/10/2026)
-- [ ] Recorridos alrededor de obstáculos (pathfinding en la grilla de tiles) en vez de línea recta
+- [x] Recorridos alrededor de obstáculos (18/11/2026): A* en la grilla de tiles, sin pisar el agua y rodeando bosques; barcos solo por agua. Falta: edificios, acantilados y árboles talados ([21](./21-recorridos-constructores-y-paneles.md))
 - [ ] Viajes a depositar recursos (aldeano ↔ campamento / centro urbano)
 - [ ] Recolección con más fuentes: punto de reunión en recursos (hecho), órdenes a granjas, caza de animales
 - [~] Usar la cola de producción real: las investigaciones ocupan la cola del edificio y las colas con varios edificios elegidos se reparten entre ellos (16/11/2026). Falta: cancelaciones (no están en el replay)
@@ -66,7 +66,7 @@ Elegido: **B1** con un subconjunto (edificios y unidades principales, por arquit
 
 ### Etapa 5: interfaz de espectador
 - [ ] Barra de jugadores como la del juego: recursos estimados, población, edad, puntaje
-- [ ] Panel de producción: qué está entrenando/investigando cada uno (las investigaciones del jugador seguido, en [18](./18-visores-de-partida.md))
+- [~] Panel de producción: qué está entrenando/investigando cada uno. Hechas las investigaciones en curso del jugador seguido y los aldeanos por tarea (18/11/2026, [21](./21-recorridos-constructores-y-paneles.md))
 - [x] Banderas de avance de edad en la línea de tiempo: una por jugador y edad en la llegada estimada (`Replay.ageMarks()`), apiladas en filas cuando se superponen; clic para ir a ese momento
 - [ ] Niebla de guerra opcional por jugador
 - [x] **Música de fondo** (12/11/2026): botón "♪ Música" en la barra del visor (`MusicControl.tsx`) con seis pistas del juego en orden aleatorio, volumen guardado en el navegador; no arranca sola y los archivos (`public/music`, AAC 96 kbps, ~3 MB cada uno) se bajan recién al activarla. Extraídas con [`tools/music`](../tools/music). Plan original:

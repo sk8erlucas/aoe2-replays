@@ -25,6 +25,7 @@ import {
 import { AiContextPanel } from "@/components/AiContextPanel";
 import { AnalysisPanel } from "@/components/AnalysisPanel";
 import { ChatPanel } from "@/components/ChatPanel";
+import { GamePanels } from "@/components/GamePanels";
 import { MusicControl } from "@/components/MusicControl";
 import { SaveMoment, type MomentTarget } from "@/components/SaveMoment";
 import { usePopup } from "@/components/usePopup";
@@ -80,6 +81,20 @@ function deviceQuality(): Quality {
 }
 
 // Unit train locations, speeds and build times from the game (tools/sprites).
+const PANELS_KEY = "viewer-panels";
+
+/** Panels over the map: on unless turned off before (and off on small screens by default). */
+function readPanels(): boolean {
+  if (typeof window === "undefined") return false;
+  try {
+    const stored = localStorage.getItem(PANELS_KEY);
+    if (stored) return stored === "on";
+  } catch {
+    // storage blocked: the default
+  }
+  return window.matchMedia?.("(min-width: 761px)").matches ?? true;
+}
+
 let gameDataPromise: Promise<GameData | null> | null = null;
 function loadGameData() {
   gameDataPromise ??= fetch("/sprites/game-data.json", { cache: "no-cache" })
@@ -146,6 +161,16 @@ function ReplayStage({ data, actions, extras, moment, gameData }: ViewerProps & 
   const [loadingGraphics, setLoadingGraphics] = useState(false);
   const root = useRef<HTMLDivElement>(null);
   const [full, setFull] = useState(false);
+  const [panels, setPanels] = useState(readPanels);
+
+  function togglePanels() {
+    setPanels(!panels);
+    try {
+      localStorage.setItem(PANELS_KEY, panels ? "off" : "on");
+    } catch {
+      // storage blocked: lasts this visit
+    }
+  }
   const { open: helpOpen, setOpen: setHelpOpen, box: helpBox } = usePopup();
 
   function showNotice(text: string) {
@@ -364,6 +389,7 @@ function ReplayStage({ data, actions, extras, moment, gameData }: ViewerProps & 
         setHelpOpen(false);
         if (full && !document.fullscreenElement) setFull(false); // the browser's own full screen exits by itself
       } else if (e.code === "KeyF" && e.shiftKey) toggleFullscreen();
+      else if (e.code === "KeyV") togglePanels();
       else if (e.code === "Space") {
         e.preventDefault();
         togglePlay();
@@ -576,6 +602,9 @@ function ReplayStage({ data, actions, extras, moment, gameData }: ViewerProps & 
               r.centerOn(x, y);
             }}
           />
+          {panels && !loadingGraphics && (
+            <GamePanels replay={replay} t={t} follow={follow} players={players} color={playerColor} />
+          )}
           {loadingGraphics && (
             <div className="stage-loading" role="status">
               {tr.viewer.loadingGraphics}
@@ -750,6 +779,9 @@ function ReplayStage({ data, actions, extras, moment, gameData }: ViewerProps & 
             ))}
           </select>
         </label>
+        <button type="button" aria-pressed={panels} onClick={togglePanels} title={tr.viewer.panels.buttonTitle}>
+          {tr.viewer.panels.button}
+        </button>
         <MusicControl playing={playing} />
         <VideoExport
           replay={replay}

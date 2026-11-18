@@ -1008,3 +1008,61 @@ test('deleting a villager nobody had commanded takes it off the map', () => {
   assert.equal(trained.removedAt, 60_000);
   assert.ok(r.log.some((l) => l.kind === 'delete' && l.name === 'Villager'));
 });
+
+test('a builder who is done goes on to the nearest unfinished building of its player', () => {
+  const r = replay([
+    { t: 0, type: 'BUILD', player: 1, building_id: 70, object_ids: [101], x: 14, y: 10 },
+    // Another house next to it, by a villager far away who then goes elsewhere.
+    { t: 15_000, type: 'BUILD', player: 1, building_id: 70, object_ids: [102], x: 17, y: 10 },
+    { t: 15_500, type: 'MOVE', player: 1, object_ids: [102], x: 2, y: 2 },
+  ], {
+    game: { duration_ms: 200_000, players: [{ number: 1, name: 'A', color_id: 1, team_id: 1, start: { x: 10, y: 10 } }] },
+    initial_objects: [
+      { id: 100, player: 1, type_id: 109, class_id: 80, x: 10, y: 10 },
+      { id: 101, player: 1, type_id: 83, class_id: 70, x: 12, y: 10 },
+      { id: 102, player: 1, type_id: 83, class_id: 70, x: 2, y: 18 },
+    ],
+  });
+  const v = r.unitById.get(101);
+  const [first, second] = r.buildings.filter((b) => b.typeId === 70);
+  const done = first.startT + first.buildTime;
+  assert.equal(v.activityAt(done + 3000), 'build');
+  assert.ok(second.crew?.has(v));
+});
+
+test('units walk around water to the ford', () => {
+  const size = 30;
+  const terrain = new Array(size * size).fill(0);
+  for (let y = 0; y < size; y++) if (y !== 25) terrain[y * size + 15] = 1;
+  const r = replay([{ t: 0, type: 'MOVE', player: 1, object_ids: [101], x: 20, y: 10 }], {
+    map: { size, terrain, elevation: [] },
+    legend: {
+      objects: { 109: { name: 'Town Center', category: 'building' }, 83: { name: 'Villager', category: 'unit' } },
+      terrain: { 0: { name: 'Grass', category: 'grass' }, 1: { name: 'Water, Shallow', category: 'water' } },
+    },
+  });
+  const v = r.unitById.get(101);
+  assert.ok(v.path.length > 2, 'more than one leg');
+  for (let t = 0; t < 120_000; t += 250) {
+    const at = v.positionAt(t);
+    assert.notEqual(Math.floor(at.x) === 15 && Math.floor(at.y) !== 25, true, `in the water at ${t}`);
+  }
+  const end = v.positionAt(200_000);
+  assert.ok(Math.hypot(end.x - 20, end.y - 10) < 0.01);
+});
+
+test('researches in progress and villagers by job, for the panels', () => {
+  const r = replay([
+    { t: 1000, type: 'RESEARCH', player: 1, object_ids: [100], technology_id: 22 }, // Loom: 25 s by palette
+    { t: 2000, type: 'BUILD', player: 1, building_id: 70, object_ids: [101], x: 14, y: 10 },
+  ]);
+  assert.deepEqual(r.researchesAt(1, 500), []);
+  const [loom] = r.researchesAt(1, 13_500);
+  assert.equal(loom.name, 'Loom');
+  assert.equal(loom.progress, 0.5);
+  assert.deepEqual(r.researchesAt(1, 30_000), []);
+  const jobs = r.villagerJobsAt(10_000).get(1);
+  assert.equal(jobs.total, 1);
+  assert.equal(jobs.build, 1);
+  assert.equal(r.villagerJobsAt(500).get(1).idle, 1);
+});

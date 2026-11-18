@@ -43,6 +43,8 @@ NAME_OVERRIDES = {
 
 # Ordered: first match wins.
 TERRAIN_KEYWORDS = [
+    # "Water, Shallow" (Highland's river) is water units can't cross, unlike "Shallows".
+    ('water, shallow', 'water'),
     ('shallow', 'shallows'),
     ('deep water', 'deep_water'),
     ('water', 'water'),

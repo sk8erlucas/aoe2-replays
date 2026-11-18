@@ -11,6 +11,14 @@ Detalle en [19](./19-unidades-y-edificios-destruidos.md), con la partida `/m/521
 - Diseño (fase 7) cerrado: lo opcional que queda está en [DESIGN](../docs/DESIGN.md).
 - **Para probar en el navegador**: esa partida siguiendo a Dekaryn, y la de las murallas (`/m/520532792`).
 
+## Sesión del 18/11/2026 (tarde): recorridos, constructores y paneles
+Detalle en [21](./21-recorridos-constructores-y-paneles.md).
+- **Recorridos**: las unidades ya no cruzan el agua (el río de Highland, "Water, Shallow", el parser lo tomaba por vado) y rodean los bosques; los barcos van por agua.
+- **Constructores**: quien termina un edificio sigue con los cimientos propios más cercanos.
+- **Guarnición**: los aldeanos que entran al centro urbano (o con la campana) vuelven a trabajar con "volver al trabajo"; antes quedaban parados para siempre. Arreglado otro error de IDs del parser (`UNGARRISON`).
+- **Paneles** sobre el mapa (`V`): aldeanos por tarea de cada jugador e investigaciones en curso del jugador seguido.
+- **Para probar en el navegador**: `/m/521966600?p=5675276`.
+
 ## Sesión del 18/11/2026: mejoras de unidades, unidades que faltan y visor
 Detalle en [20](./20-aldeanos-parados-y-visor.md), con la partida `/m/521966600` (3v3 Highland).
 - **Mejoras de unidades**: al terminar la investigación las unidades cambian (Caballero → Paladín) y las nuevas salen mejoradas. Tiempos de investigación del juego en `game-data.json` (`tools/sprites/gamedata.py`).
