@@ -77,12 +77,15 @@ test('trained units spawn after the train time and bind to unknown ids in creati
   assert.equal(r.stateAt(26000).units.length, 2);
 });
 
-test('buildings appear at their command time and finish after the build time', () => {
+test('buildings appear at their command time and go up once the builder gets there', () => {
   const r = replay([{ t: 2000, type: 'BUILD', player: 1, building_id: 70, object_ids: [101], x: 5, y: 5 }]);
   const at = (t) => r.stateAt(t).buildings.find((b) => b.building.typeId === 70);
+  const arrival = r.unitById.get(101).arrivalT(); // 8.6 tiles at 0.8 tiles/s
   assert.equal(at(1999), undefined);
-  assert.equal(at(14500).progress, 0.5);
-  assert.equal(at(27000).progress, 1);
+  assert.equal(at(2000).planned, true, 'a foundation until then');
+  assert.ok(Math.abs(arrival - 12_753) < 5);
+  assert.ok(Math.abs(at(arrival + 12_500).progress - 0.5) < 1e-9); // House: 25 s
+  assert.equal(at(arrival + 25_000).progress, 1);
 });
 
 test('resign is recorded once and logged', () => {
@@ -885,15 +888,19 @@ test('more builders build faster, like in the game: n at (n + 2) / 3 the speed',
       { t: 30_000, type: 'BUILD', player: 1, building_id: 12, object_ids: [101], x: 20, y: 10 },
       { t: helperT, type: 'ORDER', player: 1, object_ids: [102], target_id: 500, x: 20, y: 10 },
     ]);
-  // The barracks takes 50 s alone; a second builder at 40 s cuts the 40 s left to 30.
+  // The first builder walks 8 tiles (10 s): the barracks goes up from 40 s and
+  // takes 50 s alone. A second builder (4/3 the speed) cuts what is left when it arrives to 3/4.
   const r = twoBuild(40_000);
   const barracks = r.buildingById.get(500);
-  assert.equal(barracks.startT + barracks.buildTime, 70_000);
+  assert.equal(barracks.startT, 40_000);
+  const helped = r.unitById.get(102).arrivalT();
+  const end = helped + ((90_000 - helped) * 3) / 4;
+  assert.ok(Math.abs(barracks.startT + barracks.buildTime - end) < 1);
   const first = r.unitById.get(101);
-  assert.equal(first.activities.find((a) => a.kind === 'build').t1, 70_000);
+  assert.ok(Math.abs(first.activities.find((a) => a.kind === 'build').t1 - end) < 1);
   // Too late to help: nothing changes.
-  const late = twoBuild(90_000).buildingById.get(500);
-  assert.equal(late.startT + late.buildTime, 80_000);
+  const late = twoBuild(95_000).buildingById.get(500);
+  assert.equal(late.startT + late.buildTime, 90_000);
 });
 
 test('stop halts a walking unit; follow and guard walk up to the target', () => {

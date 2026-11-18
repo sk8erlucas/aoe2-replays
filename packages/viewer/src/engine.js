@@ -37,6 +37,9 @@ import { NavGrid } from './pathing.js';
 
 // How far a villager sent to a taken farm looks for a free one (tiles). Estimated.
 const FARM_SEARCH = 10;
+// Longest a foundation waits for its first builder; beyond, that builder isn't
+// taken as the first one (see #joinCrew). Estimated.
+const FOUNDATION_WAIT_MS = 90_000;
 // How far a builder that is done looks for another building to put up (tiles). Estimated.
 const BUILD_SEARCH = 10;
 // Build orders from the same group this close together are one shift-queue.
@@ -951,14 +954,24 @@ export class Replay {
   }
 
   // More builders, faster: like in the game, n villagers build at (n + 2) / 3 the
-  // speed of one, so each newcomer cuts what is left. Builders that leave aren't
+  // speed of one, so each newcomer cuts what is left from when it arrives. Builders that leave aren't
   // tracked. Wall pieces keep their own schedule (see #wall).
   #joinCrew(unit, building, t) {
     building.crew ??= new Map(); // unit -> [{ activity, after }] to move when the end changes
     if (building.crew.has(unit)) return;
     building.crew.set(unit, []);
+    // Work starts when the first builder gets there: until then it is a foundation.
+    // One nobody is ever sent to, or whose first known builder only gets there much
+    // later, rises from its placement, as before: someone the replay doesn't show
+    // (an unbound villager) must have built it.
+    const arrival = Math.max(t, unit.arrivalT());
+    if (!building.line && building.crew.size === 1 && !building.begun && arrival > building.startT
+      && arrival - building.startT <= FOUNDATION_WAIT_MS) {
+      building.startT = arrival;
+    }
+    building.begun = true;
     const done = building.startT + building.buildTime;
-    const from = Math.max(t, building.startT);
+    const from = Math.max(arrival, building.startT);
     if (building.line || building.crew.size < 2 || from >= done) return;
     const n = building.crew.size;
     const end = from + ((done - from) * (n + 1)) / (n + 2);

@@ -647,9 +647,19 @@ button.primary:hover:not(:disabled), .button-primary:hover { border-color: var(-
 .villagers-panel td.zero { opacity: 0.4; }
 .research-panel { top: 10px; left: 12px; padding: 6px 8px; max-width: 45%; }
 .research-panel ul { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 6px 10px; }
-.research-panel li { display: grid; gap: 3px; min-width: 96px; }
+.research-panel li { display: grid; gap: 3px; justify-items: start; }
+.research-icon {
+  display: block;
+  width: 30px;
+  height: 30px;
+  background-image: url("/sprites/tech-icons.webp");
+  border: 1px solid var(--bronze-dark);
+  border-radius: 2px;
+}
+.research-panel li:has(.research-icon) .research-bar { width: 30px; }
+.research-panel li:has(.research-name) { min-width: 96px; }
 .research-name { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 150px; }
-.research-bar { display: block; height: 4px; background: rgba(255, 255, 255, 0.15); border-radius: 2px; overflow: hidden; }
+.research-bar { display: block; width: 100%; height: 4px; background: rgba(255, 255, 255, 0.15); border-radius: 2px; overflow: hidden; }
 .research-bar span { display: block; height: 100%; background: var(--bronze-light); }
 
 .tooltip {

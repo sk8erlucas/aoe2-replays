@@ -16,7 +16,9 @@ Detalle en [21](./21-recorridos-constructores-y-paneles.md).
 - **Recorridos**: las unidades ya no cruzan el agua (el río de Highland, "Water, Shallow", el parser lo tomaba por vado) y rodean los bosques; los barcos van por agua.
 - **Constructores**: quien termina un edificio sigue con los cimientos propios más cercanos.
 - **Guarnición**: los aldeanos que entran al centro urbano (o con la campana) vuelven a trabajar con "volver al trabajo"; antes quedaban parados para siempre. Arreglado otro error de IDs del parser (`UNGARRISON`).
-- **Paneles** sobre el mapa (`V`): aldeanos por tarea de cada jugador e investigaciones en curso del jugador seguido.
+- **Paneles** sobre el mapa (`V`): aldeanos por tarea de cada jugador e investigaciones en curso del jugador seguido, con los íconos del juego.
+- **Obras**: arrancan cuando llega el primer constructor, no al poner los cimientos.
+- **CI**: `npm audit` ya no corta por avisos de herramientas de desarrollo sin arreglo (solo críticos); las dependencias de producción siguen exigiendo cero avisos altos.
 - **Para probar en el navegador**: `/m/521966600?p=5675276`.
 
 ## Sesión del 18/11/2026: mejoras de unidades, unidades que faltan y visor

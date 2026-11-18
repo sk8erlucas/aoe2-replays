@@ -17,7 +17,10 @@ Pedidos de Lucas del 18/11/2026 después de ver `/m/521966600` (3v3 Highland): "
 ## Falta
 - [ ] **Probar en el navegador**: la partida siguiendo a Fibonaku (`?p=5675276`), que crucen el río por los vados, los paneles en escritorio y celular, y la pantalla completa con los paneles.
 - [ ] "Sin tarea" sigue alto en algunos momentos (francos a los 35 min: 38 de 89). Una parte es real (quien termina un castillo se queda quieto, como en el juego) y otra son aldeanos con IDs que se vinculan tarde o mal. Revisar con `#planIds`.
-- [ ] Los edificios suben solos desde que se ponen los cimientos, haya o no constructores: los constructores solo los aceleran. Habría que empezar la obra cuando llega el primero.
+- [x] **La obra arranca cuando llega el primer constructor** (antes subía sola desde que se ponían los cimientos). En la partida, los cimientos esperan 12,6 s de mediana (el 90 %, menos de 50 s). Si el primer constructor conocido llega más de 90 s después (pasa con granjas que construyó un aldeano que el motor no vincula), sube desde que se puso, como antes; y los cimientos a los que nunca va nadie, también.
 - [ ] Recorridos: edificios y acantilados como obstáculos; árboles talados que abren paso.
-- [ ] Íconos de las investigaciones (arte del juego con `tools/sprites`) en vez del nombre.
+- [x] Íconos de las investigaciones del juego en el panel (`tools/sprites/techicons.py`: un atlas WebP de 177 íconos, 172 KB, que se baja solo con el panel abierto; las edades con su ícono). Si una investigación no tiene ícono, el nombre.
 - [ ] Los paneles no salen en la exportación a video.
+
+## CI
+- [x] `npm audit` cortaba todos los PR por un aviso alto de `picomatch` (dependencia de ESLint, solo de desarrollo, sin versión corregida todavía). Ahora el CI corta ante avisos altos en las dependencias de producción (`--omit=dev`, hoy 0) y ante críticos en todas. Volver a `--audit-level=high` completo cuando salga el arreglo.
