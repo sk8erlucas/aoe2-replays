@@ -7,7 +7,9 @@ import struct
 from mgz import fast
 
 from aoe2_parser import reference
-from aoe2_parser.vendor import mgz_header
+from aoe2_parser.vendor import mgz_actions, mgz_header
+
+mgz_actions.install()
 
 SCHEMA_VERSION = 1
 

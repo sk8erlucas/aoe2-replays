@@ -146,7 +146,11 @@ export const HERDABLE = /^(Sheep|Goose|Turkey|Llama|Cow|Pig|Water Buffalo|Goat)\
 export const DANGEROUS_ANIMALS = /\b(Boar|Javelina|Elephant|Rhinoceros|Bear)\b/;
 
 // Builders of a drop site start gathering the closest of these within reach (tiles).
-export const DROP_SITES = { 'Lumber Camp': ['tree'], 'Mining Camp': ['gold', 'stone'], Mill: ['berries'] };
+// A town center takes any of them; a mill with no berries around leaves them idle.
+export const DROP_SITES = {
+  'Lumber Camp': ['tree'], 'Mining Camp': ['gold', 'stone'], Mill: ['berries'],
+  'Town Center': ['tree', 'gold', 'stone', 'berries'],
+};
 export const DROP_SITE_REACH = 8;
 
 // Research time (game seconds) of the techs that hold up a town center's queue, by legend name.

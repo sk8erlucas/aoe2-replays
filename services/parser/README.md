@@ -24,6 +24,9 @@ Límites contra archivos armados a propósito: el header descomprimido no puede 
 - **Header**: copia parcheada de `mgz/fast/header.py` en [`vendor/mgz_header.py`](src/aoe2_parser/vendor/mgz_header.py) (MIT, ver `LICENSE.mgz`). `mgz` 1.8.51 soporta hasta save 66.6; los parches están marcados con `aoe2-replays patch`:
   - 68.9: cada registro de jugador en la sección DE termina con un `de_string` extra.
   - 68.9: el final de la sección DE trae dos `de_string` más antes del último.
+- **Acciones**: [`vendor/mgz_actions.py`](src/aoe2_parser/vendor/mgz_actions.py) corrige `mgz.fast.actions` (también marcado `aoe2-replays patch`):
+  - 68.9: `SPECIAL` tiene 29 bytes antes de los IDs y `mgz` leía 28, así que los IDs salían corridos un byte (28824 como 7378944). Se leen desde el final. Los replays guardados antes de este arreglo los traen mal; el visor los corrige al cargarlos.
+- **Selección**: una orden sin `object_ids` es para la selección anterior del jugador. Las órdenes a unidades (`MOVE`, `ORDER`...) usan la última selección de unidades: un `DE_QUEUE`, `RESEARCH` o `GATHER_POINT` en el medio no la cambia (medido: ~120 órdenes por partida caen después de uno de esos).
 - Civilización, color y equipo salen de la sección DE (en la sección de jugadores del header esos campos no son confiables en 68.9). Posiciones iniciales y objetos salen de la sección de jugadores.
 
 ## Contrato (schema_version 1)

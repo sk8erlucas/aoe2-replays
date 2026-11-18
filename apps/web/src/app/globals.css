@@ -548,6 +548,20 @@ button.primary:hover:not(:disabled), .button-primary:hover { border-color: var(-
 }
 .viewer-info p { margin: 0; flex: 1; min-width: 0; }
 
+/* Full screen: the map and its controls only. Also without the Fullscreen API
+   (iPhone), where the viewer covers the window. */
+.viewer.full {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  height: 100dvh;
+  background: var(--charcoal);
+  grid-template-rows: minmax(0, 1fr) auto;
+}
+.viewer.full .viewer-info, .viewer.full .sidebar { display: none; }
+.viewer.full .viewer-body { grid-template-columns: minmax(0, 1fr); }
+.viewer.full .stage { border-width: 0; }
+
 .replay-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
 .badge {
   font-family: var(--font-display);
@@ -1063,6 +1077,8 @@ button.danger:hover:not(:disabled) { background: var(--danger); color: var(--pap
   .sidebar { order: 3; flex: none; height: 70svh; border-left: 0; border-top: 1px solid var(--rule); }
   .controls { flex-wrap: wrap; }
   .controls .seek-track { order: 10; flex-basis: 100%; }
+  .viewer.full { overflow: hidden; }
+  .viewer.full .stage { flex: 1 1 auto; height: auto; min-height: 0; }
 }
 
 /* Share menu next to the match actions: opens below its button, on the left. */

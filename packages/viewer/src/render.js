@@ -1125,12 +1125,13 @@ export class Renderer {
 
   #spriteUnit(u, state) {
     const unit = u.unit;
+    const typeId = u.typeId ?? unit.typeId; // upgrades (Knight -> Cavalier) change it over time
     const color = unit.player > 0 ? this.playerColor(unit.player) : null;
     const [sx, sy] = this.toScreen(u.x, u.y);
     this.ctx.globalAlpha = this.#alpha(unit.player, state, u.fading ?? 1);
     let ok = false;
     if (unit.player === 0) {
-      const keys = this.sprites.gaia(unit.typeId);
+      const keys = this.sprites.gaia(typeId);
       if (keys?.length) ok = this.#blit(keys[this.#angleIndex(unit, { t: state.t }, keys.length)], sx, sy, GAIA_TINT);
     } else {
       const civ = this.#civ(unit.player);
@@ -1145,14 +1146,14 @@ export class Renderer {
         }
       }
       // Herdables a player took (sheep, turkeys...) keep their animal sprite, in the player's colour.
-      const herd = unit.typeId != null && !this.sprites.unit(civ, unit.typeId) && this.sprites.gaia(unit.typeId);
+      const herd = typeId != null && !this.sprites.unit(civ, typeId) && this.sprites.gaia(typeId);
       if (herd?.length) {
         ok = this.#blit(herd[this.#angleIndex(unit, { t: state.t }, herd.length)], sx, sy, color);
         this.ctx.globalAlpha = 1;
         return ok;
       }
-      const unitClass = this.replay.game?.units?.[unit.typeId]?.class;
-      const set = this.sprites.unit(civ, unit.typeId ?? 83)
+      const unitClass = this.replay.game?.units?.[typeId]?.class;
+      const set = this.sprites.unit(civ, typeId ?? 83)
         ?? this.sprites.unit(civ, CLASS_STAND_IN[unitClass] ?? 74)
         ?? this.sprites.unit(civ, 83);
       if (set) {
