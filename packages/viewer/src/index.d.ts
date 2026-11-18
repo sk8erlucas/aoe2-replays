@@ -34,6 +34,8 @@ export class Unit {
   activityAt(t: number): string | null;
   /** Upgrades it got while alive (Knight -> Cavalier), chronological. */
   upgrades: Array<{ t: number; typeId: number }>;
+  /** Inside a building (garrisoned) at t: not drawn. */
+  hiddenAt(t: number): boolean;
   /** Its type at t: `typeId` (trained, already upgraded if it came out after the research) or the last upgrade by then. */
   typeAt(t: number): number | null;
 }
@@ -85,6 +87,21 @@ export interface GameData {
   names?: Record<string, string>;
 }
 
+export interface VillagerJobs {
+  total: number;
+  food: number;
+  wood: number;
+  gold: number;
+  stone: number;
+  build: number;
+  /** Standing with nothing to do. */
+  idle: number;
+  /** Walking somewhere or fighting. */
+  other: number;
+  /** Inside a building (town bell, garrison). */
+  garrisoned: number;
+}
+
 /** A research as the engine places it: started when its building's queue frees up, done after its research time (estimated). */
 export interface Research {
   player: number;
@@ -111,6 +128,10 @@ export class Replay {
   /** Each tech once per player (a repeated click is ignored), in click order. */
   researches: Research[];
   objectName(typeId: number): string;
+  /** What a player is researching at t (estimated), with progress 0..1. */
+  researchesAt(player: number, t: number): Array<{ techId: number; name: string; t0: number; t1: number; progress: number }>;
+  /** Each player's villagers at t by job (estimated). */
+  villagerJobsAt(t: number): Map<number, VillagerJobs>;
   focusOf(player: number, t: number): { t: number; player: number; x: number; y: number };
   /** Age (1 Dark .. 4 Imperial) of a player at time t, estimated from age research. */
   ageAt(player: number, t: number): number;

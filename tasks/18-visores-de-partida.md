@@ -5,11 +5,11 @@
 **Objetivo:** paneles arriba del visor, que cada uno elige y ordena, con lo que pasa en la partida en cada momento: cuántos aldeanos tiene cada jugador y en qué recurso está cada grupo, y los puntajes como los que muestra el juego arriba del minimapa. La idea es parecerse al panel del modo espectador del juego (y a herramientas de casteo como Capture Age), pero en el navegador y sobre la repetición.
 
 ## Visores
-- [ ] **Aldeanos por recurso**, por jugador: total y cuántos en comida, madera, oro, piedra y construyendo (y ociosos, si el motor lo puede saber). Con la muestra de color del jugador al lado del nombre, nunca el nombre en color.
+- [x] **Aldeanos por recurso**, por jugador (18/11/2026, [21](./21-recorridos-constructores-y-paneles.md)): total y cuántos en comida, madera, oro, piedra y construyendo (y ociosos, si el motor lo puede saber). Con la muestra de color del jugador al lado del nombre, nunca el nombre en color.
 - [ ] **Puntajes**, por jugador, como arriba del minimapa del juego: total y, al desplegar, militar, economía, tecnología y sociedad.
 - [ ] Otros que salen del motor y el análisis: población, edad actual (y cuándo llegó), APM del momento.
 - [ ] Equipos agrupados en partidas por equipos.
-- [ ] **Investigaciones en curso del jugador seguido** (pedido de Lucas, 16/11/2026): cuando la cámara sigue a un jugador, arriba a la izquierda la fila de íconos de lo que está investigando, cada uno con su barra de progreso, como en el juego. Al terminar, el ícono se va (y se puede marcar un momento "listo"). También las edades en curso.
+- [x] **Investigaciones en curso del jugador seguido** (18/11/2026, sin íconos todavía) (pedido de Lucas, 16/11/2026): cuando la cámara sigue a un jugador, arriba a la izquierda la fila de íconos de lo que está investigando, cada uno con su barra de progreso, como en el juego. Al terminar, el ícono se va (y se puede marcar un momento "listo"). También las edades en curso.
   - Datos: el motor ya pone las investigaciones en la cola del edificio (`#occupy` en `engine.js`, con `RESEARCH_TIMES` de `palette.js`). Falta guardar cada una con inicio y fin (la cola del edificio la puede atrasar) y exponer `researchAt(player, t)` → `[{ tech, building, start, end }]`, sin DOM y con tests. Tiempos de `game-data.json` si `tools/sprites` los puede sacar (hoy salen de `palette.js`); sin bonus de civilización ni de universidad, así que es estimado.
   - Cancelaciones: el replay no siempre trae la cancelación; si el edificio recibe otra orden de investigar o entrenar que no entra en la cola, revisar.
   - Íconos: los de tecnologías del juego (arte oficial, extraído con `tools/sprites` y registrado en `CREDITS.md`); si falta el ícono, el nombre corto.

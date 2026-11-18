@@ -1,9 +1,9 @@
 """Fixes to mgz's action parsing (mgz.fast.actions, MIT, see LICENSE.mgz).
 
-aoe2-replays patch: in save 68.9 a SPECIAL action has 29 bytes before its object
-IDs, not the 28 that mgz 1.8.51 reads, so every ID came out shifted one byte
-(28824 read as 7378944). The IDs are the last `selected` * 4 bytes, whatever
-the header size, so they are read from the end.
+aoe2-replays patch: in save 68.9 SPECIAL and UNGARRISON actions have one byte
+more before their object IDs than mgz 1.8.51 reads (29 and 21), so every ID
+came out shifted one byte (28824 read as 7378944). The IDs are the last
+`selected` * 4 bytes, whatever the header size, so they are read from the end.
 """
 
 import struct
@@ -23,9 +23,20 @@ def _special(raw):
     return dict(order_id=order_id, slot_id=slot_id, target_id=target_id, x=x, y=y, object_ids=object_ids)
 
 
+def _ungarrison(raw):
+    selected, x, y, target_id = struct.unpack_from('<Iffi', raw)
+    start = len(raw) - 4 * selected
+    if selected > 255 or start < 20:
+        raise struct.error('bad UNGARRISON action')
+    object_ids = list(struct.unpack_from(f'<{selected}I', raw, start))
+    return dict(object_ids=object_ids, x=x, y=y, target_id=target_id)
+
+
 def parse_action_71094(action_type, player_id, raw):
     if action_type is Action.SPECIAL:
         return dict(player_id=player_id, **_special(raw))
+    if action_type is Action.UNGARRISON:
+        return dict(player_id=player_id, **_ungarrison(raw))
     return _original(action_type, player_id, raw)
 
 
