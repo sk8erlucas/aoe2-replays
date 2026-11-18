@@ -11,6 +11,13 @@ Detalle en [19](./19-unidades-y-edificios-destruidos.md), con la partida `/m/521
 - Diseño (fase 7) cerrado: lo opcional que queda está en [DESIGN](../docs/DESIGN.md).
 - **Para probar en el navegador**: esa partida siguiendo a Dekaryn, y la de las murallas (`/m/520532792`).
 
+## Sesión del 18/11/2026: mejoras de unidades, unidades que faltan y visor
+Detalle en [20](./20-aldeanos-parados-y-visor.md), con la partida `/m/521966600` (3v3 Highland).
+- **Mejoras de unidades**: al terminar la investigación las unidades cambian (Caballero → Paladín) y las nuevas salen mejoradas. Tiempos de investigación del juego en `game-data.json` (`tools/sprites/gamedata.py`).
+- **Unidades que faltaban**: trabuquetes que no salían del castillo, soldados que desaparecían al llegar al punto de reunión, ~120 órdenes por partida que se perdían por la selección y un error del parser en los IDs de `SPECIAL`.
+- **Pedidos del 16/11 (noche)**: quien termina un centro urbano se pone a juntar recursos; los aldeanos borrados se van (con desvanecido y en el registro); pantalla completa (`Mayús+F`); la música se pausa con la reproducción.
+- **Para probar en el navegador**: esa partida siguiendo a Fibonaku (`?p=5675276`), la pantalla completa (también en iPhone) y la música al pausar.
+
 ## Idea nueva: visores de partida
 Paneles arriba del visor, que se eligen y ordenan, con los aldeanos de cada jugador por recurso y los puntajes como arriba del minimapa del juego (estimados). También las investigaciones en curso del jugador seguido, con ícono y barra de progreso como en el juego. Plan en [18-visores-de-partida](./18-visores-de-partida.md).
 

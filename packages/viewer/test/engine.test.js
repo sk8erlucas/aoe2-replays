@@ -353,19 +353,21 @@ test('villagers sent to an unfinished building of their own help build it', () =
   assert.equal(v.activityAt(50_000), null); // House: 40 s default build time here
 });
 
-test('deleted units disappear and deleted buildings become ruins', () => {
+test('deleted units fade out and deleted buildings become ruins', () => {
   const r = skirmish([{ t: 5_000, type: 'DELETE', player: 3, object_ids: [301, 302] }]);
   const before = r.stateAt(4_000);
   const after = r.stateAt(6_000);
   assert.ok(before.units.some((u) => u.unit.id === 301));
-  assert.ok(!after.units.some((u) => u.unit.id === 301));
+  assert.ok(after.units.find((u) => u.unit.id === 301)?.fading < 1);
+  assert.ok(!r.stateAt(8_000).units.some((u) => u.unit.id === 301));
+  assert.equal(r.log.find((l) => l.kind === 'delete')?.amount, 2);
   assert.ok(!after.buildings.some((b) => b.building.id === 302));
   assert.deepEqual(after.ruins.map((b) => b.id), [302]);
 });
 
 test('only the owner can delete', () => {
   const r = skirmish([{ t: 5_000, type: 'DELETE', player: 1, object_ids: [301] }]);
-  assert.ok(r.stateAt(6_000).units.some((u) => u.unit.id === 301));
+  assert.ok(r.stateAt(6_000).units.some((u) => u.unit.id === 301 && !u.fading));
 });
 
 test('herded animals follow orders but never attack', () => {
@@ -908,4 +910,101 @@ test('stop halts a walking unit; follow and guard walk up to the target', () => 
   const g = replay([{ t: 0, type: 'GUARD', player: 1, object_ids: [101], target_id: 100 }]);
   const end = g.unitById.get(101).positionAt(60_000);
   assert.ok(Math.hypot(end.x - 10, end.y - 10) < 5, 'next to the town center');
+});
+
+test('a unit order without ids is for the units selected before, not a building just used', () => {
+  const r = replay([
+    { t: 0, type: 'MOVE', player: 1, object_ids: [101], x: 12, y: 15 },
+    { t: 1000, type: 'DE_QUEUE', player: 1, object_ids: [100], amount: 1, unit_id: 83 },
+    { t: 2000, type: 'GATHER_POINT', player: 1, object_ids: [], x: 14, y: 14 },
+    { t: 3000, type: 'MOVE', player: 1, object_ids: [], x: 2, y: 10 },
+  ]);
+  assert.equal(r.unitById.get(101).path.at(-1).x1, 2);
+  assert.deepEqual(r.rallyAt(r.buildingById.get(100), 2500), { x: 14, y: 14 });
+});
+
+test('SPECIAL ids stored one byte off are read back', () => {
+  const r = replay([
+    { t: 0, type: 'SPECIAL', player: 1, object_ids: [101 * 256], order_id: 8, x: -1, y: -1 },
+    { t: 1000, type: 'MOVE', player: 1, object_ids: [], x: 2, y: 10 },
+  ]);
+  // 25856 is below 2^20: a real id, left alone.
+  assert.equal(r.unitById.get(101).path.at(-1).x1, 12);
+  const shifted = replay([
+    { t: 0, type: 'SPECIAL', player: 1, object_ids: [(1 << 20) + 101 * 256], order_id: 8, x: -1, y: -1 },
+  ]);
+  assert.equal(shifted.data.timeline[0].object_ids[0], 4096 + 101);
+});
+
+test('researched upgrades change the units over time, and later ones come out upgraded', () => {
+  const gameData = {
+    units: { 83: { speed: 0.8, class: 4, train: [[109, 25]] }, 74: { speed: 0.9, class: 6, train: [[12, 21]] }, 75: { speed: 0.9, class: 6, train: [[12, 21]] } },
+    buildings: {},
+    techs: { 222: { at: [[12, 40]], up: [[74, 75]] }, 22: { at: [[109, 25]] } },
+    names: { 75: 'Man-at-Arms' },
+  };
+  const r = new Replay({
+    game: { duration_ms: 300_000, players: [{ number: 1, name: 'A', color_id: 0, team_id: 2, start: { x: 10, y: 10 } }] },
+    map: { size: 40, terrain: [], elevation: [] },
+    initial_objects: [{ id: 100, player: 1, type_id: 109, x: 10, y: 10 }, { id: 200, player: 1, type_id: 12, x: 20, y: 10 }],
+    timeline: [
+      { t: 0, type: 'DE_QUEUE', player: 1, object_ids: [200], unit_id: 74, amount: 1 }, // out at 21 s
+      { t: 30_000, type: 'RESEARCH', player: 1, object_ids: [200], technology_id: 222 }, // done at 70 s
+      { t: 31_000, type: 'RESEARCH', player: 1, object_ids: [200], technology_id: 222 }, // a second click: ignored
+      { t: 40_000, type: 'DE_QUEUE', player: 1, object_ids: [200], unit_id: 74, amount: 1 }, // waits: out at 91 s
+    ],
+    chat: [],
+    legend: {
+      objects: { 109: { name: 'Town Center', category: 'building' }, 12: { name: 'Barracks', category: 'building' }, 74: { name: 'Militia', category: 'unit' } },
+      technologies: { 222: 'Man-at-Arms' },
+    },
+  }, { gameData });
+  const [first, second] = r.units.filter((u) => u.key);
+  assert.equal(first.typeAt(60_000), 74);
+  assert.equal(first.typeAt(70_000), 75);
+  assert.equal(second.spawnT, 91_000);
+  assert.equal(second.typeId, 75);
+  assert.equal(r.objectName(75), 'Man-at-Arms');
+  assert.equal(r.researches.length, 1);
+  assert.equal(r.stateAt(80_000).units.find((u) => u.unit === first).typeId, 75);
+});
+
+test('builders of a town center start gathering what is next to it', () => {
+  const r = replay([{ t: 0, type: 'BUILD', player: 1, building_id: 109, object_ids: [101], x: 14, y: 10 }], {
+    initial_objects: [
+      { id: 100, player: 1, type_id: 109, class_id: 80, x: 10, y: 10 },
+      { id: 101, player: 1, type_id: 83, class_id: 70, x: 12, y: 10 },
+      { id: 900, player: 0, type_id: 66, class_id: 10, x: 18, y: 12 },
+    ],
+    legend: {
+      objects: {
+        109: { name: 'Town Center', category: 'building' },
+        83: { name: 'Villager', category: 'unit' },
+        66: { name: 'Gold Mine', category: 'gold' },
+      },
+    },
+  });
+  const v = r.unitById.get(101);
+  const done = r.buildings.find((b) => b.id == null).buildTime;
+  assert.equal(v.activityAt(done + 5_000), 'gold');
+});
+
+test('deleting a villager nobody had commanded takes it off the map', () => {
+  const gameData = { units: { 83: { speed: 0.8, class: 4, train: [[109, 25]] } }, buildings: {} };
+  const r = new Replay({
+    game: { duration_ms: 300_000, players: [{ number: 1, name: 'A', color_id: 0, team_id: 2, start: { x: 10, y: 10 } }] },
+    map: { size: 40, terrain: [], elevation: [] },
+    initial_objects: [{ id: 100, player: 1, type_id: 109, x: 10, y: 10 }, { id: 101, player: 1, type_id: 83, x: 12, y: 10 }],
+    timeline: [
+      { t: 0, type: 'DE_QUEUE', player: 1, object_ids: [100], unit_id: 83, amount: 2 }, // out at 25 and 50 s
+      { t: 55_000, type: 'MOVE', player: 1, object_ids: [5001], x: 5, y: 5 }, // the second one
+      { t: 60_000, type: 'DELETE', player: 1, object_ids: [5000] }, // the first, never commanded
+    ],
+    chat: [],
+    legend: { objects: { 109: { name: 'Town Center', category: 'building' }, 83: { name: 'Villager', category: 'unit' } } },
+  }, { gameData });
+  const trained = r.units.find((u) => u.key && u.spawnT === 25_000);
+  assert.equal(trained.id, 5000);
+  assert.equal(trained.removedAt, 60_000);
+  assert.ok(r.log.some((l) => l.kind === 'delete' && l.name === 'Villager'));
 });

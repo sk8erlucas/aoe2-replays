@@ -19,6 +19,9 @@
 // of a player who resigns. A building under a real assault (siege or several
 // soldiers) that its owner never uses again is taken as razed, and one with a
 // new foundation over it as gone by then.
+// Researches queue in their building and take the game's time; when one ends,
+// the units it upgrades (Knight -> Cavalier) change, since queue orders always
+// name the base unit. Cancelled researches are not in a replay.
 
 import {
   AGE_TECHS, ANIMAL_FOOD, CARCASS_ROT_MS, DANGEROUS_ANIMALS, DROP_SITE_REACH, DROP_SITES, RESEARCH_TIMES, ATTACK_HOLD_MS, BUILD_TIMES, DEFAULT_ANIMAL_FOOD, DEFAULT_BUILD_TIME, DEFAULT_FOOTPRINT,
@@ -46,6 +49,9 @@ const UNIT_COMMANDS = new Set(['MOVE', 'ORDER', 'BUILD', 'WALL', 'PATROL', 'ATTA
 const BIND_SLACK_MS = 30_000;
 // Beyond this gap between an ID's creation and a unit's training end, a pair is as bad as it gets.
 const BIND_DRIFT_MS = 300_000;
+// Commands given to buildings: a later unit order without IDs is for the units
+// selected before (a MOVE can't be for a barracks; its gather point is GATHER_POINT).
+const BUILDING_COMMANDS = new Set(['DE_QUEUE', 'RESEARCH', 'GATHER_POINT', 'DE_MULTI_GATHERPOINT', 'BUY', 'SELL', 'DE_TRANSFORM']);
 const GATHER_STEP_MS = 1000;
 const GRID_CELL = 4; // tiles per spatial-grid cell for resource lookups
 const GATHER_REACH = 1.5; // tiles: closer than this to a resource counts as gathering it
@@ -54,6 +60,35 @@ const GATHER_REACH = 1.5; // tiles: closer than this to a resource counts as gat
 const ANIMAL_KINDS = Object.keys(ANIMAL_FOOD).map((k) => [k, new RegExp(`\\b${k}\\b`)]);
 function animalKind(name) {
   return ANIMAL_KINDS.find(([, re]) => re.test(name))?.[0] ?? null;
+}
+
+/**
+ * Commands without object IDs reuse the player's previous selection. Returns a
+ * function giving each command's IDs in timeline order. Unit orders take the
+ * last selection that was not a building's.
+ */
+export function selectionTracker() {
+  const any = new Map();
+  const units = new Map();
+  return (e) => {
+    const ids = e.object_ids ?? [];
+    if (ids.length) {
+      any.set(e.player, ids);
+      if (!BUILDING_COMMANDS.has(e.type)) units.set(e.player, ids);
+      return ids;
+    }
+    return (BUILDING_COMMANDS.has(e.type) ? any : units).get(e.player) ?? [];
+  };
+}
+
+// The parser read SPECIAL actions one byte off before November 2026 (28824 came
+// out as 7378944); replays stored then still carry those IDs. Real IDs stay far
+// below 2^20.
+function fixShiftedIds(timeline) {
+  for (const e of timeline) {
+    if (e.type !== 'SPECIAL' || !e.object_ids?.length) continue;
+    if (e.object_ids.every((id) => id >= 1 << 20 && id % 256 === 0)) e.object_ids = e.object_ids.map((id) => id >> 8);
+  }
 }
 
 export function formatTime(ms) {
@@ -87,6 +122,18 @@ export class Unit {
     // What the unit is doing over time: { t0, t1, kind } with kind a resource
     // category (tree, gold, stone, berries) or 'build'. Chronological.
     this.activities = [];
+    // Upgrades researched while it lives (Knight -> Cavalier): [{ t, typeId }], chronological.
+    this.upgrades = [];
+  }
+
+  /** Its type at t: the trained one, or the last upgrade done by then. */
+  typeAt(t) {
+    let type = this.typeId;
+    for (const u of this.upgrades) {
+      if (u.t > t) break;
+      type = u.typeId;
+    }
+    return type;
   }
 
   startActivity(t, kind, until = Infinity) {
@@ -189,6 +236,8 @@ export class Replay {
     this.farmers = new Map(); // farm -> the villager last sent to farm it
     this.simT = 0;
     this.ageUps = new Map(); // player -> [{ age, t }] (arrival: exact with the game's notices, else estimated)
+    // Each research once per player: { player, techId, name, building, t0, t1 } (t1 estimated).
+    this.researches = [];
 
     // Object IDs are handed out in creation order: (id, time) pairs that are known
     // place an unknown ID in time, to bind it to the unit trained around then.
@@ -196,11 +245,13 @@ export class Replay {
     this.trainedByKey = new Map(); // `${event index}:${i}` -> unit trained by that queue command
     this.dry = dry;
 
+    if (!dry) fixShiftedIds(data.timeline);
     this.#loadInitialObjects();
     // A dry run only trains: when each unit comes out, to match it with its ID.
     this.plannedIds = dry ? new Map() : Replay.#planIds(new Replay(data, { gameData, dry: true }));
     this.#processTimeline();
     if (dry) return;
+    this.#applyUpgrades();
     this.#settleWalls();
     this.#settleAgeUps();
     this.#estimateFalls();
@@ -211,7 +262,8 @@ export class Replay {
   }
 
   objectName(typeId) {
-    return this.legend.objects?.[typeId]?.name ?? `#${typeId}`;
+    // Upgraded units (Cavalier) are in no command, so not in the legend: the game data names them.
+    return this.legend.objects?.[typeId]?.name ?? this.game?.names?.[typeId] ?? `#${typeId}`;
   }
 
   objectCategory(typeId) {
@@ -396,12 +448,10 @@ export class Replay {
   }
 
   #processTimeline() {
-    const selection = new Map();
+    const selected = selectionTracker();
     for (const [index, e] of this.data.timeline.entries()) {
       if (!this.dry) this.#advanceGathering(e.t);
-      let ids = e.object_ids ?? [];
-      if (ids.length) selection.set(e.player, ids);
-      else ids = selection.get(e.player) ?? [];
+      let ids = selected(e);
       if (this.dry) {
         if (e.type === 'DE_QUEUE') this.#queue(e, ids, index);
         else if (e.type === 'BUILD') this.#build(e, this.#samePlace(e));
@@ -453,11 +503,20 @@ export class Replay {
         }
         continue;
       } else if (e.type === 'DELETE') {
-        if (ids.some((id) => !this.buildingById.has(id) && !this.unitById.has(id))) this.#bindDeletedWall(index);
+        const unknown = ids.some((id) => !this.buildingById.has(id) && !this.unitById.has(id));
+        if (unknown) this.#bindDeletedWall(this.#deleteBurst(index), e);
+        // Pieces deleted one by one come about a second apart.
+        const burst = unknown ? this.#deleteBurst(index, 5000) : null;
+        const deleted = [];
         for (const id of ids) {
-          const gone = this.buildingById.get(id) ?? this.unitById.get(id);
-          if (!gone || gone.player !== e.player) continue;
-          gone.removedAt = Math.min(gone.removedAt, e.t);
+          const gone = this.buildingById.get(id) ?? this.unitById.get(id) ?? this.#bindDeleted(id, e.player, e.t, burst);
+          if (!gone || gone.player !== e.player || gone.removedAt <= e.t) continue;
+          gone.removedAt = e.t;
+          if (gone instanceof Unit) gone.deleted = true; // fades out
+          deleted.push(gone);
+        }
+        if (deleted.length) {
+          this.log.push({ t: e.t, player: e.player, kind: 'delete', name: this.objectName(deleted[0].typeAt?.(e.t) ?? deleted[0].typeId), amount: deleted.length });
         }
         continue;
       } else if (e.type === 'RESEARCH') {
@@ -784,11 +843,45 @@ export class Replay {
   }
 
   // The research queues in its building like a unit: what is queued after it waits.
+  // A second click on a tech already researched or under way is ignored, like in
+  // the game (cancellations are not in the replay: the first click counts).
   #occupy(e, ids) {
-    const seconds = RESEARCH_TIMES[this.legend.technologies?.[e.technology_id]];
-    const building = this.buildingById.get(ids[0]);
-    if (!seconds || !building) return;
-    building.queueEnd = Math.max(e.t, building.queueEnd) + seconds * 1000;
+    if (this.researches.some((r) => r.player === e.player && r.techId === e.technology_id)) return null;
+    const places = this.game?.techs?.[e.technology_id]?.at;
+    const building = this.buildingById.get(ids[0]) ?? this.#bindBuilding(ids[0], e.player, places?.map(([at]) => at), e.t);
+    const name = this.legend.technologies?.[e.technology_id] ?? `tech #${e.technology_id}`;
+    const seconds = places?.find(([at]) => at === building?.typeId || at === SAME_BUILDING[building?.typeId])?.[1]
+      ?? places?.[0]?.[1] ?? RESEARCH_TIMES[name];
+    const t0 = Math.max(e.t, building?.queueEnd ?? 0);
+    const r = { player: e.player, techId: e.technology_id, name, building: building ?? null, t0, t1: t0 + (seconds ?? 0) * 1000 };
+    this.researches.push(r);
+    if (building && seconds) building.queueEnd = r.t1;
+    return r;
+  }
+
+  // Upgrades take effect when their research is done: every unit of that player
+  // of the old type becomes the new one, and later ones come out upgraded (the
+  // queue orders always name the base unit). A player who resigned before never
+  // got it.
+  #applyUpgrades() {
+    const ups = [];
+    for (const r of this.researches) {
+      const changes = this.game?.techs?.[r.techId]?.up;
+      if (!changes || r.t1 > Math.min(this.duration, this.resignedAt.get(r.player) ?? Infinity)) continue;
+      for (const [from, to] of changes) ups.push({ player: r.player, t: r.t1, from, to });
+    }
+    if (!ups.length) return;
+    ups.sort((a, b) => a.t - b.t);
+    for (const u of this.units) {
+      if (u.player <= 0 || u.typeId == null) continue;
+      let type = u.typeId;
+      for (const up of ups) {
+        if (up.player !== u.player || up.from !== type) continue;
+        type = up.to;
+        if (up.t <= u.spawnT) u.typeId = type;
+        else u.upgrades.push({ t: up.t, typeId: type });
+      }
+    }
   }
 
   /** Closest resource of one of `kinds` with something left, within reach of (x, y). */
@@ -811,6 +904,35 @@ export class Replay {
       }
     }
     return best;
+  }
+
+  /**
+   * A deleted ID the engine never saw: the player's building placed when that ID
+   * was created (placement times are exact), else a trained unit nobody bound yet
+   * that came out then, villagers first (the ones deleted most). Null if nothing
+   * fits: better to leave something on the map than delete the wrong thing.
+   */
+  #bindDeleted(id, player, t, burst) {
+    const [from, to] = this.#idWindow(id);
+    const building = this.buildings.find((b) => b.id == null && !b.line && b.player === player
+      && b.t >= from && b.t <= to && b.removedAt > t);
+    if (building) {
+      building.id = id;
+      this.buildingById.set(id, building);
+      this.#anchor(id, building.t);
+      return building;
+    }
+    // Consecutive IDs deleted together are wall pieces, not units.
+    if (burst.has(id - 1) || burst.has(id + 1)) return null;
+    const gap = (u) => (u.spawnT < from ? from - u.spawnT : u.spawnT > to ? u.spawnT - to : 0);
+    const unit = this.units
+      .filter((u) => u.key && u.id == null && u.player === player && u.spawnT <= t && u.removedAt > t && gap(u) <= BIND_SLACK_MS)
+      .sort((a, b) => !this.#isVillager(a) - !this.#isVillager(b) || gap(a) - gap(b) || a.spawnT - b.spawnT)[0];
+    if (!unit) return null;
+    unit.id = id;
+    this.unitById.set(id, unit);
+    this.#anchor(id, unit.spawnT);
+    return unit;
   }
 
   // An order on a building placed during the game (no known ID yet): the clicked
@@ -856,12 +978,11 @@ export class Replay {
   }
 
   // A building built during the game has no known ID until a command uses it.
-  // Bind it to the oldest unbound building of that player that can train the unit.
+  // Bind it to the oldest unbound building of that player of one of `trainedAt` (types that train the unit or research the tech).
   // A finished town center gets a new ID (its foundation is another object): a
   // town center known by its foundation's ID takes the new one too.
-  #bindBuilding(id, player, unitId, t) {
-    const trainedAt = this.#trainSites(unitId)?.map(([buildingId]) => buildingId);
-    if (id == null || !trainedAt || this.unitById.has(id)) return null;
+  #bindBuilding(id, player, trainedAt, t) {
+    if (id == null || !trainedAt?.length || this.unitById.has(id)) return null;
     const fits = (typeId) => trainedAt.includes(typeId) || trainedAt.includes(SAME_BUILDING[typeId]);
     const mine = (b) => b.player === player && b.t <= t && b.removedAt > t && fits(b.typeId);
     let building = this.buildings.find((b) => b.id == null && mine(b));
@@ -881,7 +1002,8 @@ export class Replay {
   #queue(e, ids, index) {
     const sites = new Set();
     for (const id of ids) {
-      const b = this.buildingById.get(id) ?? this.#bindBuilding(id, e.player, e.unit_id, e.t);
+      const b = this.buildingById.get(id)
+        ?? this.#bindBuilding(id, e.player, this.#trainSites(e.unit_id)?.map(([at]) => at), e.t);
       if (b && b.player === e.player) sites.add(b);
     }
     const name = this.objectName(e.unit_id);
@@ -1003,24 +1125,29 @@ export class Replay {
     this.#anchor(firstId, line.t);
   }
 
-  // Deleting a wall's foundations sends one DELETE per piece, with IDs the
-  // engine never saw. The ones sent together (same player, within a second,
-  // consecutive IDs) go to that player's latest wall with exactly that many
-  // pieces, none of them bound yet.
-  #bindDeletedWall(index) {
+  // Unknown IDs the player deleted within `ms` of this DELETE.
+  #deleteBurst(index, ms = 1000) {
     const timeline = this.data.timeline;
     const e = timeline[index];
     // Other players' commands can fall in between: scan by time, not by position.
     let first = index;
-    while (first > 0 && e.t - timeline[first - 1].t <= 1000) first--;
+    while (first > 0 && e.t - timeline[first - 1].t <= ms) first--;
     const unknown = new Set();
-    for (let i = first; i < timeline.length && timeline[i].t - e.t <= 1000; i++) {
+    for (let i = first; i < timeline.length && timeline[i].t - e.t <= ms; i++) {
       const o = timeline[i];
       if (o.type !== 'DELETE' || o.player !== e.player) continue;
       for (const id of o.object_ids ?? []) {
         if (!this.buildingById.has(id) && !this.unitById.has(id)) unknown.add(id);
       }
     }
+    return unknown;
+  }
+
+  // Deleting a wall's foundations sends one DELETE per piece, with IDs the
+  // engine never saw. The ones sent together (same player, within a second,
+  // consecutive IDs) go to that player's latest wall with exactly that many
+  // pieces, none of them bound yet.
+  #bindDeletedWall(unknown, e) {
     const sorted = [...unknown].sort((a, b) => a - b);
     if (sorted.length < 2 || sorted[sorted.length - 1] - sorted[0] !== sorted.length - 1) return;
     const line = this.wallLines.findLast((l) => l.player === e.player && l.t <= e.t
@@ -1174,13 +1301,16 @@ export class Replay {
     }
   }
 
-  // A trained unit whose ID never shows up in any command of the whole match is
-  // doubtful: it may have been dequeued (cancellations are not in a replay) or
+  // A trained villager whose ID never shows up in any command of the whole match
+  // is doubtful: it may have been dequeued (cancellations are not in a replay) or
   // have died early. It does its first job (gather point) and then leaves, rather
-  // than standing idle for the rest of the game.
+  // than standing idle for the rest of the game. Soldiers stay at their gather
+  // point, like in the game: armies pile up there until sent out. Many are never
+  // bound to an ID (a Franks player's 175 Knights left 80 unbound), and making
+  // them all vanish emptied the armies on screen.
   #dropUncommanded() {
     for (const u of this.units) {
-      if (!u.key || u.id != null || u.removedAt < Infinity) continue;
+      if (!u.key || u.id != null || u.removedAt < Infinity || !this.#isVillager(u)) continue;
       const last = u.activities[u.activities.length - 1];
       let idleFrom;
       if (last) idleFrom = last.t1;
@@ -1230,12 +1360,10 @@ export class Replay {
     const lastUse = new Map();
     const assaults = new Map(); // building -> { attackers: Set, siege, last }
     const lastOrderOf = new Map();
-    const selection = new Map();
+    const selected = selectionTracker();
     for (const e of this.data.timeline) {
       if (e.type !== 'GAME' && e.type !== 'DE_TRANSFORM') lastOrderOf.set(e.player, e.t);
-      let ids = e.object_ids ?? [];
-      if (ids.length) selection.set(e.player, ids);
-      else ids = selection.get(e.player) ?? [];
+      const ids = selected(e);
       for (const id of e.object_ids ?? []) {
         const b = this.buildingById.get(id);
         if (b?.player === e.player) lastUse.set(b, e.t);
@@ -1362,13 +1490,13 @@ export class Replay {
     for (const u of this.units) {
       if (u.spawnT > t) continue;
       if (u.removedAt <= t) {
-        // Fallen units fade out instead of vanishing.
-        if (u.fell && t < u.removedAt + FADE_MS) {
-          units.push({ unit: u, ...u.positionAt(t), fading: 1 - (t - u.removedAt) / FADE_MS });
+        // Fallen and deleted units fade out instead of vanishing.
+        if ((u.fell || u.deleted) && t < u.removedAt + FADE_MS) {
+          units.push({ unit: u, typeId: u.typeAt(t), ...u.positionAt(t), fading: 1 - (t - u.removedAt) / FADE_MS });
         }
         continue;
       }
-      units.push({ unit: u, ...u.positionAt(t) });
+      units.push({ unit: u, typeId: u.typeAt(t), ...u.positionAt(t) });
     }
     const buildings = [];
     const ruins = [];

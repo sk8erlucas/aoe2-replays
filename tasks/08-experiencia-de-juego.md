@@ -59,6 +59,7 @@ Elegido: **B1** con un subconjunto (edificios y unidades principales, por arquit
 - [ ] Viajes a depositar recursos (aldeano ↔ campamento / centro urbano)
 - [ ] Recolección con más fuentes: punto de reunión en recursos (hecho), órdenes a granjas, caza de animales
 - [~] Usar la cola de producción real: las investigaciones ocupan la cola del edificio y las colas con varios edificios elegidos se reparten entre ellos (16/11/2026). Falta: cancelaciones (no están en el replay)
+- [x] Mejoras de unidades (18/11/2026): al terminar una investigación las unidades cambian de tipo (Lancero → Piquero → Alabardero), con el tiempo de investigación del juego ([20](./20-aldeanos-parados-y-visor.md))
 - [x] Edificios: tiempo de construcción según cantidad de constructores (16/11/2026): n aldeanos construyen a (n + 2) / 3 la velocidad de uno, como en el juego; cada uno suma desde que recibe la orden. No se descuentan los que se van a otra cosa
 - [x] Destrucción de edificios y muerte de unidades cuando hay evidencia: `DELETE`, muertes estimadas de unidades y edificios arrasados o con cimientos encima (16/11/2026, [19](./19-unidades-y-edificios-destruidos.md))
 - [x] Revisar `DE_TRANSFORM` y `GAME` con partidas completas: `GAME` son comandos internos al inicio (16 y 19, uno de cada por jugador) y `DE_TRANSFORM` llega en ráfagas sobre el mismo objeto; ninguno es una orden del jugador (fuera del APM y del contexto para IA). Detener (`STOP`) frena a la unidad; seguir y guardia la llevan hasta el objetivo; ataque en movimiento y patrulla, hasta el punto

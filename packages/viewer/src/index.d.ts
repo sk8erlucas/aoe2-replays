@@ -4,7 +4,7 @@ import type { Player, ReplayData } from '@aoe2-replays/shared';
 export interface LogEntry {
   t: number;
   player: number | null;
-  kind: 'build' | 'queue' | 'research' | 'resign' | 'chat';
+  kind: 'build' | 'queue' | 'research' | 'resign' | 'delete' | 'chat';
   /** Object or technology name (game names, in English). */
   name?: string;
   amount?: number;
@@ -32,6 +32,10 @@ export class Unit {
    * 'build', 'farm', 'hunt', 'shepherd', 'attack', or null.
    */
   activityAt(t: number): string | null;
+  /** Upgrades it got while alive (Knight -> Cavalier), chronological. */
+  upgrades: Array<{ t: number; typeId: number }>;
+  /** Its type at t: `typeId` (trained, already upgraded if it came out after the research) or the last upgrade by then. */
+  typeAt(t: number): number | null;
 }
 
 export interface Building {
@@ -51,6 +55,8 @@ export interface State {
   t: number;
   units: Array<{
     unit: Unit;
+    /** The unit's type at this time (see Unit.typeAt). */
+    typeId: number | null;
     x: number;
     y: number;
     moving: boolean;
@@ -73,6 +79,20 @@ export type Hit =
 export interface GameData {
   units: Record<string, { speed: number; class: number; train: Array<[number, number]> }>;
   buildings: Record<string, { size: number; buildTime: number }>;
+  /** Tech id -> where it is researched ([building type, seconds]) and the units it upgrades ([from, to]). */
+  techs?: Record<string, { at: Array<[number, number]>; up?: Array<[number, number]> }>;
+  /** English names of the units techs upgrade to (no replay command names them). */
+  names?: Record<string, string>;
+}
+
+/** A research as the engine places it: started when its building's queue frees up, done after its research time (estimated). */
+export interface Research {
+  player: number;
+  techId: number;
+  name: string;
+  building: Building | null;
+  t0: number;
+  t1: number;
 }
 
 export class Replay {
@@ -88,6 +108,8 @@ export class Replay {
   playerByNumber: Map<number, Player>;
   resignedAt: Map<number, number>;
   log: LogEntry[];
+  /** Each tech once per player (a repeated click is ignored), in click order. */
+  researches: Research[];
   objectName(typeId: number): string;
   focusOf(player: number, t: number): { t: number; player: number; x: number; y: number };
   /** Age (1 Dark .. 4 Imperial) of a player at time t, estimated from age research. */

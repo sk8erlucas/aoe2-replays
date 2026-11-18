@@ -20,6 +20,7 @@ from pathlib import Path
 import numpy as np
 from PIL import Image
 
+import gamedata
 import sld
 
 TILE_PX = 86  # width of one tile in the x1 graphics (measured on foundations)
@@ -470,23 +471,7 @@ def main():
         entries.update(pack(col.frames, keys, args.out, group))
         print(f'{group}: {len(keys)} frames')
 
-    # Game data the engine uses instead of guesses: where each unit is trained,
-    # how long it takes, how fast it walks; building footprints and build times.
-    game_units, game_buildings = {}, {}
-    for civ in dat.civs[1:]:
-        for unit in civ.units:
-            if unit is None or not unit.creatable:
-                continue
-            trains = [[t.unit_id, t.train_time] for t in unit.creatable.train_locations if t.unit_id >= 0]
-            if not trains:
-                continue
-            if unit.type in (80,) and unit.id not in game_buildings:  # buildings
-                game_buildings[unit.id] = {'size': round(unit.collision_size_x * 2), 'buildTime': trains[0][1]}
-            elif unit.type == 70 and unit.id not in game_units:  # combatants
-                game_units[unit.id] = {'speed': round(unit.speed, 3), 'class': unit.class_, 'train': trains}
-    (args.out / 'game-data.json').write_text(
-        json.dumps({'units': game_units, 'buildings': game_buildings}, separators=(',', ':')), encoding='utf-8')
-    print(f'game data: {len(game_units)} units, {len(game_buildings)} buildings')
+    gamedata.write(dat, args.game, args.out)
 
     # Compact manifest: frames as arrays, referenced by index everywhere else.
     pages = sorted({e['p'] for e in entries.values()})

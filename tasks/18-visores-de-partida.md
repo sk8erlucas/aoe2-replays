@@ -1,5 +1,7 @@
 # 18: Visores de partida
 
+> 18/11/2026: el motor ya tiene `Replay.researches` (cada investigación con su edificio e inicio y fin estimados con el tiempo del juego), que es lo que necesita el panel de investigaciones en curso. Y los `sync` del replay traen `total_res` por jugador, que podría dar recursos reales (ver [20](./20-aldeanos-parados-y-visor.md)).
+
 **Objetivo:** paneles arriba del visor, que cada uno elige y ordena, con lo que pasa en la partida en cada momento: cuántos aldeanos tiene cada jugador y en qué recurso está cada grupo, y los puntajes como los que muestra el juego arriba del minimapa. La idea es parecerse al panel del modo espectador del juego (y a herramientas de casteo como Capture Age), pero en el navegador y sobre la repetición.
 
 ## Visores
