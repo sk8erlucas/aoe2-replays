@@ -8,7 +8,7 @@ Detalle en [22](./22-puertas-abandonos-y-pestanas.md), con la partida `/m/522164
 - **Abandonos**: lo del jugador que se rinde queda en el mapa (aldeanos parados, soldados quietos, edificios en pie), como en el juego.
 - **Panel con pestañas**: Aldeanos, Ejército, Recursos y Resumen. **Los recursos son reales** (los trae el replay, `resource_totals` en el parser); las partidas guardadas antes no los tienen.
 - **Video**: los paneles salen en la exportación (opción).
-- **Para probar en el navegador**: esa partida (puertas, pestañas, el final con las rendiciones) y un video con el panel. Para ver los recursos en una partida ya guardada hay que volver a procesarla (pendiente en [22](./22-puertas-abandonos-y-pestanas.md)).
+- **Para probar en el navegador**: esa partida (puertas, pestañas, el final con las rendiciones) y un video con el panel. Las partidas guardadas antes se vuelven a procesar solas al abrirlas (columna `parser_revision`, se aplica con la migración del deploy).
 
 ## Sesión del 16/11/2026: unidades que faltan y edificios destruidos
 Detalle en [19](./19-unidades-y-edificios-destruidos.md), con la partida `/m/521529321`.
@@ -115,8 +115,7 @@ Quedó a medio revisar o detectado al cerrar la sesión del 29/10/2026:
 |---|---|---|
 | CAPTCHA | Crear claves de Cloudflare Turnstile (sitio + secreto) | Protección de subidas anónimas |
 | Ilustraciones | Decidir si se encargan o se hacen propias (estilo grabado, ver [DESIGN](../docs/DESIGN.md)). El logo ya está | Portada final |
-| Nombre del proyecto | Las reglas de Microsoft piden no usar el nombre del juego en el título; evaluar un nombre propio ([LEGAL](../docs/LEGAL.md)) | Lanzamiento público |
-| Publicidad | Confirmar si las reglas de Microsoft permiten anuncios en un sitio propio | Activar anuncios |
+| Nombre del proyecto | Decidido buscar uno propio (19/11/2026): elegir entre las opciones propuestas y comprar el dominio ([LEGAL](../docs/LEGAL.md)) | Lanzamiento público |
 | GitHub | Protección de `main`, secret scanning, reporte privado de vulnerabilidades, etiquetas `good first issue`, imagen de vista previa y primer Release | Colaboradores |
 | Replays de prueba | Hechos la partida completa y el 1v1. Falta uno de versión 66/67 (si todavía se puede conseguir) | Probar los parches viejos |
 | Docker local | El build de imágenes falla por certificados SSL en esta máquina (antivirus o proxy que intercepta HTTPS). Postgres local sí funciona | Probar las imágenes antes del deploy |
@@ -124,7 +123,7 @@ Quedó a medio revisar o detectado al cerrar la sesión del 29/10/2026:
 | Legal | Leer reglas de contenido de fans de Microsoft ([LEGAL](../docs/LEGAL.md)) | Publicidad, lanzamiento |
 | Dominio propio | Opcional: hoy la web está en aoe2replays.sitemaster.com.ar (`SITE_URL`) | SEO |
 | Correo (Resend) | Crear la cuenta, verificar el dominio y generar `RESEND_API_KEY` | Recuperar la contraseña y verificar emails |
-| Decisiones abiertas | Confirmar expiración de replays anónimos (hoy 30 días), tamaño máximo (hoy 30 MB), idiomas ([DECISIONS](../docs/DECISIONS.md)) | Ajustes |
+| Decisiones abiertas | Quedan dominio y hosting definitivos ([DECISIONS](../docs/DECISIONS.md)). Expiración (30 días) y tamaño (30 MB) confirmados y sin publicidad por ahora (19/11/2026) | Ajustes |
 
 ## Automático (se puede avanzar sin vos)
 - [x] Persistencia: Postgres + Prisma, guardar el JSON (gzip) con enlace privado y token de gestión

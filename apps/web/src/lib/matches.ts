@@ -5,12 +5,21 @@ import { db } from "@/lib/db";
 import { MAX_UPLOAD_BYTES, parseReplay } from "@/lib/parser";
 import { storedGame } from "@/lib/replays";
 import { extractReplay, replayUrl } from "@/lib/replayZip";
-import { envInt } from "@/lib/validate";
+import { allow } from "@/lib/ratelimit";
+import { LIMITS, envInt } from "@/lib/validate";
 
 const MAX_ZIP_BYTES = MAX_UPLOAD_BYTES;
 // Anyone can make the site store a match (~230 KB), so the ones nobody opens go.
 const MATCH_TTL_DAYS = envInt("MATCH_TTL_DAYS", 90);
 const DAY_MS = 86400_000;
+/**
+ * Bump when the parser starts giving data worth downloading a stored match
+ * again for: matches stored with an older one are refreshed when opened (see
+ * refreshMatch). 1: resource_totals (19/11/2026).
+ */
+export const MATCH_PARSER_REVISION = 1;
+// Longest a viewer waits for a refresh before getting the stored copy.
+const REFRESH_WAIT_MS = 20_000;
 
 export { isMatchId } from "@/lib/validate";
 
@@ -28,10 +37,58 @@ export async function findMatch(id: string) {
   return db().match.findUnique({ where: { id }, omit: { data: true } });
 }
 
-export async function matchData(id: string) {
-  const row = await db().match.findUnique({ where: { id }, select: { data: true } });
-  if (row) void markViewed(id);
-  return row?.data ?? null;
+/** The stored parser JSON (gzip) and whether it is from the current parser revision. */
+export async function matchData(id: string): Promise<{ data: Uint8Array; current: boolean } | null> {
+  const row = await db().match.findUnique({ where: { id }, select: { data: true, parserRevision: true, sourceProfileId: true } });
+  if (!row) return null;
+  void markViewed(id);
+  if (row.parserRevision >= MATCH_PARSER_REVISION) return { data: row.data, current: true };
+  const fresh = await refreshMatch(id, row.sourceProfileId);
+  return fresh ? { data: fresh, current: true } : { data: row.data, current: false };
+}
+
+const refreshing = new Map<string, Promise<Uint8Array | null>>();
+
+/**
+ * Downloads and parses a stored match again with the current parser, and
+ * stores it. Null (the stored copy stays) if Microsoft can't be reached, the
+ * site is busy, or it takes too long; a refresh still running then finishes
+ * for the next visit. If Microsoft no longer has the replay (kept ~4 months),
+ * the match is marked as refreshed so it isn't tried on every visit.
+ */
+async function refreshMatch(id: string, profileId: string): Promise<Uint8Array | null> {
+  let job = refreshing.get(id);
+  if (!job) {
+    if (!allow("import:all", LIMITS.importsPerHourGlobal, 3600_000)) return null;
+    job = (async () => {
+      try {
+        const { replay } = await downloadAny(id, profileId);
+        const parsed = await parseReplay(new Blob([replay as BlobPart]));
+        if (!parsed.ok) {
+          await markRevision(id);
+          return null;
+        }
+        const stored = storedGame(parsed.data, parsed.raw);
+        await db().match.update({ where: { id }, data: { ...stored, parserRevision: MATCH_PARSER_REVISION } });
+        return stored.data;
+      } catch (err) {
+        if (err instanceof ImportError && err.status === 404) await markRevision(id);
+        else console.error("could not refresh match", id, err);
+        return null;
+      } finally {
+        refreshing.delete(id);
+      }
+    })();
+    refreshing.set(id, job);
+  }
+  const timeout = new Promise<null>((resolve) => setTimeout(() => resolve(null), REFRESH_WAIT_MS));
+  return Promise.race([job, timeout]);
+}
+
+async function markRevision(id: string) {
+  await db()
+    .match.update({ where: { id }, data: { parserRevision: MATCH_PARSER_REVISION } })
+    .catch((err) => console.error("could not mark match revision", id, err));
 }
 
 // At most one write per match and day: the condition makes repeat views a no-op.
@@ -137,7 +194,7 @@ export async function importMatch(matchId: string, profileId: string): Promise<v
     if (!parsed.ok) throw new ImportError(parsed.status, parsed.code, parsed.message);
     await db().match.upsert({
       where: { id: matchId },
-      create: { id: matchId, sourceProfileId: source, ...storedGame(parsed.data, parsed.raw) },
+      create: { id: matchId, sourceProfileId: source, parserRevision: MATCH_PARSER_REVISION, ...storedGame(parsed.data, parsed.raw) },
       update: {},
     });
   })();
