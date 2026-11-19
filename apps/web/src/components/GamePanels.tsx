@@ -4,8 +4,8 @@ import { useEffect, useMemo, useState } from "react";
 import type { Player } from "@aoe2-replays/shared";
 import type { FollowMode, Replay } from "@aoe2-replays/viewer";
 import { useI18n } from "@/i18n/I18nProvider";
+import { PANEL_TABS, panelCell, panelTable, readPanelTab, savePanelTab, type PanelTab } from "@/lib/panelTable";
 
-const JOBS = ["food", "wood", "gold", "stone", "build", "idle"] as const;
 const ICON_PX = 30; // shown size of a research icon
 
 // The game's research icons (tools/sprites/techicons.py): one atlas, fetched once.
@@ -35,9 +35,10 @@ function TechIcon({ icons, techId, name }: { icons: TechIcons | null; techId: nu
 }
 
 /**
- * Panels over the map, like the game's spectator view: villagers of each player
- * by job and, when following a player, what they are researching. All estimated
- * by the engine (see tasks/18).
+ * Panels over the map, like the game's spectator view: per player (by team),
+ * villagers by job, army by kind, resources in stock (the game's, from the
+ * replay) and a summary, one tab each; and, when following a player, what they
+ * are researching. All but the resources are estimated by the engine (see tasks/18).
  */
 export function GamePanels({
   replay,
@@ -55,7 +56,14 @@ export function GamePanels({
   const { t: tr } = useI18n();
   const p = tr.viewer.panels;
   const second = Math.floor(t / 1000);
-  const jobs = useMemo(() => replay.villagerJobsAt(second * 1000), [replay, second]);
+  const [tab, setTab] = useState<PanelTab>("villagers");
+  useEffect(() => setTab(readPanelTab()), []);
+  const pickTab = (k: PanelTab) => {
+    setTab(k);
+    savePanelTab(k);
+  };
+  const { rows, columns } = useMemo(() => panelTable(replay, tab, second * 1000, p, players), [replay, tab, second, p, players]);
+  const noStock = tab === "resources" && replay.resourcesAt(0) === null;
   const researching = typeof follow === "number" ? replay.researchesAt(follow, t) : [];
   const followed = typeof follow === "number" ? replay.playerByNumber.get(follow) : undefined;
   const [icons, setIcons] = useState<TechIcons | null>(null);
@@ -84,44 +92,60 @@ export function GamePanels({
         </div>
       )}
       <div className="stage-panel villagers-panel">
-        <table>
-          <caption>{p.villagers}</caption>
+        <div className="panel-tabs" role="tablist" aria-label={p.tabsLabel}>
+          {PANEL_TABS.map((k) => (
+            <button
+              key={k}
+              type="button"
+              role="tab"
+              aria-selected={tab === k}
+              className={tab === k ? "active" : ""}
+              title={p.tabTitles[k]}
+              onClick={() => pickTab(k)}
+            >
+              {p.tabs[k]}
+            </button>
+          ))}
+        </div>
+        <table role="tabpanel">
+          <caption>{p.captions[tab]}</caption>
           <thead>
             <tr>
               <th scope="col">
                 <span className="sr-only">{p.player}</span>
               </th>
-              <th scope="col" title={p.villagersTotal}>
-                Σ
-              </th>
-              {JOBS.map((j) => (
-                <th key={j} scope="col" title={p.jobs[j]}>
-                  {p.short[j]}
+              {columns.map((c) => (
+                <th key={c.key} scope="col" title={c.title}>
+                  {c.label}
                 </th>
               ))}
             </tr>
           </thead>
           <tbody>
-            {players.map((pl) => {
-              const row = jobs.get(pl.number);
+            {players.map((pl, i) => {
+              const row = rows.get(pl.number);
               if (!row) return null;
+              const newTeam = i > 0 && pl.team_id > 1 && pl.team_id !== players[i - 1].team_id;
               return (
-                <tr key={pl.number}>
+                <tr key={pl.number} className={newTeam ? "team-start" : ""}>
                   <th scope="row">
                     <span className="swatch" style={{ background: color(pl.number) ?? "#fff" }} aria-hidden="true" />
                     <span className="name">{pl.name}</span>
                   </th>
-                  <td>{row.total}</td>
-                  {JOBS.map((j) => (
-                    <td key={j} className={row[j] ? "" : "zero"}>
-                      {row[j]}
-                    </td>
-                  ))}
+                  {columns.map((c) => {
+                    const v = row[c.key];
+                    return (
+                      <td key={c.key} className={v ? "" : "zero"}>
+                        {panelCell(c.key, v)}
+                      </td>
+                    );
+                  })}
                 </tr>
               );
             })}
           </tbody>
         </table>
+        {noStock && <p className="panel-note">{p.noResources}</p>}
       </div>
     </>
   );

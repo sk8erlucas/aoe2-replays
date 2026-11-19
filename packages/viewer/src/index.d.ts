@@ -51,6 +51,8 @@ export interface Building {
   buildTime: number;
   /** When its owner deleted it (Infinity if never). */
   removedAt: number;
+  /** Type whose sprite it uses, when not its own (a map's gate drawn as the built one). */
+  drawAs?: number;
 }
 
 export interface State {
@@ -102,6 +104,22 @@ export interface VillagerJobs {
   garrisoned: number;
 }
 
+export type ArmyKind = 'infantry' | 'archers' | 'cavalry' | 'siege' | 'ships' | 'monks' | 'other';
+
+export type Army = { total: number } & Record<ArmyKind, number>;
+
+export interface PlayerOverview {
+  age: number;
+  villagers: number;
+  army: number;
+  /** Researches done (ages apart). */
+  researches: number;
+  /** Standing finished buildings, walls and farms apart. */
+  buildings: number;
+  walls: number;
+  farms: number;
+}
+
 /** A research as the engine places it: started when its building's queue frees up, done after its research time (estimated). */
 export interface Research {
   player: number;
@@ -132,6 +150,12 @@ export class Replay {
   researchesAt(player: number, t: number): Array<{ techId: number; name: string; t0: number; t1: number; progress: number }>;
   /** Each player's villagers at t by job (estimated). */
   villagerJobsAt(t: number): Map<number, VillagerJobs>;
+  /** Each player's stockpile (food + wood + gold + stone) at t as the game had it, or null if the replay lacks it. */
+  resourcesAt(t: number): Map<number, number | null> | null;
+  /** Each player's army at t by kind (estimated). */
+  armyAt(t: number): Map<number, Army>;
+  /** Age, units, researches and buildings per player at t (estimated, ages exact with notices). */
+  overviewAt(t: number): Map<number, PlayerOverview>;
   focusOf(player: number, t: number): { t: number; player: number; x: number; y: number };
   /** Age (1 Dark .. 4 Imperial) of a player at time t, estimated from age research. */
   ageAt(player: number, t: number): number;

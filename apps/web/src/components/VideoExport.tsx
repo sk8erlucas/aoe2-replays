@@ -12,9 +12,11 @@ import {
   type TerrainSet,
   type VideoHeight,
 } from "@aoe2-replays/viewer";
-import type { VideoFormat } from "@aoe2-replays/viewer/video";
+import type { Player } from "@aoe2-replays/shared";
+import type { VideoFormat, VideoTable } from "@aoe2-replays/viewer/video";
 import { usePopup } from "@/components/usePopup";
 import { useI18n } from "@/i18n/I18nProvider";
+import { panelCell, panelTable, readPanelTab } from "@/lib/panelTable";
 
 // The encoder (Mediabunny) only loads once someone opens the dialog.
 let encoder: Promise<typeof import("@aoe2-replays/viewer/video")> | null = null;
@@ -28,7 +30,11 @@ type Props = {
   /** Current game time (ms). */
   now: () => number;
   pause: () => void;
-  players: { name: string; color: string }[];
+  /** By team, as in the viewer. */
+  players: Player[];
+  color: (n: number) => string | undefined;
+  /** The players panel is shown in the viewer: the video draws it too unless unticked. */
+  panels: boolean;
   quality: Quality;
   mapName: string | null;
   loadGraphics: () => Promise<[SpriteSet | null, TerrainSet | null]>;
@@ -51,7 +57,7 @@ function slug(text: string) {
   return text.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "") || "match";
 }
 
-export function VideoExport({ replay, renderer, now, pause, players, quality, mapName, loadGraphics }: Props) {
+export function VideoExport({ replay, renderer, now, pause, players, color, panels, quality, mapName, loadGraphics }: Props) {
   const { t } = useI18n();
   const v = t.viewer.video;
   const { open, setOpen, box } = usePopup();
@@ -61,6 +67,8 @@ export function VideoExport({ replay, renderer, now, pause, players, quality, ma
   const [speed, setSpeed] = useState(16);
   const [height, setHeight] = useState<VideoHeight>(720);
   const [watermark, setWatermark] = useState(true);
+  const [withPanel, setWithPanel] = useState(panels);
+  useEffect(() => setWithPanel(panels), [panels]);
   const [status, setStatus] = useState<Status>({ kind: "idle" });
   const abort = useRef<AbortController | null>(null);
 
@@ -97,6 +105,27 @@ export function VideoExport({ replay, renderer, now, pause, players, quality, ma
     return a < end ? { from: a, to: end } : null;
   })();
 
+  // The players panel with the tab picked in the viewer, cells as the panel shows them.
+  function videoTable(): VideoTable {
+    const p = t.viewer.panels;
+    const tab = readPanelTab();
+    const { columns } = panelTable(replay, tab, 0, p, players);
+    return {
+      caption: p.captions[tab],
+      columns,
+      players: players.map((pl, i) => ({
+        number: pl.number,
+        name: pl.name,
+        color: color(pl.number) ?? "#fff",
+        newTeam: i > 0 && pl.team_id > 1 && pl.team_id !== players[i - 1].team_id,
+      })),
+      rows: (at) => {
+        const { rows } = panelTable(replay, tab, Math.floor(at / 1000) * 1000, p, players);
+        return new Map([...rows].map(([n, row]) => [n, Object.fromEntries(columns.map((c) => [c.key, panelCell(c.key, row[c.key])]))]));
+      },
+    };
+  }
+
   async function start() {
     if (!range || !format) {
       setStatus({ kind: "error", message: "badRange" });
@@ -117,7 +146,12 @@ export function VideoExport({ replay, renderer, now, pause, players, quality, ma
         sprites,
         terrain,
         camera: renderer.current,
-        overlay: { players, watermark: watermark ? location.host : null, font: getComputedStyle(document.body).fontFamily },
+        overlay: {
+          players: players.map((p) => ({ name: p.name, color: color(p.number) ?? "#fff" })),
+          watermark: watermark ? location.host : null,
+          font: getComputedStyle(document.body).fontFamily,
+          table: withPanel ? videoTable() : null,
+        },
         signal: controller.signal,
         onProgress: (p) => {
           // A re-render per percent is plenty.
@@ -206,6 +240,10 @@ export function VideoExport({ replay, renderer, now, pause, players, quality, ma
                 <label className="video-check">
                   <input type="checkbox" checked={watermark} onChange={(e) => setWatermark(e.target.checked)} />
                   {v.watermark}
+                </label>
+                <label className="video-check">
+                  <input type="checkbox" checked={withPanel} onChange={(e) => setWithPanel(e.target.checked)} />
+                  {v.panel}
                 </label>
               </fieldset>
               {estimate ? (

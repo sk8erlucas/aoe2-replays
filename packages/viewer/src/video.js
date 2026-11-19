@@ -150,7 +150,7 @@ function placeCamera(r, camera, t) {
   }
 }
 
-function drawOverlay(ctx, w, h, t, { players = [], watermark = null, font = 'system-ui, sans-serif' }) {
+function drawOverlay(ctx, w, h, t, { players = [], watermark = null, font = 'system-ui, sans-serif', table = null }) {
   const unit = h / 720; // sizes are designed for 720p
   ctx.save();
   ctx.setTransform(1, 0, 0, 1, 0, 0);
@@ -159,7 +159,9 @@ function drawOverlay(ctx, w, h, t, { players = [], watermark = null, font = 'sys
   const line = 24 * unit;
 
   // Clock and players, top left, on a dark plate so they read on any terrain.
+  // With the players panel (top right) the names are there already.
   ctx.font = `600 ${15 * unit}px ${font}`;
+  if (table) players = [];
   const rows = [formatTime(t), ...players.map((p) => p.name)];
   const width = Math.max(...rows.map((s) => ctx.measureText(s).width)) + pad * 2 + 18 * unit;
   ctx.fillStyle = 'rgba(11, 12, 13, 0.62)';
@@ -174,6 +176,8 @@ function drawOverlay(ctx, w, h, t, { players = [], watermark = null, font = 'sys
     ctx.fillText(p.name, pad * 2 + 18 * unit, y);
   });
 
+  if (table) drawTable(ctx, w, t, table, unit, font);
+
   if (watermark) {
     ctx.font = `600 ${14 * unit}px ${font}`;
     ctx.textAlign = 'right';
@@ -183,4 +187,59 @@ function drawOverlay(ctx, w, h, t, { players = [], watermark = null, font = 'sys
     ctx.fillText(watermark, w - pad, h - pad - 8 * unit);
   }
   ctx.restore();
+}
+
+// The viewer's players panel (the tab picked there), top right: a caption, a
+// header row and one row per player with its colour swatch.
+function drawTable(ctx, w, t, { caption, columns, players, rows }, unit, font) {
+  const data = rows(t);
+  const pad = 8 * unit;
+  const line = 19 * unit;
+  const gap = 10 * unit;
+  const swatch = 10 * unit;
+  ctx.font = `500 ${13 * unit}px ${font}`;
+  const name = (p) => (p.name.length > 16 ? `${p.name.slice(0, 15)}…` : p.name);
+  const nameW = Math.max(...players.map((p) => ctx.measureText(name(p)).width)) + swatch + 6 * unit;
+  const cell = (p, c) => data.get(p.number)?.[c.key] ?? '–';
+  const colW = columns.map((c) => Math.max(ctx.measureText(c.label).width, ...players.map((p) => ctx.measureText(String(cell(p, c))).width)));
+  const width = pad * 2 + nameW + colW.reduce((a, b) => a + b + gap, 0);
+  const height = pad * 2 + line * (players.length + 2);
+  const x0 = w - 14 * unit - width;
+  const y0 = 14 * unit;
+  ctx.fillStyle = 'rgba(11, 12, 13, 0.62)';
+  ctx.fillRect(x0, y0, width, height);
+
+  ctx.textAlign = 'left';
+  ctx.fillStyle = 'rgba(243, 234, 216, 0.7)';
+  ctx.font = `500 ${11 * unit}px ${font}`;
+  ctx.fillText(caption, x0 + pad, y0 + pad + line / 2);
+  ctx.font = `600 ${12 * unit}px ${font}`;
+  const right = [];
+  let x = x0 + pad + nameW;
+  for (const cw of colW) {
+    x += gap + cw;
+    right.push(x);
+  }
+  ctx.textAlign = 'right';
+  columns.forEach((c, i) => ctx.fillText(c.label, right[i], y0 + pad + line * 1.5));
+  ctx.font = `500 ${13 * unit}px ${font}`;
+  players.forEach((p, r) => {
+    const y = y0 + pad + line * (r + 2.5);
+    if (p.newTeam) {
+      ctx.fillStyle = 'rgba(243, 234, 216, 0.25)';
+      ctx.fillRect(x0 + pad, y - line / 2, width - pad * 2, Math.max(1, unit));
+    }
+    ctx.fillStyle = p.color;
+    ctx.fillRect(x0 + pad, y - swatch / 2, swatch, swatch);
+    ctx.fillStyle = '#f3ead8';
+    ctx.textAlign = 'left';
+    ctx.fillText(name(p), x0 + pad + swatch + 6 * unit, y);
+    ctx.textAlign = 'right';
+    columns.forEach((c, i) => {
+      const v = cell(p, c);
+      ctx.globalAlpha = v === 0 || v === '0' || v === '–' ? 0.45 : 1;
+      ctx.fillText(String(v), right[i], y);
+    });
+    ctx.globalAlpha = 1;
+  });
 }

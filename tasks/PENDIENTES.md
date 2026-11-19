@@ -2,6 +2,14 @@
 
 Separados entre lo que necesita una decisión o acción tuya y lo que se puede avanzar sin vos.
 
+## Sesión del 19/11/2026: puertas, abandonos y pestañas del panel
+Detalle en [22](./22-puertas-abandonos-y-pestanas.md), con la partida `/m/522164674?p=397671` (4v4 Arena).
+- **Puertas del mapa** (Arena las trae puestas): ya se ven, con el sprite de la puerta construida.
+- **Abandonos**: lo del jugador que se rinde queda en el mapa (aldeanos parados, soldados quietos, edificios en pie), como en el juego.
+- **Panel con pestañas**: Aldeanos, Ejército, Recursos y Resumen. **Los recursos son reales** (los trae el replay, `resource_totals` en el parser); las partidas guardadas antes no los tienen.
+- **Video**: los paneles salen en la exportación (opción).
+- **Para probar en el navegador**: esa partida (puertas, pestañas, el final con las rendiciones) y un video con el panel. Para ver los recursos en una partida ya guardada hay que volver a procesarla (pendiente en [22](./22-puertas-abandonos-y-pestanas.md)).
+
 ## Sesión del 16/11/2026: unidades que faltan y edificios destruidos
 Detalle en [19](./19-unidades-y-edificios-destruidos.md), con la partida `/m/521529321`.
 - **Unidades que faltaban**: las colas en varios cuarteles a la vez se reparten, el Huskarl encolado en el cuartel sale de ahí y el centro urbano terminado (que cambia de ID) sigue entrenando. Los godos de esa partida pasan de 116 a 417 unidades.

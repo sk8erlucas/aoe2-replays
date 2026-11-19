@@ -16,8 +16,8 @@
 // them; when one is finished its eaters move on to the nearest of the same kind.
 // Deaths are guessed: eaten animals vanish when their food runs out; a unit last
 // sent to fight (or into enemy ground) and never ordered again is taken as fallen;
-// so are units over the population limit (others must have died) and everything
-// of a player who resigns. A building under a real assault (siege or several
+// so are units over the population limit (others must have died). What a player
+// who resigns leaves stays where it was, idle. A building under a real assault (siege or several
 // soldiers) that its owner never uses again is taken as razed, and one with a
 // new foundation over it as gone by then.
 // Garrisoned units are inside their building (not drawn) until let out; back
@@ -242,11 +242,27 @@ const RAZE_MIN_ATTACKERS = 3;
 // Footprints that overlap by more than this (tiles) can't both stand.
 const OVERLAP_SLACK = 0.25;
 const CASTLE = 82;
+// The stone gates a player builds, by the axis they run along on the map the
+// renderer gets (turned by toGameOrientation; in the game's own coordinates it is
+// the other way around). See #mapGates.
+const GATE_ALONG_X = 490;
+const GATE_ALONG_Y = 487;
 // Engine activity -> villager job for the panels.
 const VILLAGER_JOB = {
   tree: 'wood', gold: 'gold', stone: 'stone', berries: 'food', farm: 'food', hunt: 'food', shepherd: 'food',
   build: 'build', attack: 'other',
 };
+// Unit classes (game data) -> army kind for the panels. Civilian classes are no army:
+// villager, trade cog, trade cart, transport, fishing ship, king, herdable livestock.
+const ARMY_CLASSES = {
+  6: 'infantry', 35: 'infantry',
+  0: 'archers', 36: 'archers', 44: 'archers',
+  12: 'cavalry', 23: 'cavalry', 47: 'cavalry',
+  13: 'siege', 51: 'siege', 54: 'siege', 55: 'siege',
+  22: 'ships', 53: 'ships',
+  18: 'monks',
+};
+const CIVILIAN_CLASSES = new Set([2, 4, 19, 20, 21, 58, 59]);
 // Unit classes (game data) that move on water: trade cog, transport, fishing ship, warships.
 const SHIP_CLASSES = new Set([2, 20, 21, 22, 53]);
 const SHIP_NAME = /Ship|Boat|Galley|Galleon|Cog|Longboat|Caravel|Dromon|Junk|Canoe|Raft|Carrack|Lou Chuan|Catamaran/;
@@ -345,16 +361,42 @@ export class Replay {
     return [from, Math.max(from, to)];
   }
 
+  // Gates a map starts with (Arena, fortresses) are in the header as the game
+  // keeps them: a middle piece ("Gate (up.)", "Gate (down.)"...) and two side
+  // posts ("Gate"), each its own object. A gate a player builds is one object
+  // whose sprite already has the posts: the middle piece is drawn as the built
+  // gate along the same axis, and the posts are left out.
+  #mapGates() {
+    const name = (o) => this.objectName(o.type_id);
+    const middles = this.data.initial_objects.filter((o) => /^Gate \(.+\)$/.test(name(o)));
+    const posts = new Set();
+    const drawAs = new Map();
+    for (const m of middles) {
+      const mine = this.data.initial_objects.filter((o) => o !== m && o.player === m.player && name(o) === 'Gate'
+        && Math.hypot(o.x - m.x, o.y - m.y) <= 2);
+      for (const o of mine) posts.add(o);
+      const alongX = mine.length ? Math.abs(mine[0].x - m.x) > Math.abs(mine[0].y - m.y) : m.y % 1 !== 0;
+      drawAs.set(m, alongX ? GATE_ALONG_X : GATE_ALONG_Y);
+    }
+    return { posts, drawAs };
+  }
+
   #loadInitialObjects() {
     // All at time 0: sorted once rather than inserted one by one.
     this.idAnchors = this.data.initial_objects.map((o) => ({ id: o.id, t: 0 })).sort((a, b) => a.id - b.id);
+    const gates = this.#mapGates();
     for (const o of this.data.initial_objects) {
-      if (HIDDEN_OBJECT_TYPES.has(o.type_id)) continue;
+      if (HIDDEN_OBJECT_TYPES.has(o.type_id) || gates.posts.has(o)) continue;
       const category = this.objectCategory(o.type_id);
       if (category === 'unit' || category === 'animal') {
         this.#addUnit(new Unit({ id: o.id, player: o.player, typeId: o.type_id, x: o.x, y: o.y }));
       } else if (category === 'building') {
-        this.#addBuilding({ id: o.id, player: o.player, typeId: o.type_id, x: o.x, y: o.y, t: 0, buildTime: 0 });
+        const look = gates.drawAs.get(o);
+        const b = this.#addBuilding({ id: o.id, player: o.player, typeId: o.type_id, x: o.x, y: o.y, t: 0, buildTime: 0 });
+        if (look) {
+          b.drawAs = look;
+          b.size = this.game?.buildings?.[look]?.size || b.size;
+        }
       } else if (category !== 'decoration') {
         const r = { ...o, category, remaining: RESOURCE_AMOUNTS[category] ?? Infinity, depletedAt: Infinity };
         this.resources.push(r);
@@ -1223,8 +1265,10 @@ export class Replay {
     if (/Gate/.test(this.objectName(e.building_id))) {
       const reach = building.size / 2;
       for (const w of this.buildings) {
-        if (w === building || w.player !== e.player || w.size > 1 || w.removedAt <= e.t) continue;
-        if (!/Wall/.test(this.objectName(w.typeId))) continue;
+        if (w === building || w.player !== e.player || w.removedAt <= e.t) continue;
+        // A gate where one stood (the map's, or one razed before) means the old one was gone.
+        const oldGate = /Gate/.test(this.objectName(w.typeId)) && Math.hypot(w.x - e.x, w.y - e.y) < 1;
+        if (!oldGate && (w.size > 1 || !/Wall/.test(this.objectName(w.typeId)))) continue;
         if (Math.abs(w.x - e.x) <= reach && Math.abs(w.y - e.y) <= reach) {
           w.removedAt = e.t;
           w.replaced = true;
@@ -1603,7 +1647,9 @@ export class Replay {
       }
       return keys;
     };
-    const solid = this.buildings.filter((b) => !b.line && b.size > 1).sort((a, b) => a.t - b.t);
+    // Gates are 4x1, not a square of their size: a new gate where one stood is in #build.
+    const solid = this.buildings.filter((b) => !b.line && b.size > 1 && !/Gate/.test(this.objectName(b.typeId)))
+      .sort((a, b) => a.t - b.t);
     for (const c of solid) {
       const near = new Set();
       for (const k of cells(c)) for (const b of byCell.get(k) ?? []) near.add(b);
@@ -1619,17 +1665,32 @@ export class Replay {
     }
   }
 
-  // In the game a player who resigns loses everything: units fall, buildings collapse.
+  // In the game what a player who resigns leaves behind stays on the map: the
+  // villagers stop working, soldiers stand where they are (and still fight
+  // whoever comes close), buildings keep standing and nothing more is built,
+  // trained or researched.
   #applyResigns() {
     for (const [player, t] of this.resignedAt) {
       for (const u of this.units) {
         if (u.player !== player || u.removedAt <= t) continue;
-        // Still in a production queue at the resign: never comes out.
-        u.removedAt = Math.max(t, u.spawnT);
-        u.fell = u.spawnT <= t;
+        if (u.spawnT > t) {
+          // Still in a production queue: never comes out.
+          u.removedAt = u.spawnT;
+          u.fell = false;
+          continue;
+        }
+        u.stopActivity(t);
+        const at = u.positionAt(t);
+        u.moveTo(t, at.x, at.y);
+        u.upgrades = u.upgrades.filter((up) => up.t <= t);
       }
       for (const b of this.buildings) {
-        if (b.player === player && b.removedAt > t && b.t <= t) b.removedAt = t;
+        if (b.player !== player || b.removedAt <= t || b.t > t) continue;
+        if (b.startT + b.buildTime > t) {
+          // Unfinished: stays as it was then.
+          if (b.startT > t) b.startT = Infinity;
+          else b.pausedAt = Math.min(b.pausedAt ?? Infinity, t);
+        }
       }
     }
   }
@@ -1734,6 +1795,95 @@ export class Replay {
       else if (job) row[job]++;
       else if (u.positionAt(t).moving) row.other++;
       else row.idle++;
+    }
+    return out;
+  }
+
+  /**
+   * Each player's stockpile (food + wood + gold + stone) at t, as the game had
+   * it: the replay's last sync at or before t (about every 17 s). Exact, but
+   * only the sum. Null if the replay doesn't carry it (parsed before November 2026).
+   */
+  resourcesAt(t) {
+    const list = this.data.resource_totals;
+    if (!list?.length) return null;
+    let lo = 0;
+    let hi = list.length;
+    while (lo < hi) {
+      const mid = (lo + hi) >> 1;
+      if (list[mid].t <= t) lo = mid + 1;
+      else hi = mid;
+    }
+    const out = new Map();
+    const at = list[lo - 1];
+    for (const p of this.players) out.set(p.number, at ? at.players[p.number] ?? 0 : null);
+    return out;
+  }
+
+  /**
+   * Each player's army at t by kind (estimated: units come out when their
+   * training should end, and deaths are guesses): infantry, archers, cavalry,
+   * siege, ships, monks and other (soldiers of unknown kind). Villagers,
+   * herdables, fishing and trade are not army.
+   */
+  armyAt(t) {
+    const out = new Map();
+    for (const p of this.players) out.set(p.number, { total: 0, infantry: 0, archers: 0, cavalry: 0, siege: 0, ships: 0, monks: 0, other: 0 });
+    for (const u of this.units) {
+      if (u.player <= 0 || u.spawnT > t || u.removedAt <= t) continue;
+      const row = out.get(u.player);
+      const kind = row && this.#armyKind(u.typeAt(t));
+      if (!kind) continue;
+      row.total++;
+      row[kind]++;
+    }
+    return out;
+  }
+
+  #armyKind(typeId) {
+    if (typeId == null) return null; // unknown trained units are almost always villagers
+    const cls = this.game?.units?.[typeId]?.class;
+    if (cls != null) return ARMY_CLASSES[cls] ?? (CIVILIAN_CLASSES.has(cls) ? null : 'other');
+    const name = this.objectName(typeId);
+    if (name === 'Villager' || HERDABLE.test(name) || /Fishing|Trade|Transport|King/.test(name)) return null;
+    if (this.objectCategory(typeId) !== 'unit') return null;
+    return SIEGE_NAME.test(name) ? 'siege' : 'other';
+  }
+
+  /**
+   * A summary per player at t: age (exact with the game's notices), units
+   * alive (villagers and army, estimated), researches done (estimated end) and
+   * buildings standing (walls and farms apart).
+   */
+  overviewAt(t) {
+    const out = new Map();
+    for (const p of this.players) {
+      const end = Math.min(this.duration, this.resignedAt.get(p.number) ?? Infinity);
+      out.set(p.number, {
+        age: this.ageAt(p.number, t),
+        villagers: 0,
+        army: 0,
+        researches: this.researches.filter((r) => r.player === p.number && r.t1 <= t && r.t1 <= end && !AGE_TECHS[r.techId]).length,
+        buildings: 0,
+        walls: 0,
+        farms: 0,
+      });
+    }
+    for (const u of this.units) {
+      if (u.player <= 0 || u.spawnT > t || u.removedAt <= t) continue;
+      const row = out.get(u.player);
+      if (!row) continue;
+      if (this.#isVillager(u)) row.villagers++;
+      else if (this.#armyKind(u.typeAt(t))) row.army++;
+    }
+    for (const b of this.buildings) {
+      if (b.player <= 0 || b.t > t || b.removedAt <= t || b.startT + b.buildTime > t) continue;
+      const row = out.get(b.player);
+      if (!row) continue;
+      const name = this.objectName(b.typeId);
+      if (b.line || /Wall|Gate|Palisade/.test(name)) row.walls++;
+      else if (name === 'Farm') row.farms++;
+      else row.buildings++;
     }
     return out;
   }

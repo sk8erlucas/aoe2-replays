@@ -788,7 +788,9 @@ function ReplayStage({ data, actions, extras, moment, gameData }: ViewerProps & 
           renderer={renderer}
           now={() => time.current}
           pause={() => setPlaying(false)}
-          players={players.map((p) => ({ name: p.name, color: playerColor(p.number) ?? "#fff" }))}
+          players={players}
+          color={playerColor}
+          panels={panels}
           quality={quality}
           mapName={data.map.name ?? null}
           loadGraphics={() => Promise.all([loadSprites(), loadTerrain()])}

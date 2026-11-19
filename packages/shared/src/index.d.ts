@@ -81,6 +81,12 @@ export interface Legend {
   technologies: Record<string, string | null>;
 }
 
+export interface ResourceTotals {
+  t: number;
+  /** Player number (as a string key) -> resources in stock. */
+  players: Record<string, number>;
+}
+
 export interface ReplayData {
   schema_version: 1;
   game: Game;
@@ -88,6 +94,8 @@ export interface ReplayData {
   initial_objects: InitialObject[];
   timeline: TimelineEvent[];
   chat: ChatMessage[];
+  /** Each player's stockpile (food + wood + gold + stone) as the game had it. Optional: older replays lack it. */
+  resource_totals?: ResourceTotals[];
   legend: Legend;
 }
 
