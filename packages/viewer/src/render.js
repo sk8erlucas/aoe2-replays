@@ -919,7 +919,7 @@ export class Renderer {
   #drawRuin(b, state) {
     if (this.sprites && this.q.rubble && this.cam.scale >= DETAIL_SCALE) {
       const civ = this.#civ(b.player);
-      const key = civ != null && this.sprites.rubble(civ, b.typeId, this.replay.ageAt(b.player, state.t));
+      const key = civ != null && this.sprites.rubble(civ, b.drawAs ?? b.typeId, this.replay.ageAt(b.player, state.t));
       if (key != null) {
         if (!this.sprites.frame(key)) return; // atlas still loading
         const [sx, sy] = this.toScreen(b.x, b.y);
@@ -1089,7 +1089,7 @@ export class Renderer {
 
   #spriteBuilding(b, progress, state, planned = false) {
     const civ = this.#civ(b.player);
-    const parts = civ != null && this.sprites.building(civ, b.typeId, this.replay.ageAt(b.player, state.t));
+    const parts = civ != null && this.sprites.building(civ, b.drawAs ?? b.typeId, this.replay.ageAt(b.player, state.t));
     if (!parts) return false;
     // The sprite exists but its atlas is still downloading: draw nothing rather
     // than a placeholder box that would flash and look broken.

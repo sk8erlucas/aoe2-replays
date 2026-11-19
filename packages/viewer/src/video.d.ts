@@ -8,6 +8,14 @@ export interface VideoFormat {
 }
 /** What this browser can encode at that size (WebCodecs); null if it can't. */
 export function videoFormat(height?: VideoHeight): Promise<VideoFormat | null>;
+/** The viewer's players panel, drawn top right on every frame. */
+export interface VideoTable {
+  caption: string;
+  columns: Array<{ key: string; label: string }>;
+  players: Array<{ number: number; name: string; color: string; newTeam?: boolean }>;
+  /** Cells by player number at game time t (numbers already formatted are fine). */
+  rows: (t: number) => Map<number, Record<string, number | string | null>>;
+}
 export interface VideoOptions {
   /** Game ms. */
   from: number;
@@ -20,7 +28,7 @@ export interface VideoOptions {
   terrain?: TerrainSet | null;
   /** The viewer's renderer: the video starts with its framing and follow mode. */
   camera?: Renderer | null;
-  overlay?: { players?: { name: string; color: string }[]; watermark?: string | null; font?: string };
+  overlay?: { players?: { name: string; color: string }[]; watermark?: string | null; font?: string; table?: VideoTable | null };
   onProgress?: (fraction: number) => void;
   signal?: AbortSignal;
 }

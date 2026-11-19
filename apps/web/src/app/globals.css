@@ -645,6 +645,22 @@ button.primary:hover:not(:disabled), .button-primary:hover { border-color: var(-
 .villagers-panel tbody th { text-align: left; font-weight: 500; max-width: 130px; overflow: hidden; text-overflow: ellipsis; }
 .villagers-panel tbody th .swatch { display: inline-block; width: 9px; height: 9px; margin-right: 5px; border-radius: 2px; vertical-align: -1px; }
 .villagers-panel td.zero { opacity: 0.4; }
+.villagers-panel tr.team-start > * { border-top: 1px solid rgba(239, 226, 200, 0.25); }
+.panel-tabs { display: flex; gap: 2px; margin: 0 0 3px; }
+.panel-tabs button {
+  font: inherit;
+  font-size: 11px;
+  padding: 1px 6px;
+  color: rgba(239, 226, 200, 0.7);
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 3px;
+  cursor: pointer;
+}
+.panel-tabs button:hover { color: var(--charcoal-ink); }
+.panel-tabs button.active { color: var(--charcoal-ink); border-color: var(--bronze-dark); background: rgba(255, 255, 255, 0.06); }
+.panel-tabs button:focus-visible { outline: 2px solid var(--bronze-light); outline-offset: 1px; }
+.panel-note { margin: 3px 0 0; max-width: 220px; font-size: 11px; color: rgba(239, 226, 200, 0.7); white-space: normal; }
 .research-panel { top: 10px; left: 12px; padding: 6px 8px; max-width: 45%; }
 .research-panel ul { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 6px 10px; }
 .research-panel li { display: grid; gap: 3px; justify-items: start; }

@@ -89,7 +89,7 @@ def test_chat_with_odd_fields_keeps_the_message(monkeypatch):
 @pytest.mark.parametrize('duration', [-1, parse.MAX_DURATION_MS + 1, 2**40])
 def test_match_clock_out_of_range(monkeypatch, duration):
     monkeypatch.setattr(parse, '_parse_header', lambda _: {})
-    monkeypatch.setattr(parse, '_parse_body', lambda *_: (duration, [], [], None))
+    monkeypatch.setattr(parse, '_parse_body', lambda *_: (duration, [], [], [], None))
     with pytest.raises(CorruptReplay, match='clock'):
         parse.parse_replay(struct.pack('<II', 9, 0) + b'\0')
 
@@ -160,3 +160,10 @@ def test_fuzz():
             pass
         except Exception as e:
             pytest.fail(f'seed {seed}, run {i}: {type(e).__name__}: {e}')
+
+
+def test_sync_carries_each_players_stockpile(monkeypatch):
+    sync = (fast.Operation.SYNC, (500, None, {'current_time': 500, 1: {'total_res': 700}, 2: {'total_res': 650}}))
+    plain = (fast.Operation.SYNC, (300, None, {}))
+    totals = body_with(monkeypatch, [plain, sync])[3]
+    assert totals == [{'t': 800, 'players': {'1': 700, '2': 650}}]

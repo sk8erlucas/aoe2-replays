@@ -48,6 +48,9 @@ Límites contra archivos armados a propósito: el header descomprimido no puede 
   "initial_objects": [{ "id": 31035, "player": 1, "type_id": 109, "class_id": 80, "x": 121, "y": 22 }],
   "timeline": [{ "t": 3187, "type": "RESEARCH", "player": 1, "technology_id": 22, "object_ids": [31035] }],
   "chat": [{ "t": 31454, "player": 3, "channel": 0, "message": "gg" }],
+  // Recursos en reserva de cada jugador (comida + madera + oro + piedra) según el juego, cada ~17 s.
+  // Opcional: los replays parseados antes no lo traen.
+  "resource_totals": [{ "t": 61808, "players": { "1": 400, "2": 515 } }],
   // Solo los IDs que aparecen en esta partida. name puede ser null si aocref no lo conoce.
   "legend": {
     "terrain": { "113": { "name": null, "category": "forest" } },
@@ -57,7 +60,7 @@ Límites contra archivos armados a propósito: el header descomprimido no puede 
 }
 ```
 
-`terrain` y `elevation`: el tile (x, y) está en el índice `y * size + x`. `color_id` es base 0 (0 azul … 7 naranja). Categorías de terreno: `grass forest water deep_water shallows sand road snow farm rock`; de objetos: `tree gold stone berries relic animal unit building decoration`. Los nombres salen de `aocref` (instalado, no copiado: no tiene licencia publicada); las categorías y los overrides para IDs nuevos están en [`reference.py`](src/aoe2_parser/reference.py). Los campos de cada evento del `timeline` dependen del `type` (los que da `mgz.fast`, con `player_id` renombrado a `player`).
+`terrain` y `elevation`: el tile (x, y) está en el índice `y * size + x`. `resource_totals` sale de los `sync` de DE (`total_res` de `mgz.fast`): es el número que tenía el juego, no una estimación; no viene separado por recurso. `color_id` es base 0 (0 azul … 7 naranja). Categorías de terreno: `grass forest water deep_water shallows sand road snow farm rock`; de objetos: `tree gold stone berries relic animal unit building decoration`. Los nombres salen de `aocref` (instalado, no copiado: no tiene licencia publicada); las categorías y los overrides para IDs nuevos están en [`reference.py`](src/aoe2_parser/reference.py). Los campos de cada evento del `timeline` dependen del `type` (los que da `mgz.fast`, con `player_id` renombrado a `player`).
 
 ## Pendiente
 

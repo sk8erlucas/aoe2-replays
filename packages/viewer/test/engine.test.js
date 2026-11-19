@@ -515,12 +515,45 @@ test('a lured boar walks to where the hunters clicked it, and they eat it there'
   assert.equal(r.unitById.get(406).removedAt, Infinity);
 });
 
-test('a player who resigns loses every unit and building', () => {
-  const r = skirmish([{ t: 50_000, type: 'RESIGN', player: 3, object_ids: [] }]);
+test('what a player who resigns leaves stays where it was, idle', () => {
+  const r = skirmish([
+    { t: 40_000, type: 'MOVE', player: 3, object_ids: [301], x: 30, y: 30 },
+    { t: 50_000, type: 'RESIGN', player: 3, object_ids: [] },
+  ]);
+  const soldier = r.unitById.get(301);
+  const at = soldier.positionAt(50_000);
+  assert.ok(at.x > 12 && at.x < 30, 'it was on its way');
+  assert.deepEqual(soldier.positionAt(100_000), { ...at, moving: false, target: null });
   const after = r.stateAt(60_000);
-  assert.ok(!after.units.some((u) => u.unit.player === 3));
-  assert.ok(!after.buildings.some((b) => b.building.player === 3));
-  assert.ok(after.ruins.some((b) => b.player === 3));
+  assert.ok(after.units.some((u) => u.unit.id === 301));
+  assert.ok(after.buildings.some((b) => b.building.player === 3));
+  assert.ok(!after.ruins.some((b) => b.player === 3));
+});
+
+test('a map gate is drawn as the built one along its axis, without its posts', () => {
+  const r = new Replay({
+    game: { duration_ms: 10_000, players: [{ number: 1, name: 'A', color_id: 0, team_id: 2, start: { x: 10, y: 10 } }] },
+    map: { size: 40, terrain: [], elevation: [] },
+    initial_objects: [
+      { id: 1, player: 1, type_id: 88, x: 20.5, y: 20 },
+      { id: 2, player: 1, type_id: 95, x: 20.5, y: 21.5 },
+      { id: 3, player: 1, type_id: 95, x: 20.5, y: 18.5 },
+      { id: 4, player: 1, type_id: 64, x: 30, y: 10.5 },
+      { id: 5, player: 1, type_id: 81, x: 28.5, y: 10.5 },
+      { id: 6, player: 1, type_id: 81, x: 31.5, y: 10.5 },
+    ],
+    timeline: [],
+    chat: [],
+    legend: {
+      objects: {
+        88: { name: 'Gate (down.)', category: 'building' },
+        95: { name: 'Gate', category: 'building' },
+        64: { name: 'Gate (up.)', category: 'building' },
+        81: { name: 'Gate', category: 'building' },
+      },
+    },
+  });
+  assert.deepEqual(r.buildings.map((b) => [b.id, b.drawAs]), [[1, 487], [4, 490]]);
 });
 
 test('units over the population limit are taken as fallen, army first', () => {
@@ -1072,4 +1105,40 @@ test('researches in progress and villagers by job, for the panels', () => {
   assert.equal(jobs.total, 1);
   assert.equal(jobs.build, 1);
   assert.equal(r.villagerJobsAt(500).get(1).idle, 1);
+});
+
+test('resources in stock come from the replay syncs, the last one at or before t', () => {
+  const r = skirmish([]);
+  assert.equal(r.resourcesAt(10_000), null, 'older replays lack them');
+  r.data.resource_totals = [
+    { t: 1000, players: { 1: 700, 3: 650 } },
+    { t: 18_000, players: { 1: 520, 2: 100, 3: 610 } },
+  ];
+  assert.deepEqual([...r.resourcesAt(500)], [[1, null], [2, null], [3, null]]);
+  assert.deepEqual([...r.resourcesAt(17_999)], [[1, 700], [2, 0], [3, 650]]);
+  assert.deepEqual([...r.resourcesAt(60_000)], [[1, 520], [2, 100], [3, 610]]);
+});
+
+test('army by kind counts soldiers alive, not villagers or sheep', () => {
+  const gameData = { units: { 74: { speed: 0.9, class: 6 }, 83: { speed: 0.8, class: 4 }, 594: { speed: 0.7, class: 58 } }, buildings: {} };
+  const data = {
+    game: { duration_ms: 60_000, players: [{ number: 1, name: 'A', color_id: 0, team_id: 2, start: { x: 10, y: 10 } }] },
+    map: { size: 40, terrain: [], elevation: [] },
+    initial_objects: [
+      { id: 101, player: 1, type_id: 83, x: 12, y: 10 },
+      { id: 102, player: 1, type_id: 74, x: 12, y: 12 },
+      { id: 103, player: 1, type_id: 74, x: 13, y: 12 },
+      { id: 104, player: 1, type_id: 594, x: 14, y: 12 },
+      { id: 105, player: 1, type_id: 70, x: 20, y: 20 },
+    ],
+    timeline: [],
+    chat: [],
+    legend: { objects: { 83: { name: 'Villager', category: 'unit' }, 74: { name: 'Militia', category: 'unit' }, 594: { name: 'Sheep', category: 'animal' }, 70: { name: 'House', category: 'building' } } },
+  };
+  const r = new Replay(data, { gameData });
+  const army = r.armyAt(1000).get(1);
+  assert.equal(army.total, 2);
+  assert.equal(army.infantry, 2);
+  const ov = r.overviewAt(1000).get(1);
+  assert.deepEqual([ov.age, ov.villagers, ov.army, ov.buildings], [1, 1, 2, 1]);
 });

@@ -51,6 +51,13 @@ def test_timeline_and_chat(sample):
     assert [c['message'] for c in sample['chat']] == ['report purple thx', 'gg']
 
 
+def test_resource_totals(sample):
+    totals = sample['resource_totals']
+    assert totals and all(a['t'] < b['t'] for a, b in zip(totals, totals[1:], strict=False))
+    assert set(totals[0]['players']) <= {str(n) for n in range(1, 9)}
+    assert all(isinstance(v, int) and v >= 0 for v in totals[0]['players'].values())
+
+
 @pytest.mark.parametrize('data', [b'', b'\x00' * 4, b'\xff\xff\xff\x7f' + b'\x00' * 20])
 def test_rejects_garbage(data):
     with pytest.raises(CorruptReplay):

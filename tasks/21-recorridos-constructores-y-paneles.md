@@ -20,7 +20,7 @@ Pedidos de Lucas del 18/11/2026 después de ver `/m/521966600` (3v3 Highland): "
 - [x] **La obra arranca cuando llega el primer constructor** (antes subía sola desde que se ponían los cimientos). En la partida, los cimientos esperan 12,6 s de mediana (el 90 %, menos de 50 s). Si el primer constructor conocido llega más de 90 s después (pasa con granjas que construyó un aldeano que el motor no vincula), sube desde que se puso, como antes; y los cimientos a los que nunca va nadie, también.
 - [ ] Recorridos: edificios y acantilados como obstáculos; árboles talados que abren paso.
 - [x] Íconos de las investigaciones del juego en el panel (`tools/sprites/techicons.py`: un atlas WebP de 177 íconos, 172 KB, que se baja solo con el panel abierto; las edades con su ícono). Si una investigación no tiene ícono, el nombre.
-- [ ] Los paneles no salen en la exportación a video.
+- [x] Los paneles no salen en la exportación a video (hecho el 19/11/2026, [22](./22-puertas-abandonos-y-pestanas.md)).
 
 ## CI
 - [x] `npm audit` cortaba todos los PR por un aviso alto de `picomatch` (dependencia de ESLint, solo de desarrollo, sin versión corregida todavía). Ahora el CI corta ante avisos altos en las dependencias de producción (`--omit=dev`, hoy 0) y ante críticos en todas. Volver a `--audit-level=high` completo cuando salga el arreglo.
