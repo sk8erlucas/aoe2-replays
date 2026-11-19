@@ -15,6 +15,7 @@ Pedidos de Lucas del 19/11/2026 después de ver `/m/522164674?p=397671` (4v4 Are
 
 ## Falta
 - [ ] **Probar en el navegador** (no hubo navegador en la sesión): las puertas de Arena en `/m/522164674`, las pestañas en escritorio y celular, el final de esa partida (los que se rinden ya no desaparecen) y el video con el panel.
-- [ ] **Partidas guardadas antes**: no tienen `resource_totals`, así que la pestaña Recursos dice que no los trae. Se podría volver a bajar y parsear la partida desde Microsoft (el replay sigue ~4 meses) cuando falte el campo, o dar un botón "volver a procesar".
+- [x] **Partidas guardadas antes** (decidido por Lucas el 19/11/2026: solas). La tabla `matches` tiene `parser_revision`; al pedir los datos de una partida con una revisión anterior a `MATCH_PARSER_REVISION` (hoy 1), la web la vuelve a bajar de Microsoft, la parsea y la guarda (espera hasta 20 s; si no, da la copia vieja sin caché y la nueva queda para la próxima visita). Si Microsoft ya no la tiene, se marca para no reintentar. Cuenta para el límite global de descargas. Los replays subidos a mano no se pueden reprocesar (no se guarda el `.aoe2record`).
+- [ ] Probar el reprocesado contra la base local (no hubo Docker en la sesión) y en producción con `/m/522164674`.
 - [ ] Puntajes como los del juego (militar, economía, tecnología, sociedad): ahora la economía se podría acercar con `resource_totals` más lo gastado.
 - [ ] Recursos separados (comida, madera, oro, piedra): el replay no los trae; habría que estimarlos.

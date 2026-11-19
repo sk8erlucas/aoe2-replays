@@ -13,10 +13,10 @@
 - Cuentas con email y contraseña propias (scrypt y sesiones en Postgres), sin Auth.js: decidido el 09/11/2026 para que funcionen sin claves de terceros. Ver [`tasks/13-cuentas.md`](../tasks/13-cuentas.md).
 - Replays privados; se comparten solo si el enlace se hace público.
 - Se guarda solo el JSON del parser comprimido con gzip (~230 KB para el replay de ejemplo, frente a 2,7 MB sin comprimir), nunca el `.aoe2record`. Metadatos (mapa, jugadores, duración) en columnas para listar.
-- Expiración provisional: 30 días (`REPLAY_TTL_DAYS`). Tamaño máximo provisional: 30 MB.
+- Replays anónimos: vencen a los 30 días (`REPLAY_TTL_DAYS`) y pesan hasta 30 MB. Confirmado el 19/11/2026.
 - Límite provisional: 20 subidas por IP por hora; la IP se guarda solo como HMAC.
 - La cuenta no es obligatoria para subir.
-- Sin planes de pago; se financia con publicidad (probable).
+- Sin planes de pago. **Sin publicidad por ahora** (19/11/2026): las reglas de Microsoft para contenido de fans limitan el uso comercial. Se puede sumar un enlace de donaciones más adelante.
 - Primero un prototipo con gráficos simples; mejora continua.
 - Código abierto; cada pull request se evalúa antes de aceptarse.
 - Monorepo (un solo repo con `apps/`, `services/`, `packages/`), con un contenedor por servicio. Se despliegan por separado aunque compartan repo; el contrato JSON y sus tipos quedan versionados juntos.
@@ -27,12 +27,11 @@
 - Partidas online (hecho): buscar jugadores con aoe2companion y reproducir sus partidas descargando el replay de Microsoft (`tasks/09-partidas-online.md`). Se guardan una vez por número de partida y son públicas; los replays subidos a mano siguen privados.
 - Parser: se sigue con `mgz` parcheado; `aoe2rec` (Rust) queda descartado (12/11/2026). Anda con todos los replays probados (4v4, partida completa y 1v1 en el build 188329) y mantener dos parsers duplicaría el trabajo con cada versión del juego. Se reconsidera solo si se quiere parsear en el navegador (WASM).
 - Portada con hero (arte oficial del juego), cómo funciona, subida, funciones y preguntas frecuentes.
+- Partidas online guardadas con un parser anterior (`MATCH_PARSER_REVISION` en `apps/web/src/lib/matches.ts`) se vuelven a bajar de Microsoft y a procesar solas al abrirlas, mientras Microsoft tenga el replay. Decidido el 19/11/2026 para que las viejas tengan los recursos reales.
+- Nombre propio para el proyecto (las reglas de Microsoft piden no usar el del juego como marca): se eligen opciones el 19/11/2026.
 - Repo público pronto: README público, `CONTRIBUTING.md`, sin replays ni datos personales en los archivos.
 
 ## Abiertas
-- ¿Cuántos días duran los replays de usuarios anónimos antes de borrarse? (hoy 30, configurable)
-- ¿Tamaño máximo de archivo? (el de ejemplo pesa ~2 MB; hay que medir partidas largas)
 - ¿Idiomas de la web: español, inglés o ambos?
 - ¿Dónde se aloja el repo (GitHub personal o una organización)?
 - ¿Dominio y hosting definitivos?
-- ¿Red publicitaria? Afecta a lo legal (ver `LEGAL.md`) y a la experiencia.
