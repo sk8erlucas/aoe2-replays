@@ -83,12 +83,12 @@ export function analyze(data, { replay = null } = {}) {
       }
     }
 
-    // With the engine, what was really queued: not what was taken out of a queue
-    // nor clicks over a full queue. (Clicks refused for lack of resources still
+    // With the engine, what really came out: not what was taken out of a queue,
+    // clicks over a full queue, nor what never had population room. (Clicks refused for lack of resources still
     // count: the engine doesn't know the stock when it queues.)
     if (replay) {
       for (const u of replay.units) {
-        if (u.player !== p.number || u.queuedType == null) continue;
+        if (u.player !== p.number || u.queuedType == null || u.stalled) continue;
         const name = objectName(data, u.queuedType);
         trained.set(name, (trained.get(name) ?? 0) + 1);
       }

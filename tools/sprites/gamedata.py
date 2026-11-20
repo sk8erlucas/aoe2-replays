@@ -1,7 +1,8 @@
 """Game data the viewer engine uses instead of guesses (game-data.json).
 
-- units: speed, class, cost and where each unit is trained (building, seconds);
-- buildings: footprint, build time and cost;
+- units: speed, class, cost, population it takes (pop, only if not 1) and
+  where each unit is trained (building, seconds);
+- buildings: footprint, build time, cost and population room (pop: house 5);
 - techs: research time, cost, where, and the units they upgrade ("upgrade unit"
   commands: Knight -> Cavalier). A replay's queue orders always name the base
   unit, so the engine applies these when the research is done;
@@ -18,6 +19,8 @@ from pathlib import Path
 
 UNIT, BUILDING = 70, 80
 UPGRADE_UNIT = 3
+# Resource 4 is population headroom: a building gives it, a unit takes it (negative).
+POP = 4
 # The game's resource ids -> index in our costs: [food, wood, gold, stone].
 COST_INDEX = {0: 0, 1: 1, 3: 2, 2: 3}
 
@@ -29,6 +32,11 @@ def _cost(costs):
         if c.flag and c.type in COST_INDEX:
             out[COST_INDEX[c.type]] += c.amount
     return out if any(out) else None
+
+
+def _pop(unit):
+    """Population headroom of a unit's storages: positive for buildings that give it."""
+    return sum(s.amount for s in unit.resource_storages if s.type == POP)
 
 
 def _strings(game: Path):
@@ -59,10 +67,14 @@ def game_data(dat, game: Path):
                 units[unit.id] = {'speed': round(unit.speed, 3), 'class': unit.class_, 'train': trains}
                 if cost:
                     units[unit.id]['cost'] = cost
+                if _pop(unit) != -1:
+                    units[unit.id]['pop'] = -_pop(unit)
             elif unit.type == BUILDING and not trained and unit.id not in buildings:
                 buildings[unit.id] = {'size': round(unit.collision_size_x * 2), 'buildTime': trains[0][1]}
                 if cost:
                     buildings[unit.id]['cost'] = cost
+                if _pop(unit) > 0:
+                    buildings[unit.id]['pop'] = _pop(unit)
 
     techs = {}
     for tech_id, tech in enumerate(dat.techs):

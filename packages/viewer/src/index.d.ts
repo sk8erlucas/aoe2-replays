@@ -84,9 +84,10 @@ export type Cost = [number, number, number, number];
 
 /** Game data made by tools/sprites (game-data.json). */
 export interface GameData {
-  /** cost: [food, wood, gold, stone] (missing if free). */
-  units: Record<string, { speed: number; class: number; train: Array<[number, number]>; cost?: Cost }>;
-  buildings: Record<string, { size: number; buildTime: number; cost?: Cost }>;
+  /** cost: [food, wood, gold, stone] (missing if free); pop: population it takes, only if not 1. */
+  units: Record<string, { speed: number; class: number; train: Array<[number, number]>; cost?: Cost; pop?: number }>;
+  /** pop: population room it gives (a house 5). */
+  buildings: Record<string, { size: number; buildTime: number; cost?: Cost; pop?: number }>;
   /** Tech id -> where it is researched ([building type, seconds]), its cost and the units it upgrades ([from, to]). */
   techs?: Record<string, { at: Array<[number, number]>; up?: Array<[number, number]>; cost?: Cost }>;
   /** English names of the units techs upgrade to (no replay command names them). */

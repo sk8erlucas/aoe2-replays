@@ -7,6 +7,7 @@ Detalle en [23](./23-recursos-cancelaciones-y-exactitud.md), con la partida `/m/
 - **Recursos**: total exacto y comida, madera, oro y piedra estimados, ajustados al total del juego cada ~17 s. Costos sacados del juego.
 - **Cancelaciones de la cola**: están en el replay (antes se creía que no). Las unidades canceladas ya no aparecen, la cola se adelanta y se devuelve el costo.
 - **Cola de 15**: los clics de más ya no fabrican unidades. El análisis cuenta lo entrenado de verdad.
+- **Población** (PR siguiente): las unidades esperan lugar (casas, centros urbanos, castillos, hasta 200) en vez de salir igual; las que nunca tienen lugar no salen.
 - **¿Exacto?** Explicado en [23](./23-recursos-cancelaciones-y-exactitud.md): el juego vuelve a simular la partida con su motor; acá se usa todo lo exacto del replay y se anclan las estimaciones a eso.
 - Planes terminados en [`done/`](./done/).
 - **Decisiones**: el nombre queda "AoE2 Replays" y sin publicidad.
