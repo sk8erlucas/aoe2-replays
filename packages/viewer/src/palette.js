@@ -109,6 +109,18 @@ export const GATHER_RATES = {
   berries: 0.28,
 };
 
+// Farmers, per game second, walks included. Estimated like the rest.
+export const FARM_RATE = 0.31;
+// What each player starts with in a standard game: food, wood, gold, stone.
+// Civilization bonuses are left to the reconciliation with the replay's totals.
+export const STARTING_STOCK = [200, 200, 100, 200];
+// The market (prices shared by everyone): each 100 bought costs price * 1.3 in
+// gold and raises the price by 3; each 100 sold gives price * 0.7 and lowers it by 3.
+export const MARKET_START_PRICE = 100;
+export const MARKET_STEP = 3;
+// Tributes cost the sender this much on top (Coinage and Banking lower it: not modelled).
+export const TRIBUTE_FEE = 0.3;
+
 // How far (tiles) a gatherer looks for the next resource of the same kind.
 export const RETARGET_RADIUS = 8;
 // Villagers done with their food look this far for an animal already being hunted

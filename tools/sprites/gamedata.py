@@ -1,8 +1,8 @@
 """Game data the viewer engine uses instead of guesses (game-data.json).
 
-- units: speed, class and where each unit is trained (building, seconds);
-- buildings: footprint and build time;
-- techs: research time, where, and the units they upgrade ("upgrade unit"
+- units: speed, class, cost and where each unit is trained (building, seconds);
+- buildings: footprint, build time and cost;
+- techs: research time, cost, where, and the units they upgrade ("upgrade unit"
   commands: Knight -> Cavalier). A replay's queue orders always name the base
   unit, so the engine applies these when the research is done;
 - names: English names (the game's string table) of the units techs upgrade
@@ -18,6 +18,17 @@ from pathlib import Path
 
 UNIT, BUILDING = 70, 80
 UPGRADE_UNIT = 3
+# The game's resource ids -> index in our costs: [food, wood, gold, stone].
+COST_INDEX = {0: 0, 1: 1, 3: 2, 2: 3}
+
+
+def _cost(costs):
+    """[food, wood, gold, stone] the game takes (flag set), or None if free."""
+    out = [0, 0, 0, 0]
+    for c in costs:
+        if c.flag and c.type in COST_INDEX:
+            out[COST_INDEX[c.type]] += c.amount
+    return out if any(out) else None
 
 
 def _strings(game: Path):
@@ -43,10 +54,15 @@ def game_data(dat, game: Path):
             # not built by villagers.
             at = civ.units[trains[0][0]] if trains[0][0] < len(civ.units) else None
             trained = unit.type == UNIT or (at is not None and at.type == BUILDING)
+            cost = _cost(unit.creatable.resource_costs)
             if trained and unit.id not in units:
                 units[unit.id] = {'speed': round(unit.speed, 3), 'class': unit.class_, 'train': trains}
+                if cost:
+                    units[unit.id]['cost'] = cost
             elif unit.type == BUILDING and not trained and unit.id not in buildings:
                 buildings[unit.id] = {'size': round(unit.collision_size_x * 2), 'buildTime': trains[0][1]}
+                if cost:
+                    buildings[unit.id]['cost'] = cost
 
     techs = {}
     for tech_id, tech in enumerate(dat.techs):
@@ -54,6 +70,9 @@ def game_data(dat, game: Path):
         if not places:
             continue
         entry = {'at': places}
+        cost = _cost(tech.resource_costs)
+        if cost:
+            entry['cost'] = cost
         if 0 <= tech.effect_id < len(dat.effects):
             ups = [[c.a, c.b] for c in dat.effects[tech.effect_id].effect_commands
                    if c.type == UPGRADE_UNIT and c.a in units and c.b >= 0]

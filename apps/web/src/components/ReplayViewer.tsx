@@ -520,6 +520,7 @@ function ReplayStage({ data, actions, extras, moment, gameData }: ViewerProps & 
     if (e.kind === "chat") return `: “${e.text ?? ""}”`;
     if (e.kind === "resign") return ` ${l.resign}`;
     if (e.kind === "queue") return ` ${l.queue(e.amount ?? 1, e.name ?? "")}`;
+    if (e.kind === "dequeue") return ` ${l.dequeue(e.name ?? "")}`;
     if (e.kind === "research") return ` ${l.research(e.name ?? "")}`;
     if (e.kind === "delete") return ` ${l.delete(e.amount ?? 1, e.name ?? "")}`;
     if (e.cancelled && e.segments) return ` ${l.buildCancelled(e.name ?? "", e.segments)}`;
@@ -657,7 +658,7 @@ function ReplayStage({ data, actions, extras, moment, gameData }: ViewerProps & 
               </button>
             ))}
           </div>
-          {tab === "analysis" && <AnalysisPanel data={data} onSeek={seek} />}
+          {tab === "analysis" && <AnalysisPanel data={data} replay={replay} onSeek={seek} />}
           {tab === "ai" && <AiContextPanel data={data} />}
           {tab === "chat" && <ChatPanel data={data} t={t} onSeek={seek} />}
           {tab === "events" && (

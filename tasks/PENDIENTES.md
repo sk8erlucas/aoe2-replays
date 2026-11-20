@@ -2,6 +2,15 @@
 
 Separados entre lo que necesita una decisión o acción tuya y lo que se puede avanzar sin vos.
 
+## Sesión del 20/11/2026: recursos por tipo y cancelaciones
+Detalle en [23](./23-recursos-cancelaciones-y-exactitud.md), con la partida `/m/522363603?p=5675276` (4v4 Black Forest, 68 min).
+- **Recursos**: total exacto y comida, madera, oro y piedra estimados, ajustados al total del juego cada ~17 s. Costos sacados del juego.
+- **Cancelaciones de la cola**: están en el replay (antes se creía que no). Las unidades canceladas ya no aparecen, la cola se adelanta y se devuelve el costo.
+- **Cola de 15**: los clics de más ya no fabrican unidades. El análisis cuenta lo entrenado de verdad.
+- **¿Exacto?** Explicado en [23](./23-recursos-cancelaciones-y-exactitud.md): el juego vuelve a simular la partida con su motor; acá se usa todo lo exacto del replay y se anclan las estimaciones a eso.
+- Planes terminados en [`done/`](./done/).
+- **Decisiones**: el nombre queda "AoE2 Replays" y sin publicidad.
+
 ## Sesión del 19/11/2026: puertas, abandonos y pestañas del panel
 Detalle en [22](./22-puertas-abandonos-y-pestanas.md), con la partida `/m/522164674?p=397671` (4v4 Arena).
 - **Puertas del mapa** (Arena las trae puestas): ya se ven, con el sprite de la puerta construida.
@@ -88,12 +97,12 @@ Detalle en [17](./17-murallas-jabalies-granjas.md).
 
 ## Sesión del 12/11/2026 (tarde)
 - **Parser cerrado**: test con un 1v1 en el build 188329, nombres para los IDs que `aocref` no tiene, `aoe2rec` descartado.
-- **Plan de la web cerrado** ([03-web-completed](./03-web-completed.md)): quedan el CAPTCHA y la publicidad, que ya están en la tabla de abajo. La cola de parseo no hace falta (0,33 s para 48 min).
+- **Plan de la web cerrado** ([03-web](./done/03-web.md)): quedan el CAPTCHA y la publicidad, que ya están en la tabla de abajo. La cola de parseo no hace falta (0,33 s para 48 min).
 - **Portada**: sección "Partidas de los que seguís" con las últimas partidas de la campanita, solo con sesión iniciada.
 - **Para probar en el navegador**: esa sección con una cuenta que siga jugadores, y que al abrir una partida desde ahí se marque como leída en la campanita.
 
 ## Parser (cerrado el 12/11/2026)
-Plan en [01-parser-completed](./01-parser-completed.md). Queda abierto:
+Plan en [01-parser](./done/01-parser.md). Queda abierto:
 - [ ] Probar contra la primera versión del juego con un save distinto de 68.9 (hoy se parsea y se marca `untested_version`).
 - [ ] Decidir si se proponen los parches de 68.9 a `mgz` upstream (lo haría Lucas con su cuenta).
 
@@ -115,7 +124,6 @@ Quedó a medio revisar o detectado al cerrar la sesión del 29/10/2026:
 |---|---|---|
 | CAPTCHA | Crear claves de Cloudflare Turnstile (sitio + secreto) | Protección de subidas anónimas |
 | Ilustraciones | Decidir si se encargan o se hacen propias (estilo grabado, ver [DESIGN](../docs/DESIGN.md)). El logo ya está | Portada final |
-| Nombre del proyecto | Decidido buscar uno propio (19/11/2026): elegir entre las opciones propuestas y comprar el dominio ([LEGAL](../docs/LEGAL.md)) | Lanzamiento público |
 | GitHub | Protección de `main`, secret scanning, reporte privado de vulnerabilidades, etiquetas `good first issue`, imagen de vista previa y primer Release | Colaboradores |
 | Replays de prueba | Hechos la partida completa y el 1v1. Falta uno de versión 66/67 (si todavía se puede conseguir) | Probar los parches viejos |
 | Docker local | El build de imágenes falla por certificados SSL en esta máquina (antivirus o proxy que intercepta HTTPS). Postgres local sí funciona | Probar las imágenes antes del deploy |
@@ -123,7 +131,7 @@ Quedó a medio revisar o detectado al cerrar la sesión del 29/10/2026:
 | Legal | Leer reglas de contenido de fans de Microsoft ([LEGAL](../docs/LEGAL.md)) | Publicidad, lanzamiento |
 | Dominio propio | Opcional: hoy la web está en aoe2replays.sitemaster.com.ar (`SITE_URL`) | SEO |
 | Correo (Resend) | Crear la cuenta, verificar el dominio y generar `RESEND_API_KEY` | Recuperar la contraseña y verificar emails |
-| Decisiones abiertas | Quedan dominio y hosting definitivos ([DECISIONS](../docs/DECISIONS.md)). Expiración (30 días) y tamaño (30 MB) confirmados y sin publicidad por ahora (19/11/2026) | Ajustes |
+| Decisiones abiertas | Quedan dominio y hosting definitivos ([DECISIONS](../docs/DECISIONS.md)). Expiración (30 días) y tamaño (30 MB) confirmados (19/11/2026); sin publicidad y el nombre queda (20/11/2026) | Ajustes |
 
 ## Automático (se puede avanzar sin vos)
 - [x] Persistencia: Postgres + Prisma, guardar el JSON (gzip) con enlace privado y token de gestión
@@ -140,7 +148,7 @@ Quedó a medio revisar o detectado al cerrar la sesión del 29/10/2026:
 - [x] Pestaña "IA" en el visor: resumen y detalle completo en texto para pegar en una IA, y descarga del JSON
 - [x] Búsqueda de jugadores, perfiles y partidas online `/m/<matchId>` ([09](./09-partidas-online.md))
 - [x] Portada con hero, contenido y capturas; README público y CONTRIBUTING
-- [x] Plantillas de issue y pull request, código de conducta ([06](./06-comunidad-completed.md))
+- [x] Plantillas de issue y pull request, código de conducta ([06](./done/06-comunidad.md))
 - [x] Música de fondo en el visor ([08](./08-experiencia-de-juego.md))
 - [x] Interfaz en español e inglés
 - [~] SEO y compartir en redes: hechos los metadatos por jugador y partida, el sitemap con partidas, la página 404, el botón "Compartir" (menú nativo, WhatsApp, X, Reddit, Telegram) y las imágenes de vista previa generadas. Falta renderizar en el servidor ([10](./10-seo-y-redes.md))

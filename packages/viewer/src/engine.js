@@ -25,7 +25,8 @@
 // the nearest unfinished building of its player.
 // Researches queue in their building and take the game's time; when one ends,
 // the units it upgrades (Knight -> Cavalier) change, since queue orders always
-// name the base unit. Cancelled researches are not in a replay.
+// name the base unit. Units and researches taken out of a queue are in the
+// replay (SPECIAL order 4): they never happen and the queue moves up.
 
 import {
   AGE_TECHS, ANIMAL_FOOD, CARCASS_ROT_MS, DANGEROUS_ANIMALS, DROP_SITE_REACH, DROP_SITES, RESEARCH_TIMES, ATTACK_HOLD_MS, BUILD_TIMES, DEFAULT_ANIMAL_FOOD, DEFAULT_BUILD_TIME, DEFAULT_FOOTPRINT,
@@ -34,6 +35,7 @@ import {
 } from './palette.js';
 import { isSystemMessage, noticeTimes, settleAgeUps } from './notices.js';
 import { NavGrid } from './pathing.js';
+import { stockTimeline } from './economy.js';
 
 // How far a villager sent to a taken farm looks for a free one (tiles). Estimated.
 const FARM_SEARCH = 10;
@@ -56,6 +58,12 @@ const KEEPS_WORKING = new Set([
 ]);
 // SPECIAL with this order_id and an own building as target: garrison in it.
 const GARRISON_ORDER = 5;
+// SPECIAL with this order_id on a building: take one out of its production
+// queue (slot_id: which icon, counting from the one in production). Measured
+// with the replay's resource totals: the cost comes back.
+const DEQUEUE_ORDER = 4;
+// A building's production queue holds this many (units and researches), like in the game.
+const QUEUE_LIMIT = 15;
 // The town bell sends this many villagers (the town center holds 15) from this
 // far (tiles) into the town center. Estimated.
 const BELL_CAPACITY = 15;
@@ -301,6 +309,8 @@ export class Replay {
     this.ageUps = new Map(); // player -> [{ age, t }] (arrival: exact with the game's notices, else estimated)
     // Each research once per player: { player, techId, name, building, t0, t1 } (t1 estimated).
     this.researches = [];
+    // Taken out of a queue: { player, t, at (when queued), unitId | techId }. Paid, then given back.
+    this.cancelled = [];
 
     // Object IDs are handed out in creation order: (id, time) pairs that are known
     // place an unknown ID in time, to bind it to the unit trained around then.
@@ -550,6 +560,13 @@ export class Replay {
     for (const [index, e] of this.data.timeline.entries()) {
       if (!this.dry) this.#advanceGathering(e.t);
       let ids = selected(e);
+      if (e.type === 'SPECIAL' && e.order_id === DEQUEUE_ORDER) {
+        for (const id of ids) {
+          const b = this.buildingById.get(id);
+          if (b && b.player === e.player) this.#dequeue(b, e.slot_id ?? 0, e.t);
+        }
+        continue;
+      }
       if (this.dry) {
         if (e.type === 'DE_QUEUE') this.#queue(e, ids, index);
         else if (e.type === 'BUILD') this.#build(e, this.#samePlace(e));
@@ -1054,7 +1071,7 @@ export class Replay {
 
   // The research queues in its building like a unit: what is queued after it waits.
   // A second click on a tech already researched or under way is ignored, like in
-  // the game (cancellations are not in the replay: the first click counts).
+  // the game (one cancelled from the queue can be clicked again, see #dequeue).
   #occupy(e, ids) {
     if (this.researches.some((r) => r.player === e.player && r.techId === e.technology_id)) return null;
     const places = this.game?.techs?.[e.technology_id]?.at;
@@ -1063,10 +1080,61 @@ export class Replay {
     const seconds = places?.find(([at]) => at === building?.typeId || at === SAME_BUILDING[building?.typeId])?.[1]
       ?? places?.[0]?.[1] ?? RESEARCH_TIMES[name];
     const t0 = Math.max(e.t, building?.queueEnd ?? 0);
-    const r = { player: e.player, techId: e.technology_id, name, building: building ?? null, t0, t1: t0 + (seconds ?? 0) * 1000 };
+    const r = { player: e.player, techId: e.technology_id, name, building: building ?? null, clickedAt: e.t, t0, t1: t0 + (seconds ?? 0) * 1000 };
     this.researches.push(r);
-    if (building && seconds) building.queueEnd = r.t1;
+    if (building && seconds) {
+      building.queueEnd = r.t1;
+      (building.queue ??= []).push({ kind: `t${e.technology_id}`, t0, t1: r.t1, research: r });
+    }
     return r;
+  }
+
+  // The game shows a queue as icons: the one in production, then one per run of
+  // the same unit (or research) waiting, with a count; a click on one takes its
+  // last item out. Measured: slot 1 three times after queuing 4 villagers gives
+  // back 150 food (only slots 0 and 1 show up in real matches). The rest of the queue
+  // moves up by the time that item would have taken, its cost comes back (see
+  // economy.js) and the unit never comes out.
+  #dequeue(building, slot, t) {
+    const groups = [];
+    for (const q of building.queue ?? []) {
+      if (q.t1 <= t) continue;
+      const g = groups[groups.length - 1];
+      // The first icon is the one in production, on its own.
+      if (g && g.kind === q.kind && groups.length > 1) g.items.push(q);
+      else groups.push({ kind: q.kind, items: [q] });
+    }
+    const item = groups[slot]?.items.at(-1);
+    if (!item) return;
+    const shift = item.t1 - Math.max(item.t0, t);
+    building.queue.splice(building.queue.indexOf(item), 1);
+    for (const q of building.queue) {
+      if (q.t0 < item.t1 - 1) continue;
+      q.t0 -= shift;
+      q.t1 -= shift;
+      if (q.unit) {
+        q.unit.spawnT = q.unit.path[0].t0 = q.t1;
+        const exit = this.exits.find((x) => x.unit === q.unit);
+        if (exit) exit.t = q.t1;
+      } else {
+        q.research.t0 = q.t0;
+        q.research.t1 = q.t1;
+      }
+    }
+    if (building.queueEnd >= item.t1 - 1) building.queueEnd -= shift;
+    if (item.unit) {
+      const u = item.unit;
+      this.units.splice(this.units.indexOf(u), 1);
+      this.trainedByKey.delete(u.key);
+      if (u.id != null) this.unitById.delete(u.id);
+      this.exits = this.exits.filter((x) => x.unit !== u);
+      this.cancelled.push({ player: building.player, t, at: u.queuedAt, unitId: u.queuedType });
+      this.log.push({ t, player: building.player, kind: 'dequeue', name: this.objectName(u.typeId) });
+    } else {
+      this.researches.splice(this.researches.indexOf(item.research), 1);
+      this.cancelled.push({ player: building.player, t, at: item.research.clickedAt, techId: item.research.techId });
+      this.log.push({ t, player: building.player, kind: 'dequeue', name: item.research.name });
+    }
   }
 
   // Upgrades take effect when their research is done: every unit of that player
@@ -1220,9 +1288,16 @@ export class Replay {
     this.log.push({ t: e.t, player: e.player, kind: 'queue', name, amount: e.amount });
     if (!sites.size) return;
     const trains = this.#trainSites(e.unit_id);
+    // What already came out is no longer in the queue (keeps it short).
+    for (const b of sites) if (b.queue) b.queue = b.queue.filter((q) => q.t1 > e.t);
+    const waiting = (b) => b.queue?.length ?? 0;
     for (let i = 0; i < e.amount; i++) {
       let building = null;
-      for (const b of sites) if (!building || Math.max(e.t, b.queueEnd) < Math.max(e.t, building.queueEnd)) building = b;
+      for (const b of sites) {
+        if (waiting(b) >= QUEUE_LIMIT) continue; // full: the game refuses the click (and charges nothing)
+        if (!building || Math.max(e.t, b.queueEnd) < Math.max(e.t, building.queueEnd)) building = b;
+      }
+      if (!building) break;
       const gameTime = trains?.find(([at]) => at === building.typeId || at === SAME_BUILDING[building.typeId])?.[1];
       const trainTime = (gameTime ?? TRAIN_TIMES[name] ?? DEFAULT_TRAIN_TIME) * 1000;
       const start = Math.max(e.t, building.queueEnd);
@@ -1234,8 +1309,11 @@ export class Replay {
         t: building.queueEnd, approx: true,
       }));
       unit.key = `${index}:${i}`;
+      unit.queuedAt = e.t;
+      unit.queuedType = e.unit_id;
       this.trainedByKey.set(unit.key, unit);
       this.exits.push({ unit, t: building.queueEnd, building });
+      (building.queue ??= []).push({ kind: `u${e.unit_id}`, t0: start, t1: building.queueEnd, unit });
     }
   }
 
@@ -1535,7 +1613,8 @@ export class Replay {
   }
 
   // A trained villager whose ID never shows up in any command of the whole match
-  // is doubtful: it may have been dequeued (cancellations are not in a replay) or
+  // is doubtful: it may have died early or been taken out of a queue in a way the
+  // engine missed, or
   // have died early. It does its first job (gather point) and then leaves, rather
   // than standing idle for the rest of the game. Soldiers stay at their gather
   // point, like in the game: armies pile up there until sent out. Many are never
@@ -1767,7 +1846,7 @@ export class Replay {
   /**
    * What a player is researching at t, in click order, with how far along each
    * is (0..1). Estimated: research times are the game's, without civilization
-   * bonuses; cancellations are not in a replay.
+   * bonuses; the ones taken out of the queue are left out.
    */
   researchesAt(player, t) {
     const end = Math.min(this.duration, this.resignedAt.get(player) ?? Infinity);
@@ -1817,6 +1896,31 @@ export class Replay {
     const out = new Map();
     const at = list[lo - 1];
     for (const p of this.players) out.set(p.number, at ? at.players[p.number] ?? 0 : null);
+    return out;
+  }
+
+  /**
+   * Each player's stockpile at t by resource: { total, food, wood, gold, stone }.
+   * The total is the game's (last sync at or before t); the split is estimated
+   * and corrected to that total every sync (see economy.js). Null if the replay
+   * doesn't carry the totals.
+   */
+  stockAt(t) {
+    if (this.stock === undefined) this.stock = stockTimeline(this);
+    if (!this.stock) return null;
+    const out = new Map();
+    for (const p of this.players) {
+      const list = this.stock.get(p.number) ?? [];
+      let lo = 0;
+      let hi = list.length;
+      while (lo < hi) {
+        const mid = (lo + hi) >> 1;
+        if (list[mid].t <= t) lo = mid + 1;
+        else hi = mid;
+      }
+      const at = list[lo - 1];
+      out.set(p.number, at ? { total: at.total, food: at.food, wood: at.wood, gold: at.gold, stone: at.stone } : null);
+    }
     return out;
   }
 

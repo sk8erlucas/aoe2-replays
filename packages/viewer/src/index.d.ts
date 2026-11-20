@@ -4,7 +4,7 @@ import type { Player, ReplayData } from '@aoe2-replays/shared';
 export interface LogEntry {
   t: number;
   player: number | null;
-  kind: 'build' | 'queue' | 'research' | 'resign' | 'delete' | 'chat';
+  kind: 'build' | 'queue' | 'dequeue' | 'research' | 'resign' | 'delete' | 'chat';
   /** Object or technology name (game names, in English). */
   name?: string;
   amount?: number;
@@ -79,12 +79,16 @@ export type Hit =
   | ({ kind: 'unit' } & State['units'][number])
   | ({ kind: 'building' } & State['buildings'][number]);
 
+/** Food, wood, gold, stone. */
+export type Cost = [number, number, number, number];
+
 /** Game data made by tools/sprites (game-data.json). */
 export interface GameData {
-  units: Record<string, { speed: number; class: number; train: Array<[number, number]> }>;
-  buildings: Record<string, { size: number; buildTime: number }>;
-  /** Tech id -> where it is researched ([building type, seconds]) and the units it upgrades ([from, to]). */
-  techs?: Record<string, { at: Array<[number, number]>; up?: Array<[number, number]> }>;
+  /** cost: [food, wood, gold, stone] (missing if free). */
+  units: Record<string, { speed: number; class: number; train: Array<[number, number]>; cost?: Cost }>;
+  buildings: Record<string, { size: number; buildTime: number; cost?: Cost }>;
+  /** Tech id -> where it is researched ([building type, seconds]), its cost and the units it upgrades ([from, to]). */
+  techs?: Record<string, { at: Array<[number, number]>; up?: Array<[number, number]>; cost?: Cost }>;
   /** English names of the units techs upgrade to (no replay command names them). */
   names?: Record<string, string>;
 }
@@ -126,8 +130,19 @@ export interface Research {
   techId: number;
   name: string;
   building: Building | null;
+  /** When it was clicked (and paid); t0 is when it starts, after what was queued before. */
+  clickedAt: number;
   t0: number;
   t1: number;
+}
+
+/** Taken out of a production queue: paid when queued (at), given back at t. */
+export interface Cancelled {
+  player: number;
+  t: number;
+  at: number;
+  unitId?: number;
+  techId?: number;
 }
 
 export class Replay {
@@ -145,6 +160,7 @@ export class Replay {
   log: LogEntry[];
   /** Each tech once per player (a repeated click is ignored), in click order. */
   researches: Research[];
+  cancelled: Cancelled[];
   objectName(typeId: number): string;
   /** What a player is researching at t (estimated), with progress 0..1. */
   researchesAt(player: number, t: number): Array<{ techId: number; name: string; t0: number; t1: number; progress: number }>;
@@ -152,6 +168,11 @@ export class Replay {
   villagerJobsAt(t: number): Map<number, VillagerJobs>;
   /** Each player's stockpile (food + wood + gold + stone) at t as the game had it, or null if the replay lacks it. */
   resourcesAt(t: number): Map<number, number | null> | null;
+  /**
+   * Each player's stockpile at t: the total is the game's (from the replay's syncs),
+   * the split by resource estimated and corrected to it every sync. Null without totals.
+   */
+  stockAt(t: number): Map<number, { total: number; food: number; wood: number; gold: number; stone: number } | null> | null;
   /** Each player's army at t by kind (estimated). */
   armyAt(t: number): Map<number, Army>;
   /** Age, units, researches and buildings per player at t (estimated, ages exact with notices). */
@@ -312,7 +333,8 @@ export interface Analysis {
 }
 
 export const AGES: Array<{ key: AgeUp['key']; label: string; tech: string; seconds: number }>;
-export function analyze(data: ReplayData): Analysis;
+/** With `replay` (the engine), units trained leave out cancellations and clicks over a full queue. */
+export function analyze(data: ReplayData, options?: { replay?: Replay | null }): Analysis;
 export function bucketSize(durationMs: number, maxBars?: number): number;
 
 /**

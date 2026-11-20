@@ -13,6 +13,7 @@ type PanelLabels = Messages["viewer"]["panels"];
 
 const JOBS = ["food", "wood", "gold", "stone", "build", "idle"] as const;
 const ARMY = ["infantry", "archers", "cavalry", "siege", "ships", "monks"] as const;
+const STOCK = ["food", "wood", "gold", "stone"] as const;
 const OVERVIEW = ["age", "pop", "researches", "buildings"] as const;
 const TAB_KEY = "viewer-panel-tab";
 
@@ -51,10 +52,19 @@ export function panelTable(replay: Replay, tab: PanelTab, t: number, p: PanelLab
     };
   }
   if (tab === "resources") {
-    const stock = replay.resourcesAt(t);
+    const stock = replay.stockAt(t);
     const rows = new Map<number, PanelRow>();
-    for (const pl of players) rows.set(pl.number, { stock: stock?.get(pl.number) ?? null });
-    return { rows, columns: [{ key: "stock", label: p.stockShort, title: p.stockTitle }] };
+    for (const pl of players) {
+      const s = stock?.get(pl.number);
+      rows.set(pl.number, s ? { ...s } : { total: null, food: null, wood: null, gold: null, stone: null });
+    }
+    return {
+      rows,
+      columns: [
+        { key: "total", label: "Σ", title: p.stockTitle },
+        ...STOCK.map((k) => ({ key: k, label: p.stockShort[k], title: p.stockKinds[k] })),
+      ],
+    };
   }
   if (tab === "overview") {
     const rows = new Map<number, PanelRow>();
@@ -75,6 +85,6 @@ export function panelTable(replay: Replay, tab: PanelTab, t: number, p: PanelLab
 /** A cell as text: thousands as "12.3k" so the column stays narrow, missing as a dash. */
 export function panelCell(key: string, v: number | string | null | undefined): string {
   if (v == null) return "–";
-  if (typeof v === "number" && key === "stock" && v >= 10_000) return `${(v / 1000).toFixed(1)}k`;
+  if (typeof v === "number" && v >= 10_000) return `${(v / 1000).toFixed(1)}k`;
   return String(v);
 }

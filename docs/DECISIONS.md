@@ -16,7 +16,7 @@
 - Replays anónimos: vencen a los 30 días (`REPLAY_TTL_DAYS`) y pesan hasta 30 MB. Confirmado el 19/11/2026.
 - Límite provisional: 20 subidas por IP por hora; la IP se guarda solo como HMAC.
 - La cuenta no es obligatoria para subir.
-- Sin planes de pago. **Sin publicidad por ahora** (19/11/2026): las reglas de Microsoft para contenido de fans limitan el uso comercial. Se puede sumar un enlace de donaciones más adelante.
+- Sin planes de pago. **Sin publicidad** (19/11/2026, confirmado el 20/11/2026): las reglas de Microsoft para contenido de fans limitan el uso comercial. Se puede sumar un enlace de donaciones más adelante.
 - Primero un prototipo con gráficos simples; mejora continua.
 - Código abierto; cada pull request se evalúa antes de aceptarse.
 - Monorepo (un solo repo con `apps/`, `services/`, `packages/`), con un contenedor por servicio. Se despliegan por separado aunque compartan repo; el contrato JSON y sus tipos quedan versionados juntos.
@@ -28,7 +28,7 @@
 - Parser: se sigue con `mgz` parcheado; `aoe2rec` (Rust) queda descartado (12/11/2026). Anda con todos los replays probados (4v4, partida completa y 1v1 en el build 188329) y mantener dos parsers duplicaría el trabajo con cada versión del juego. Se reconsidera solo si se quiere parsear en el navegador (WASM).
 - Portada con hero (arte oficial del juego), cómo funciona, subida, funciones y preguntas frecuentes.
 - Partidas online guardadas con un parser anterior (`MATCH_PARSER_REVISION` en `apps/web/src/lib/matches.ts`) se vuelven a bajar de Microsoft y a procesar solas al abrirlas, mientras Microsoft tenga el replay. Decidido el 19/11/2026 para que las viejas tengan los recursos reales.
-- Nombre propio para el proyecto (las reglas de Microsoft piden no usar el del juego como marca): se eligen opciones el 19/11/2026.
+- Nombre: queda **AoE2 Replays**, con el aviso de "no afiliado" siempre visible (Lucas, 20/11/2026).
 - Repo público pronto: README público, `CONTRIBUTING.md`, sin replays ni datos personales en los archivos.
 
 ## Abiertas
