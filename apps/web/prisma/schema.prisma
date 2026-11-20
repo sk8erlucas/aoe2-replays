@@ -69,6 +69,9 @@ model Match {
   /// Parser output, gzip-compressed JSON.
   data      Bytes
   dataBytes Int   @map("data_bytes")
+  /// MATCH_PARSER_REVISION (lib/matches.ts) it was last processed (or tried) with:
+  /// older matches are downloaded and parsed again when opened.
+  parserRevision Int @default(0) @map("parser_revision")
 
   @@index([importedAt])
   @@index([lastViewedAt])

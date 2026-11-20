@@ -2,6 +2,23 @@
 
 Separados entre lo que necesita una decisión o acción tuya y lo que se puede avanzar sin vos.
 
+## Sesión del 20/11/2026: recursos por tipo y cancelaciones
+Detalle en [23](./23-recursos-cancelaciones-y-exactitud.md), con la partida `/m/522363603?p=5675276` (4v4 Black Forest, 68 min).
+- **Recursos**: total exacto y comida, madera, oro y piedra estimados, ajustados al total del juego cada ~17 s. Costos sacados del juego.
+- **Cancelaciones de la cola**: están en el replay (antes se creía que no). Las unidades canceladas ya no aparecen, la cola se adelanta y se devuelve el costo.
+- **Cola de 15**: los clics de más ya no fabrican unidades. El análisis cuenta lo entrenado de verdad.
+- **¿Exacto?** Explicado en [23](./23-recursos-cancelaciones-y-exactitud.md): el juego vuelve a simular la partida con su motor; acá se usa todo lo exacto del replay y se anclan las estimaciones a eso.
+- Planes terminados en [`done/`](./done/).
+- **Decisiones**: el nombre queda "AoE2 Replays" y sin publicidad.
+
+## Sesión del 19/11/2026: puertas, abandonos y pestañas del panel
+Detalle en [22](./22-puertas-abandonos-y-pestanas.md), con la partida `/m/522164674?p=397671` (4v4 Arena).
+- **Puertas del mapa** (Arena las trae puestas): ya se ven, con el sprite de la puerta construida.
+- **Abandonos**: lo del jugador que se rinde queda en el mapa (aldeanos parados, soldados quietos, edificios en pie), como en el juego.
+- **Panel con pestañas**: Aldeanos, Ejército, Recursos y Resumen. **Los recursos son reales** (los trae el replay, `resource_totals` en el parser); las partidas guardadas antes no los tienen.
+- **Video**: los paneles salen en la exportación (opción).
+- **Para probar en el navegador**: esa partida (puertas, pestañas, el final con las rendiciones) y un video con el panel. Las partidas guardadas antes se vuelven a procesar solas al abrirlas (columna `parser_revision`, se aplica con la migración del deploy).
+
 ## Sesión del 16/11/2026: unidades que faltan y edificios destruidos
 Detalle en [19](./19-unidades-y-edificios-destruidos.md), con la partida `/m/521529321`.
 - **Unidades que faltaban**: las colas en varios cuarteles a la vez se reparten, el Huskarl encolado en el cuartel sale de ahí y el centro urbano terminado (que cambia de ID) sigue entrenando. Los godos de esa partida pasan de 116 a 417 unidades.
@@ -10,6 +27,23 @@ Detalle en [19](./19-unidades-y-edificios-destruidos.md), con la partida `/m/521
 - **Construir con varios aldeanos** es más rápido, como en el juego: n aldeanos a (n + 2) / 3 la velocidad de uno ([08](./08-experiencia-de-juego.md)).
 - Diseño (fase 7) cerrado: lo opcional que queda está en [DESIGN](../docs/DESIGN.md).
 - **Para probar en el navegador**: esa partida siguiendo a Dekaryn, y la de las murallas (`/m/520532792`).
+
+## Sesión del 18/11/2026 (tarde): recorridos, constructores y paneles
+Detalle en [21](./21-recorridos-constructores-y-paneles.md).
+- **Recorridos**: las unidades ya no cruzan el agua (el río de Highland, "Water, Shallow", el parser lo tomaba por vado) y rodean los bosques; los barcos van por agua.
+- **Constructores**: quien termina un edificio sigue con los cimientos propios más cercanos.
+- **Guarnición**: los aldeanos que entran al centro urbano (o con la campana) vuelven a trabajar con "volver al trabajo"; antes quedaban parados para siempre. Arreglado otro error de IDs del parser (`UNGARRISON`).
+- **Paneles** sobre el mapa (`V`): aldeanos por tarea de cada jugador e investigaciones en curso del jugador seguido, con los íconos del juego.
+- **Obras**: arrancan cuando llega el primer constructor, no al poner los cimientos.
+- **CI**: `npm audit` ya no corta por avisos de herramientas de desarrollo sin arreglo (solo críticos); las dependencias de producción siguen exigiendo cero avisos altos.
+- **Para probar en el navegador**: `/m/521966600?p=5675276`.
+
+## Sesión del 18/11/2026: mejoras de unidades, unidades que faltan y visor
+Detalle en [20](./20-aldeanos-parados-y-visor.md), con la partida `/m/521966600` (3v3 Highland).
+- **Mejoras de unidades**: al terminar la investigación las unidades cambian (Caballero → Paladín) y las nuevas salen mejoradas. Tiempos de investigación del juego en `game-data.json` (`tools/sprites/gamedata.py`).
+- **Unidades que faltaban**: trabuquetes que no salían del castillo, soldados que desaparecían al llegar al punto de reunión, ~120 órdenes por partida que se perdían por la selección y un error del parser en los IDs de `SPECIAL`.
+- **Pedidos del 16/11 (noche)**: quien termina un centro urbano se pone a juntar recursos; los aldeanos borrados se van (con desvanecido y en el registro); pantalla completa (`Mayús+F`); la música se pausa con la reproducción.
+- **Para probar en el navegador**: esa partida siguiendo a Fibonaku (`?p=5675276`), la pantalla completa (también en iPhone) y la música al pausar.
 
 ## Idea nueva: visores de partida
 Paneles arriba del visor, que se eligen y ordenan, con los aldeanos de cada jugador por recurso y los puntajes como arriba del minimapa del juego (estimados). También las investigaciones en curso del jugador seguido, con ícono y barra de progreso como en el juego. Plan en [18-visores-de-partida](./18-visores-de-partida.md).
@@ -63,12 +97,12 @@ Detalle en [17](./17-murallas-jabalies-granjas.md).
 
 ## Sesión del 12/11/2026 (tarde)
 - **Parser cerrado**: test con un 1v1 en el build 188329, nombres para los IDs que `aocref` no tiene, `aoe2rec` descartado.
-- **Plan de la web cerrado** ([03-web-completed](./03-web-completed.md)): quedan el CAPTCHA y la publicidad, que ya están en la tabla de abajo. La cola de parseo no hace falta (0,33 s para 48 min).
+- **Plan de la web cerrado** ([03-web](./done/03-web.md)): quedan el CAPTCHA y la publicidad, que ya están en la tabla de abajo. La cola de parseo no hace falta (0,33 s para 48 min).
 - **Portada**: sección "Partidas de los que seguís" con las últimas partidas de la campanita, solo con sesión iniciada.
 - **Para probar en el navegador**: esa sección con una cuenta que siga jugadores, y que al abrir una partida desde ahí se marque como leída en la campanita.
 
 ## Parser (cerrado el 12/11/2026)
-Plan en [01-parser-completed](./01-parser-completed.md). Queda abierto:
+Plan en [01-parser](./done/01-parser.md). Queda abierto:
 - [ ] Probar contra la primera versión del juego con un save distinto de 68.9 (hoy se parsea y se marca `untested_version`).
 - [ ] Decidir si se proponen los parches de 68.9 a `mgz` upstream (lo haría Lucas con su cuenta).
 
@@ -90,8 +124,6 @@ Quedó a medio revisar o detectado al cerrar la sesión del 29/10/2026:
 |---|---|---|
 | CAPTCHA | Crear claves de Cloudflare Turnstile (sitio + secreto) | Protección de subidas anónimas |
 | Ilustraciones | Decidir si se encargan o se hacen propias (estilo grabado, ver [DESIGN](../docs/DESIGN.md)). El logo ya está | Portada final |
-| Nombre del proyecto | Las reglas de Microsoft piden no usar el nombre del juego en el título; evaluar un nombre propio ([LEGAL](../docs/LEGAL.md)) | Lanzamiento público |
-| Publicidad | Confirmar si las reglas de Microsoft permiten anuncios en un sitio propio | Activar anuncios |
 | GitHub | Protección de `main`, secret scanning, reporte privado de vulnerabilidades, etiquetas `good first issue`, imagen de vista previa y primer Release | Colaboradores |
 | Replays de prueba | Hechos la partida completa y el 1v1. Falta uno de versión 66/67 (si todavía se puede conseguir) | Probar los parches viejos |
 | Docker local | El build de imágenes falla por certificados SSL en esta máquina (antivirus o proxy que intercepta HTTPS). Postgres local sí funciona | Probar las imágenes antes del deploy |
@@ -99,7 +131,7 @@ Quedó a medio revisar o detectado al cerrar la sesión del 29/10/2026:
 | Legal | Leer reglas de contenido de fans de Microsoft ([LEGAL](../docs/LEGAL.md)) | Publicidad, lanzamiento |
 | Dominio propio | Opcional: hoy la web está en aoe2replays.sitemaster.com.ar (`SITE_URL`) | SEO |
 | Correo (Resend) | Crear la cuenta, verificar el dominio y generar `RESEND_API_KEY` | Recuperar la contraseña y verificar emails |
-| Decisiones abiertas | Confirmar expiración de replays anónimos (hoy 30 días), tamaño máximo (hoy 30 MB), idiomas ([DECISIONS](../docs/DECISIONS.md)) | Ajustes |
+| Decisiones abiertas | Quedan dominio y hosting definitivos ([DECISIONS](../docs/DECISIONS.md)). Expiración (30 días) y tamaño (30 MB) confirmados (19/11/2026); sin publicidad y el nombre queda (20/11/2026) | Ajustes |
 
 ## Automático (se puede avanzar sin vos)
 - [x] Persistencia: Postgres + Prisma, guardar el JSON (gzip) con enlace privado y token de gestión
@@ -116,7 +148,7 @@ Quedó a medio revisar o detectado al cerrar la sesión del 29/10/2026:
 - [x] Pestaña "IA" en el visor: resumen y detalle completo en texto para pegar en una IA, y descarga del JSON
 - [x] Búsqueda de jugadores, perfiles y partidas online `/m/<matchId>` ([09](./09-partidas-online.md))
 - [x] Portada con hero, contenido y capturas; README público y CONTRIBUTING
-- [x] Plantillas de issue y pull request, código de conducta ([06](./06-comunidad-completed.md))
+- [x] Plantillas de issue y pull request, código de conducta ([06](./done/06-comunidad.md))
 - [x] Música de fondo en el visor ([08](./08-experiencia-de-juego.md))
 - [x] Interfaz en español e inglés
 - [~] SEO y compartir en redes: hechos los metadatos por jugador y partida, el sitemap con partidas, la página 404, el botón "Compartir" (menú nativo, WhatsApp, X, Reddit, Telegram) y las imágenes de vista previa generadas. Falta renderizar en el servidor ([10](./10-seo-y-redes.md))

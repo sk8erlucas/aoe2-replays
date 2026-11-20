@@ -41,6 +41,7 @@ Revisión completa del código con estos puntos. Ya conocidos (hallazgos de desa
 
 ### Dependencias
 - [x] `npm audit` sin hallazgos; `npm audit` y `pip-audit` corren en el CI; fijar versiones de Python con rango acotado (hoy FastAPI/uvicorn tienen rango amplio).
+  - 20/11/2026: aviso alto en `effect` (ReDoS, GHSA-7589-6fvf-x4pw), que Prisma 7.10.1 fija en 3.20.0 a través de `@prisma/config`. Se fuerza 3.22.5 con `overrides` en el `package.json` raíz (misma versión mayor, `prisma generate` anda). **Sacar el override cuando Prisma suba su versión de `effect`.**
 - [x] Dependabot (npm, pip, Docker, GitHub Actions) con revisión semanal.
 - [ ] Revisar licencias de todas las dependencias (registrar en `docs/LEGAL.md`).
 

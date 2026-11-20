@@ -10,5 +10,8 @@ Los tests del parser esperan:
 | `AgeIIDE_Replay_516586396.aoe2record` | save 68.9 | 4v4 Black Forest, 48 min, partida completa. Se descarga con `https://aoe.ms/replay/?gameId=516586396&profileId=5675276` (ZIP) |
 | `AgeIIDE_Replay_519012025.aoe2record` | save 68.9, build 188329 | 1v1 Arabia, ~23 min. `https://aoe.ms/replay/?gameId=519012025&profileId=199325` (ZIP) |
 | `AgeIIDE_Replay_520532792.aoe2record` | save 68.9 | 4v4 Black Forest, 54 min: murallas canceladas, jabalíes y granjas en cola (reporte de [17](../tasks/17-murallas-jabalies-granjas.md)). `https://aoe.ms/replay/?gameId=520532792&profileId=3172411` (ZIP) |
+| `AgeIIDE_Replay_521966600.aoe2record` | save 68.9 | 3v3 Highland, 57 min: unidades que faltaban y mejoras que no se veían (reporte de [20](../tasks/20-aldeanos-parados-y-visor.md)). La copia de `profileId=5675276` no está; se baja con `https://aoe.ms/replay/?gameId=521966600&profileId=5702269` (ZIP) |
+| `AgeIIDE_Replay_522164674.aoe2record` | save 68.9, build 188329 | 4v4 Arena, 48 min: puertas del mapa, rendiciones al final y recursos de los `sync` (reporte de [22](../tasks/22-puertas-abandonos-y-pestanas.md)). `https://aoe.ms/replay/?gameId=522164674&profileId=397671` (ZIP) |
+| `AgeIIDE_Replay_522363603.aoe2record` | save 68.9 | 4v4 Black Forest, 68 min: cancelaciones de la cola, colas llenas y recursos por tipo ([23](../tasks/23-recursos-cancelaciones-y-exactitud.md)). `https://aoe.ms/replay/?gameId=522363603&profileId=5675276` (ZIP) |
 
 Si falta un archivo, los tests que lo usan se saltean.

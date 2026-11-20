@@ -18,4 +18,4 @@ Objetivo: convertir un `.aoe2record` en un JSON normalizado que consuma el visor
 - [x] Completar nombres de IDs nuevos que `aocref` no tiene: `NAME_OVERRIDES` en `reference.py`, sacados del `.dat` y la tabla de textos del juego (12/11/2026). Los árboles talados ahora caen en la categoría `tree`
 - [→] Revisar si conviene proponer los parches de 68.9 a `mgz` upstream
 
-Cerrado el 12/11/2026. Lo marcado con `[→]` pasó a [`PENDIENTES.md`](./PENDIENTES.md).
+Cerrado el 12/11/2026. Lo marcado con `[→]` pasó a [`PENDIENTES.md`](../PENDIENTES.md).

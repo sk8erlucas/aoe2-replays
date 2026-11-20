@@ -1,6 +1,8 @@
 // Per-player analysis computed from the parser JSON. No DOM.
 //
 // Exact: when each command was given (APM, build order clicks, age-up clicks).
+// Units trained: the queue clicks, or with the engine (`replay`) what really
+// went into a queue (cancellations and full queues apart).
 // Exact when the replay has the game's age-up notices (DE stores them as chat):
 // when an age was reached, or that it never was. Otherwise estimated as click
 // time + research time (queues, cancellations and missing resources are not
@@ -41,7 +43,7 @@ function techName(data, techId) {
 
 const sum = (entries) => entries.reduce((total, [, amount]) => total + amount, 0);
 
-export function analyze(data) {
+export function analyze(data, { replay = null } = {}) {
   const duration = data.game.duration_ms;
   const bucket = bucketSize(duration);
   const bucketCount = Math.max(1, Math.ceil(duration / bucket));
@@ -69,7 +71,7 @@ export function analyze(data) {
         buildOrder.push({ t: e.t, kind: 'build', name: objectName(data, e.building_id) });
       } else if (e.type === 'DE_QUEUE') {
         const name = objectName(data, e.unit_id);
-        trained.set(name, (trained.get(name) ?? 0) + e.amount);
+        if (!replay) trained.set(name, (trained.get(name) ?? 0) + e.amount);
         buildOrder.push({ t: e.t, kind: 'queue', name, amount: e.amount });
       } else if (e.type === 'RESEARCH') {
         const name = techName(data, e.technology_id);
@@ -78,6 +80,17 @@ export function analyze(data) {
           clicks.push({ key: age.key, label: age.label, clickedAt: e.t, seconds: age.seconds });
         }
         buildOrder.push({ t: e.t, kind: age ? 'age' : 'research', name });
+      }
+    }
+
+    // With the engine, what was really queued: not what was taken out of a queue
+    // nor clicks over a full queue. (Clicks refused for lack of resources still
+    // count: the engine doesn't know the stock when it queues.)
+    if (replay) {
+      for (const u of replay.units) {
+        if (u.player !== p.number || u.queuedType == null) continue;
+        const name = objectName(data, u.queuedType);
+        trained.set(name, (trained.get(name) ?? 0) + 1);
       }
     }
 

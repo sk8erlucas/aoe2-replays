@@ -25,6 +25,7 @@ import {
 import { AiContextPanel } from "@/components/AiContextPanel";
 import { AnalysisPanel } from "@/components/AnalysisPanel";
 import { ChatPanel } from "@/components/ChatPanel";
+import { GamePanels } from "@/components/GamePanels";
 import { MusicControl } from "@/components/MusicControl";
 import { SaveMoment, type MomentTarget } from "@/components/SaveMoment";
 import { usePopup } from "@/components/usePopup";
@@ -80,6 +81,20 @@ function deviceQuality(): Quality {
 }
 
 // Unit train locations, speeds and build times from the game (tools/sprites).
+const PANELS_KEY = "viewer-panels";
+
+/** Panels over the map: on unless turned off before (and off on small screens by default). */
+function readPanels(): boolean {
+  if (typeof window === "undefined") return false;
+  try {
+    const stored = localStorage.getItem(PANELS_KEY);
+    if (stored) return stored === "on";
+  } catch {
+    // storage blocked: the default
+  }
+  return window.matchMedia?.("(min-width: 761px)").matches ?? true;
+}
+
 let gameDataPromise: Promise<GameData | null> | null = null;
 function loadGameData() {
   gameDataPromise ??= fetch("/sprites/game-data.json", { cache: "no-cache" })
@@ -144,6 +159,18 @@ function ReplayStage({ data, actions, extras, moment, gameData }: ViewerProps & 
   const qualityRef = useRef(quality);
   qualityRef.current = quality;
   const [loadingGraphics, setLoadingGraphics] = useState(false);
+  const root = useRef<HTMLDivElement>(null);
+  const [full, setFull] = useState(false);
+  const [panels, setPanels] = useState(readPanels);
+
+  function togglePanels() {
+    setPanels(!panels);
+    try {
+      localStorage.setItem(PANELS_KEY, panels ? "off" : "on");
+    } catch {
+      // storage blocked: lasts this visit
+    }
+  }
   const { open: helpOpen, setOpen: setHelpOpen, box: helpBox } = usePopup();
 
   function showNotice(text: string) {
@@ -222,7 +249,8 @@ function ReplayStage({ data, actions, extras, moment, gameData }: ViewerProps & 
     const hit = r && at && r.pick(state, at.x, at.y);
     if (!hit || !at) return null;
     const obj = hit.kind === "unit" ? hit.unit : hit.building;
-    const parts = [obj.typeId != null ? replay.objectName(obj.typeId) : tr.viewer.unit, playerName(obj.player)];
+    const typeId = hit.kind === "unit" ? hit.unit.typeAt(state.t) : obj.typeId;
+    const parts = [typeId != null ? replay.objectName(typeId) : tr.viewer.unit, playerName(obj.player)];
     if (hit.kind === "building" && hit.planned) parts.push(tr.viewer.planned);
     else if (hit.kind === "building" && hit.progress < 1) parts.push(tr.viewer.built(Math.round(hit.progress * 100)));
     if (hit.kind === "unit" && hit.unit.approx) parts.push(tr.viewer.approx);
@@ -357,7 +385,11 @@ function ReplayStage({ data, actions, extras, moment, gameData }: ViewerProps & 
       const jump = e.shiftKey ? 30_000 : 5000;
       const digit = /^Digit([1-8])$/.exec(e.code);
       if (e.key === "?") setHelpOpen((o) => !o);
-      else if (e.code === "Escape") setHelpOpen(false);
+      else if (e.code === "Escape") {
+        setHelpOpen(false);
+        if (full && !document.fullscreenElement) setFull(false); // the browser's own full screen exits by itself
+      } else if (e.code === "KeyF" && e.shiftKey) toggleFullscreen();
+      else if (e.code === "KeyV") togglePanels();
       else if (e.code === "Space") {
         e.preventDefault();
         togglePlay();
@@ -392,6 +424,31 @@ function ReplayStage({ data, actions, extras, moment, gameData }: ViewerProps & 
     time.current = Math.max(0, Math.min(replay.duration, ms));
     dirty.current = true;
   }
+
+  // Full screen for the map and its controls. Where the browser can't put an
+  // element in full screen (Safari on iPhone) the viewer covers the window instead.
+  function toggleFullscreen() {
+    const el = root.current;
+    if (!el) return;
+    if (document.fullscreenElement) document.exitFullscreen().catch(() => {});
+    else if (document.fullscreenEnabled && el.requestFullscreen) el.requestFullscreen().catch(() => setFull(!full));
+    else setFull(!full);
+  }
+
+  useEffect(() => {
+    const onChange = () => setFull(document.fullscreenElement === root.current);
+    document.addEventListener("fullscreenchange", onChange);
+    return () => document.removeEventListener("fullscreenchange", onChange);
+  }, []);
+
+  // The map's size changes with the layout, not always with the window.
+  useEffect(() => {
+    const id = requestAnimationFrame(() => {
+      renderer.current?.resize();
+      dirty.current = true;
+    });
+    return () => cancelAnimationFrame(id);
+  }, [full]);
 
   function togglePlay() {
     if (!playing && time.current >= replay.duration) time.current = 0;
@@ -463,7 +520,9 @@ function ReplayStage({ data, actions, extras, moment, gameData }: ViewerProps & 
     if (e.kind === "chat") return `: “${e.text ?? ""}”`;
     if (e.kind === "resign") return ` ${l.resign}`;
     if (e.kind === "queue") return ` ${l.queue(e.amount ?? 1, e.name ?? "")}`;
+    if (e.kind === "dequeue") return ` ${l.dequeue(e.name ?? "")}`;
     if (e.kind === "research") return ` ${l.research(e.name ?? "")}`;
+    if (e.kind === "delete") return ` ${l.delete(e.amount ?? 1, e.name ?? "")}`;
     if (e.cancelled && e.segments) return ` ${l.buildCancelled(e.name ?? "", e.segments)}`;
     return ` ${l.build(e.name ?? "", e.segments)}`;
   };
@@ -471,7 +530,7 @@ function ReplayStage({ data, actions, extras, moment, gameData }: ViewerProps & 
   const teams = new Set(g.players.map((p) => p.team_id)).size;
 
   return (
-    <div className="viewer">
+    <div className={full ? "viewer full" : "viewer"} ref={root}>
       <div className="viewer-info">
         <p className="muted">
           {tr.viewer.summary(data.map.name ?? tr.common.mapNumber(data.map.id), g.players.length, teams)} ·{" "}
@@ -544,6 +603,9 @@ function ReplayStage({ data, actions, extras, moment, gameData }: ViewerProps & 
               r.centerOn(x, y);
             }}
           />
+          {panels && !loadingGraphics && (
+            <GamePanels replay={replay} t={t} follow={follow} players={players} color={playerColor} />
+          )}
           {loadingGraphics && (
             <div className="stage-loading" role="status">
               {tr.viewer.loadingGraphics}
@@ -596,7 +658,7 @@ function ReplayStage({ data, actions, extras, moment, gameData }: ViewerProps & 
               </button>
             ))}
           </div>
-          {tab === "analysis" && <AnalysisPanel data={data} onSeek={seek} />}
+          {tab === "analysis" && <AnalysisPanel data={data} replay={replay} onSeek={seek} />}
           {tab === "ai" && <AiContextPanel data={data} />}
           {tab === "chat" && <ChatPanel data={data} t={t} onSeek={seek} />}
           {tab === "events" && (
@@ -718,13 +780,18 @@ function ReplayStage({ data, actions, extras, moment, gameData }: ViewerProps & 
             ))}
           </select>
         </label>
-        <MusicControl />
+        <button type="button" aria-pressed={panels} onClick={togglePanels} title={tr.viewer.panels.buttonTitle}>
+          {tr.viewer.panels.button}
+        </button>
+        <MusicControl playing={playing} />
         <VideoExport
           replay={replay}
           renderer={renderer}
           now={() => time.current}
           pause={() => setPlaying(false)}
-          players={players.map((p) => ({ name: p.name, color: playerColor(p.number) ?? "#fff" }))}
+          players={players}
+          color={playerColor}
+          panels={panels}
           quality={quality}
           mapName={data.map.name ?? null}
           loadGraphics={() => Promise.all([loadSprites(), loadTerrain()])}
@@ -738,6 +805,15 @@ function ReplayStage({ data, actions, extras, moment, gameData }: ViewerProps & 
           </button>
           <button type="button" onClick={showFullMap} title={`${tr.viewer.fullMapTitle} (M)`}>
             {tr.viewer.fullMap}
+          </button>
+          <button
+            type="button"
+            onClick={toggleFullscreen}
+            aria-pressed={full}
+            aria-label={full ? tr.viewer.fullscreenExit : tr.viewer.fullscreen}
+            title={`${full ? tr.viewer.fullscreenExit : tr.viewer.fullscreen} (Shift+F)`}
+          >
+            <span aria-hidden="true">{full ? "⤡" : "⤢"}</span>
           </button>
         </div>
         <div className="topbar-popup keys-help" ref={helpBox}>

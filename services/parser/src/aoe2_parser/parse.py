@@ -7,7 +7,9 @@ import struct
 from mgz import fast
 
 from aoe2_parser import reference
-from aoe2_parser.vendor import mgz_header
+from aoe2_parser.vendor import mgz_actions, mgz_header
+
+mgz_actions.install()
 
 SCHEMA_VERSION = 1
 
@@ -124,6 +126,16 @@ def _event(t, action_type, payload):
     return event
 
 
+def _resource_totals(values):
+    """Each player's stockpile (food + wood + gold + stone) from a DE sync, as the
+    game had it. Keys are player numbers as strings (JSON object keys)."""
+    out = {}
+    for key, value in (values or {}).items():
+        if isinstance(key, int) and isinstance(value, dict) and isinstance(value.get('total_res'), int):
+            out[str(key)] = value['total_res']
+    return out
+
+
 def _parse_body(data, offset):
     body = io.BytesIO(data)
     body.seek(offset)
@@ -132,7 +144,7 @@ def _parse_body(data, offset):
     except (struct.error, ValueError) as e:
         raise CorruptReplay(f'could not parse body start: {e}') from e
     t = 0
-    timeline, chat = [], []
+    timeline, chat, totals = [], [], []
     postgame = None
     while True:
         try:
@@ -143,6 +155,9 @@ def _parse_body(data, offset):
             raise CorruptReplay(f'could not parse body at byte {body.tell()}: {e}') from e
         if op_type is fast.Operation.SYNC:
             t += payload[0]
+            stock = _resource_totals(payload[2])
+            if stock:
+                totals.append({'t': t, 'players': stock})
         elif op_type is fast.Operation.ACTION:
             action_type, action = payload
             timeline.append(_event(t, action_type, action))
@@ -165,7 +180,7 @@ def _parse_body(data, offset):
             )
         elif op_type is fast.Operation.POSTGAME:
             postgame = payload
-    return t, timeline, chat, postgame
+    return t, timeline, chat, totals, postgame
 
 
 def _legend(map_, objects, timeline):
@@ -190,7 +205,7 @@ def parse_replay(data: bytes) -> dict:
         raise CorruptReplay('header length points outside the file')
 
     header = _parse_header(data)
-    duration, timeline, chat, postgame = _parse_body(data, header_len)
+    duration, timeline, chat, resource_totals, postgame = _parse_body(data, header_len)
     if not 0 <= duration <= MAX_DURATION_MS:
         raise CorruptReplay(f'match clock out of range: {duration}')
     de = header['de']
@@ -219,6 +234,7 @@ def parse_replay(data: bytes) -> dict:
         'initial_objects': objects,
         'timeline': timeline,
         'chat': chat,
+        'resource_totals': resource_totals,
         'legend': _legend(map_, objects, timeline),
     }
 

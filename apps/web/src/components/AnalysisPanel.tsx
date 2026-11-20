@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import type { Player, ReplayData } from "@aoe2-replays/shared";
-import { AGES, PLAYER_COLORS, analyze, formatTime, type PlayerAnalysis } from "@aoe2-replays/viewer";
+import { AGES, PLAYER_COLORS, analyze, formatTime, type PlayerAnalysis, type Replay } from "@aoe2-replays/viewer";
 import { useI18n } from "@/i18n/I18nProvider";
 
 function ActivityChart({
@@ -67,9 +67,9 @@ function ActivityChart({
   );
 }
 
-export function AnalysisPanel({ data, onSeek }: { data: ReplayData; onSeek: (ms: number) => void }) {
+export function AnalysisPanel({ data, replay, onSeek }: { data: ReplayData; replay: Replay; onSeek: (ms: number) => void }) {
   const { t } = useI18n();
-  const analysis = useMemo(() => analyze(data), [data]);
+  const analysis = useMemo(() => analyze(data, { replay }), [data, replay]);
   const players = useMemo(
     () => [...data.game.players].sort((a, b) => a.team_id - b.team_id || a.number - b.number),
     [data],

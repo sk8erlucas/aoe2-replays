@@ -63,6 +63,7 @@ const STRINGS = {
     buy: 'compra en el mercado',
     ungarrison: 'desguarnece',
     special: 'habilidad especial',
+    dequeue: 'saca una unidad o investigación de la cola',
   },
   en: {
     title: '# Age of Empires II: Definitive Edition match',
@@ -117,6 +118,7 @@ const STRINGS = {
     buy: 'buys at the market',
     ungarrison: 'ungarrisons',
     special: 'special ability',
+    dequeue: 'takes a unit or research out of the queue',
   },
 };
 
@@ -146,7 +148,7 @@ function describe(S, data, e) {
     case 'SELL': return S.sell;
     case 'BUY': return S.buy;
     case 'UNGARRISON': return `${S.ungarrison}${count}`;
-    case 'SPECIAL': return `${S.special}${count}`;
+    case 'SPECIAL': return e.order_id === 4 ? S.dequeue : `${S.special}${count}`;
     default: return NOISE.has(e.type) ? null : `${e.type.toLowerCase()}${count}${at}`;
   }
 }

@@ -77,12 +77,15 @@ test('trained units spawn after the train time and bind to unknown ids in creati
   assert.equal(r.stateAt(26000).units.length, 2);
 });
 
-test('buildings appear at their command time and finish after the build time', () => {
+test('buildings appear at their command time and go up once the builder gets there', () => {
   const r = replay([{ t: 2000, type: 'BUILD', player: 1, building_id: 70, object_ids: [101], x: 5, y: 5 }]);
   const at = (t) => r.stateAt(t).buildings.find((b) => b.building.typeId === 70);
+  const arrival = r.unitById.get(101).arrivalT(); // 8.6 tiles at 0.8 tiles/s
   assert.equal(at(1999), undefined);
-  assert.equal(at(14500).progress, 0.5);
-  assert.equal(at(27000).progress, 1);
+  assert.equal(at(2000).planned, true, 'a foundation until then');
+  assert.ok(Math.abs(arrival - 12_753) < 5);
+  assert.ok(Math.abs(at(arrival + 12_500).progress - 0.5) < 1e-9); // House: 25 s
+  assert.equal(at(arrival + 25_000).progress, 1);
 });
 
 test('resign is recorded once and logged', () => {
@@ -353,19 +356,21 @@ test('villagers sent to an unfinished building of their own help build it', () =
   assert.equal(v.activityAt(50_000), null); // House: 40 s default build time here
 });
 
-test('deleted units disappear and deleted buildings become ruins', () => {
+test('deleted units fade out and deleted buildings become ruins', () => {
   const r = skirmish([{ t: 5_000, type: 'DELETE', player: 3, object_ids: [301, 302] }]);
   const before = r.stateAt(4_000);
   const after = r.stateAt(6_000);
   assert.ok(before.units.some((u) => u.unit.id === 301));
-  assert.ok(!after.units.some((u) => u.unit.id === 301));
+  assert.ok(after.units.find((u) => u.unit.id === 301)?.fading < 1);
+  assert.ok(!r.stateAt(8_000).units.some((u) => u.unit.id === 301));
+  assert.equal(r.log.find((l) => l.kind === 'delete')?.amount, 2);
   assert.ok(!after.buildings.some((b) => b.building.id === 302));
   assert.deepEqual(after.ruins.map((b) => b.id), [302]);
 });
 
 test('only the owner can delete', () => {
   const r = skirmish([{ t: 5_000, type: 'DELETE', player: 1, object_ids: [301] }]);
-  assert.ok(r.stateAt(6_000).units.some((u) => u.unit.id === 301));
+  assert.ok(r.stateAt(6_000).units.some((u) => u.unit.id === 301 && !u.fading));
 });
 
 test('herded animals follow orders but never attack', () => {
@@ -510,12 +515,45 @@ test('a lured boar walks to where the hunters clicked it, and they eat it there'
   assert.equal(r.unitById.get(406).removedAt, Infinity);
 });
 
-test('a player who resigns loses every unit and building', () => {
-  const r = skirmish([{ t: 50_000, type: 'RESIGN', player: 3, object_ids: [] }]);
+test('what a player who resigns leaves stays where it was, idle', () => {
+  const r = skirmish([
+    { t: 40_000, type: 'MOVE', player: 3, object_ids: [301], x: 30, y: 30 },
+    { t: 50_000, type: 'RESIGN', player: 3, object_ids: [] },
+  ]);
+  const soldier = r.unitById.get(301);
+  const at = soldier.positionAt(50_000);
+  assert.ok(at.x > 12 && at.x < 30, 'it was on its way');
+  assert.deepEqual(soldier.positionAt(100_000), { ...at, moving: false, target: null });
   const after = r.stateAt(60_000);
-  assert.ok(!after.units.some((u) => u.unit.player === 3));
-  assert.ok(!after.buildings.some((b) => b.building.player === 3));
-  assert.ok(after.ruins.some((b) => b.player === 3));
+  assert.ok(after.units.some((u) => u.unit.id === 301));
+  assert.ok(after.buildings.some((b) => b.building.player === 3));
+  assert.ok(!after.ruins.some((b) => b.player === 3));
+});
+
+test('a map gate is drawn as the built one along its axis, without its posts', () => {
+  const r = new Replay({
+    game: { duration_ms: 10_000, players: [{ number: 1, name: 'A', color_id: 0, team_id: 2, start: { x: 10, y: 10 } }] },
+    map: { size: 40, terrain: [], elevation: [] },
+    initial_objects: [
+      { id: 1, player: 1, type_id: 88, x: 20.5, y: 20 },
+      { id: 2, player: 1, type_id: 95, x: 20.5, y: 21.5 },
+      { id: 3, player: 1, type_id: 95, x: 20.5, y: 18.5 },
+      { id: 4, player: 1, type_id: 64, x: 30, y: 10.5 },
+      { id: 5, player: 1, type_id: 81, x: 28.5, y: 10.5 },
+      { id: 6, player: 1, type_id: 81, x: 31.5, y: 10.5 },
+    ],
+    timeline: [],
+    chat: [],
+    legend: {
+      objects: {
+        88: { name: 'Gate (down.)', category: 'building' },
+        95: { name: 'Gate', category: 'building' },
+        64: { name: 'Gate (up.)', category: 'building' },
+        81: { name: 'Gate', category: 'building' },
+      },
+    },
+  });
+  assert.deepEqual(r.buildings.map((b) => [b.id, b.drawAs]), [[1, 487], [4, 490]]);
 });
 
 test('units over the population limit are taken as fallen, army first', () => {
@@ -883,15 +921,19 @@ test('more builders build faster, like in the game: n at (n + 2) / 3 the speed',
       { t: 30_000, type: 'BUILD', player: 1, building_id: 12, object_ids: [101], x: 20, y: 10 },
       { t: helperT, type: 'ORDER', player: 1, object_ids: [102], target_id: 500, x: 20, y: 10 },
     ]);
-  // The barracks takes 50 s alone; a second builder at 40 s cuts the 40 s left to 30.
+  // The first builder walks 8 tiles (10 s): the barracks goes up from 40 s and
+  // takes 50 s alone. A second builder (4/3 the speed) cuts what is left when it arrives to 3/4.
   const r = twoBuild(40_000);
   const barracks = r.buildingById.get(500);
-  assert.equal(barracks.startT + barracks.buildTime, 70_000);
+  assert.equal(barracks.startT, 40_000);
+  const helped = r.unitById.get(102).arrivalT();
+  const end = helped + ((90_000 - helped) * 3) / 4;
+  assert.ok(Math.abs(barracks.startT + barracks.buildTime - end) < 1);
   const first = r.unitById.get(101);
-  assert.equal(first.activities.find((a) => a.kind === 'build').t1, 70_000);
+  assert.ok(Math.abs(first.activities.find((a) => a.kind === 'build').t1 - end) < 1);
   // Too late to help: nothing changes.
-  const late = twoBuild(90_000).buildingById.get(500);
-  assert.equal(late.startT + late.buildTime, 80_000);
+  const late = twoBuild(95_000).buildingById.get(500);
+  assert.equal(late.startT + late.buildTime, 90_000);
 });
 
 test('stop halts a walking unit; follow and guard walk up to the target', () => {
@@ -908,4 +950,232 @@ test('stop halts a walking unit; follow and guard walk up to the target', () => 
   const g = replay([{ t: 0, type: 'GUARD', player: 1, object_ids: [101], target_id: 100 }]);
   const end = g.unitById.get(101).positionAt(60_000);
   assert.ok(Math.hypot(end.x - 10, end.y - 10) < 5, 'next to the town center');
+});
+
+test('a unit order without ids is for the units selected before, not a building just used', () => {
+  const r = replay([
+    { t: 0, type: 'MOVE', player: 1, object_ids: [101], x: 12, y: 15 },
+    { t: 1000, type: 'DE_QUEUE', player: 1, object_ids: [100], amount: 1, unit_id: 83 },
+    { t: 2000, type: 'GATHER_POINT', player: 1, object_ids: [], x: 14, y: 14 },
+    { t: 3000, type: 'MOVE', player: 1, object_ids: [], x: 2, y: 10 },
+  ]);
+  assert.equal(r.unitById.get(101).path.at(-1).x1, 2);
+  assert.deepEqual(r.rallyAt(r.buildingById.get(100), 2500), { x: 14, y: 14 });
+});
+
+test('SPECIAL ids stored one byte off are read back', () => {
+  const r = replay([
+    { t: 0, type: 'SPECIAL', player: 1, object_ids: [101 * 256], order_id: 8, x: -1, y: -1 },
+    { t: 1000, type: 'MOVE', player: 1, object_ids: [], x: 2, y: 10 },
+  ]);
+  // 25856 is below 2^20: a real id, left alone.
+  assert.equal(r.unitById.get(101).path.at(-1).x1, 12);
+  const shifted = replay([
+    { t: 0, type: 'SPECIAL', player: 1, object_ids: [(1 << 20) + 101 * 256], order_id: 8, x: -1, y: -1 },
+  ]);
+  assert.equal(shifted.data.timeline[0].object_ids[0], 4096 + 101);
+});
+
+test('researched upgrades change the units over time, and later ones come out upgraded', () => {
+  const gameData = {
+    units: { 83: { speed: 0.8, class: 4, train: [[109, 25]] }, 74: { speed: 0.9, class: 6, train: [[12, 21]] }, 75: { speed: 0.9, class: 6, train: [[12, 21]] } },
+    buildings: {},
+    techs: { 222: { at: [[12, 40]], up: [[74, 75]] }, 22: { at: [[109, 25]] } },
+    names: { 75: 'Man-at-Arms' },
+  };
+  const r = new Replay({
+    game: { duration_ms: 300_000, players: [{ number: 1, name: 'A', color_id: 0, team_id: 2, start: { x: 10, y: 10 } }] },
+    map: { size: 40, terrain: [], elevation: [] },
+    initial_objects: [{ id: 100, player: 1, type_id: 109, x: 10, y: 10 }, { id: 200, player: 1, type_id: 12, x: 20, y: 10 }],
+    timeline: [
+      { t: 0, type: 'DE_QUEUE', player: 1, object_ids: [200], unit_id: 74, amount: 1 }, // out at 21 s
+      { t: 30_000, type: 'RESEARCH', player: 1, object_ids: [200], technology_id: 222 }, // done at 70 s
+      { t: 31_000, type: 'RESEARCH', player: 1, object_ids: [200], technology_id: 222 }, // a second click: ignored
+      { t: 40_000, type: 'DE_QUEUE', player: 1, object_ids: [200], unit_id: 74, amount: 1 }, // waits: out at 91 s
+    ],
+    chat: [],
+    legend: {
+      objects: { 109: { name: 'Town Center', category: 'building' }, 12: { name: 'Barracks', category: 'building' }, 74: { name: 'Militia', category: 'unit' } },
+      technologies: { 222: 'Man-at-Arms' },
+    },
+  }, { gameData });
+  const [first, second] = r.units.filter((u) => u.key);
+  assert.equal(first.typeAt(60_000), 74);
+  assert.equal(first.typeAt(70_000), 75);
+  assert.equal(second.spawnT, 91_000);
+  assert.equal(second.typeId, 75);
+  assert.equal(r.objectName(75), 'Man-at-Arms');
+  assert.equal(r.researches.length, 1);
+  assert.equal(r.stateAt(80_000).units.find((u) => u.unit === first).typeId, 75);
+});
+
+test('builders of a town center start gathering what is next to it', () => {
+  const r = replay([{ t: 0, type: 'BUILD', player: 1, building_id: 109, object_ids: [101], x: 14, y: 10 }], {
+    initial_objects: [
+      { id: 100, player: 1, type_id: 109, class_id: 80, x: 10, y: 10 },
+      { id: 101, player: 1, type_id: 83, class_id: 70, x: 12, y: 10 },
+      { id: 900, player: 0, type_id: 66, class_id: 10, x: 18, y: 12 },
+    ],
+    legend: {
+      objects: {
+        109: { name: 'Town Center', category: 'building' },
+        83: { name: 'Villager', category: 'unit' },
+        66: { name: 'Gold Mine', category: 'gold' },
+      },
+    },
+  });
+  const v = r.unitById.get(101);
+  const done = r.buildings.find((b) => b.id == null).buildTime;
+  assert.equal(v.activityAt(done + 5_000), 'gold');
+});
+
+test('deleting a villager nobody had commanded takes it off the map', () => {
+  const gameData = { units: { 83: { speed: 0.8, class: 4, train: [[109, 25]] } }, buildings: {} };
+  const r = new Replay({
+    game: { duration_ms: 300_000, players: [{ number: 1, name: 'A', color_id: 0, team_id: 2, start: { x: 10, y: 10 } }] },
+    map: { size: 40, terrain: [], elevation: [] },
+    initial_objects: [{ id: 100, player: 1, type_id: 109, x: 10, y: 10 }, { id: 101, player: 1, type_id: 83, x: 12, y: 10 }],
+    timeline: [
+      { t: 0, type: 'DE_QUEUE', player: 1, object_ids: [100], unit_id: 83, amount: 2 }, // out at 25 and 50 s
+      { t: 55_000, type: 'MOVE', player: 1, object_ids: [5001], x: 5, y: 5 }, // the second one
+      { t: 60_000, type: 'DELETE', player: 1, object_ids: [5000] }, // the first, never commanded
+    ],
+    chat: [],
+    legend: { objects: { 109: { name: 'Town Center', category: 'building' }, 83: { name: 'Villager', category: 'unit' } } },
+  }, { gameData });
+  const trained = r.units.find((u) => u.key && u.spawnT === 25_000);
+  assert.equal(trained.id, 5000);
+  assert.equal(trained.removedAt, 60_000);
+  assert.ok(r.log.some((l) => l.kind === 'delete' && l.name === 'Villager'));
+});
+
+test('a builder who is done goes on to the nearest unfinished building of its player', () => {
+  const r = replay([
+    { t: 0, type: 'BUILD', player: 1, building_id: 70, object_ids: [101], x: 14, y: 10 },
+    // Another house next to it, by a villager far away who then goes elsewhere.
+    { t: 15_000, type: 'BUILD', player: 1, building_id: 70, object_ids: [102], x: 17, y: 10 },
+    { t: 15_500, type: 'MOVE', player: 1, object_ids: [102], x: 2, y: 2 },
+  ], {
+    game: { duration_ms: 200_000, players: [{ number: 1, name: 'A', color_id: 1, team_id: 1, start: { x: 10, y: 10 } }] },
+    initial_objects: [
+      { id: 100, player: 1, type_id: 109, class_id: 80, x: 10, y: 10 },
+      { id: 101, player: 1, type_id: 83, class_id: 70, x: 12, y: 10 },
+      { id: 102, player: 1, type_id: 83, class_id: 70, x: 2, y: 18 },
+    ],
+  });
+  const v = r.unitById.get(101);
+  const [first, second] = r.buildings.filter((b) => b.typeId === 70);
+  const done = first.startT + first.buildTime;
+  assert.equal(v.activityAt(done + 3000), 'build');
+  assert.ok(second.crew?.has(v));
+});
+
+test('units walk around water to the ford', () => {
+  const size = 30;
+  const terrain = new Array(size * size).fill(0);
+  for (let y = 0; y < size; y++) if (y !== 25) terrain[y * size + 15] = 1;
+  const r = replay([{ t: 0, type: 'MOVE', player: 1, object_ids: [101], x: 20, y: 10 }], {
+    map: { size, terrain, elevation: [] },
+    legend: {
+      objects: { 109: { name: 'Town Center', category: 'building' }, 83: { name: 'Villager', category: 'unit' } },
+      terrain: { 0: { name: 'Grass', category: 'grass' }, 1: { name: 'Water, Shallow', category: 'water' } },
+    },
+  });
+  const v = r.unitById.get(101);
+  assert.ok(v.path.length > 2, 'more than one leg');
+  for (let t = 0; t < 120_000; t += 250) {
+    const at = v.positionAt(t);
+    assert.notEqual(Math.floor(at.x) === 15 && Math.floor(at.y) !== 25, true, `in the water at ${t}`);
+  }
+  const end = v.positionAt(200_000);
+  assert.ok(Math.hypot(end.x - 20, end.y - 10) < 0.01);
+});
+
+test('researches in progress and villagers by job, for the panels', () => {
+  const r = replay([
+    { t: 1000, type: 'RESEARCH', player: 1, object_ids: [100], technology_id: 22 }, // Loom: 25 s by palette
+    { t: 2000, type: 'BUILD', player: 1, building_id: 70, object_ids: [101], x: 14, y: 10 },
+  ]);
+  assert.deepEqual(r.researchesAt(1, 500), []);
+  const [loom] = r.researchesAt(1, 13_500);
+  assert.equal(loom.name, 'Loom');
+  assert.equal(loom.progress, 0.5);
+  assert.deepEqual(r.researchesAt(1, 30_000), []);
+  const jobs = r.villagerJobsAt(10_000).get(1);
+  assert.equal(jobs.total, 1);
+  assert.equal(jobs.build, 1);
+  assert.equal(r.villagerJobsAt(500).get(1).idle, 1);
+});
+
+test('resources in stock come from the replay syncs, the last one at or before t', () => {
+  const r = skirmish([]);
+  assert.equal(r.resourcesAt(10_000), null, 'older replays lack them');
+  r.data.resource_totals = [
+    { t: 1000, players: { 1: 700, 3: 650 } },
+    { t: 18_000, players: { 1: 520, 2: 100, 3: 610 } },
+  ];
+  assert.deepEqual([...r.resourcesAt(500)], [[1, null], [2, null], [3, null]]);
+  assert.deepEqual([...r.resourcesAt(17_999)], [[1, 700], [2, 0], [3, 650]]);
+  assert.deepEqual([...r.resourcesAt(60_000)], [[1, 520], [2, 100], [3, 610]]);
+});
+
+test('army by kind counts soldiers alive, not villagers or sheep', () => {
+  const gameData = { units: { 74: { speed: 0.9, class: 6 }, 83: { speed: 0.8, class: 4 }, 594: { speed: 0.7, class: 58 } }, buildings: {} };
+  const data = {
+    game: { duration_ms: 60_000, players: [{ number: 1, name: 'A', color_id: 0, team_id: 2, start: { x: 10, y: 10 } }] },
+    map: { size: 40, terrain: [], elevation: [] },
+    initial_objects: [
+      { id: 101, player: 1, type_id: 83, x: 12, y: 10 },
+      { id: 102, player: 1, type_id: 74, x: 12, y: 12 },
+      { id: 103, player: 1, type_id: 74, x: 13, y: 12 },
+      { id: 104, player: 1, type_id: 594, x: 14, y: 12 },
+      { id: 105, player: 1, type_id: 70, x: 20, y: 20 },
+    ],
+    timeline: [],
+    chat: [],
+    legend: { objects: { 83: { name: 'Villager', category: 'unit' }, 74: { name: 'Militia', category: 'unit' }, 594: { name: 'Sheep', category: 'animal' }, 70: { name: 'House', category: 'building' } } },
+  };
+  const r = new Replay(data, { gameData });
+  const army = r.armyAt(1000).get(1);
+  assert.equal(army.total, 2);
+  assert.equal(army.infantry, 2);
+  const ov = r.overviewAt(1000).get(1);
+  assert.deepEqual([ov.age, ov.villagers, ov.army, ov.buildings], [1, 1, 2, 1]);
+});
+
+function townCenter(timeline) {
+  const gameData = { units: { 83: { speed: 0.8, class: 4, train: [[109, 25]], cost: [50, 0, 0, 0] } }, buildings: { 109: { size: 4, buildTime: 0 } }, techs: { 22: { at: [[109, 25]], cost: [0, 0, 50, 0] } } };
+  return new Replay({
+    game: { duration_ms: 600_000, players: [{ number: 1, name: 'A', color_id: 0, team_id: 2, start: { x: 10, y: 10 } }] },
+    map: { size: 40, terrain: [], elevation: [] },
+    initial_objects: [{ id: 100, player: 1, type_id: 109, x: 10, y: 10 }],
+    timeline,
+    chat: [],
+    legend: { objects: { 109: { name: 'Town Center', category: 'building' }, 83: { name: 'Villager', category: 'unit' } }, technologies: { 22: 'Loom' } },
+  }, { gameData });
+}
+
+test('taking units out of the queue: they never come out and the queue moves up', () => {
+  const r = townCenter([
+    { t: 1000, type: 'DE_QUEUE', player: 1, object_ids: [100], unit_id: 83, amount: 4 },
+    // The second icon (the three waiting villagers), three clicks: all three go.
+    { t: 20_000, type: 'SPECIAL', player: 1, object_ids: [100], order_id: 4, slot_id: 1, target_id: -1 },
+    { t: 20_200, type: 'SPECIAL', player: 1, object_ids: [100], order_id: 4, slot_id: 1, target_id: -1 },
+    { t: 20_400, type: 'SPECIAL', player: 1, object_ids: [100], order_id: 4, slot_id: 1, target_id: -1 },
+    { t: 21_000, type: 'RESEARCH', player: 1, object_ids: [100], technology_id: 22 },
+  ]);
+  const trained = r.units.filter((u) => u.key);
+  assert.equal(trained.length, 1);
+  assert.equal(trained[0].spawnT, 26_000);
+  const loom = r.researches.find((x) => x.techId === 22);
+  assert.deepEqual([loom.t0, loom.t1], [26_000, 51_000], 'Loom waits only for the villager in production');
+  assert.equal(r.log.filter((e) => e.kind === 'dequeue').length, 3);
+});
+
+test('a production queue holds 15: clicks beyond it are refused', () => {
+  const r = townCenter([
+    { t: 1000, type: 'DE_QUEUE', player: 1, object_ids: [100], unit_id: 83, amount: 10 },
+    { t: 2000, type: 'DE_QUEUE', player: 1, object_ids: [100], unit_id: 83, amount: 10 },
+  ]);
+  assert.equal(r.units.filter((u) => u.key).length, 15);
 });
