@@ -20,7 +20,8 @@ Lo que sí se puede, y es lo que se viene haciendo:
 - [x] Planes terminados movidos a [`done/`](./done/).
 
 ## Falta
-- [ ] **Producción frenada por población y recursos**: con 200 de población el juego no saca unidades y la cola se llena, y sin recursos no acepta el clic. El motor sigue fabricando (por eso 1203 militares de Fibonaku). La economía ya sabe qué no se pudo pagar; falta que el motor lo use (una segunda pasada, cuidando el tiempo: la partida de 68 min tarda ~2-4 s en armarse).
+- [x] **Producción frenada por población** (20/11/2026): cada edificio da su lugar (casa 5, centro urbano 5, castillo 20, del juego: `pop` en `game-data.json`; los hunos no necesitan casas) hasta el límite de la partida, y cada unidad ocupa el suyo (las ovejas, nada). Una unidad entrenada que saldría sin lugar espera a que haya (una casa terminada, una unidad que se va); si nunca hay, no sale. Si una orden la nombra, estaba afuera a más tardar en esa orden. Antes, al pasar el límite, el motor mataba a la unidad más vieja. En `/m/522363603` dejan de salir entre 15 y 201 unidades por jugador (kevinr: 1059 → 858 militares); Fibonaku casi no cambia (1208 → 1186) porque sus lanceros mueren en las peleas y liberan lugar: con ~10 cuarteles y su economía (~71 000 recursos en lanceros) es posible. No hay con qué compararlo: el replay no trae las estadísticas del final.
+- [ ] **Clics sin recursos**: la economía ya sabe qué no se pudo pagar, pero el motor igual fabrica esas unidades. Haría falta una segunda pasada (y cuidar el tiempo: ~2,4 s la partida de 68 min).
 - [ ] `SPECIAL` con `order_id` 8 (grupos de aldeanos, sin objetivo, sobre todo al principio) y 1 (unidades militares): sin identificar.
 - [ ] Ingresos que no se modelan: comercio, reliquias, pesca, bonus de civilización. Se notan como `drift` positivo en el juego tardío.
 - [ ] Puntajes del juego: con recursos por tipo y costos ya se puede aproximar la economía y la tecnología.

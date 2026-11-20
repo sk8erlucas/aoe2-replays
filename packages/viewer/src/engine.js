@@ -240,6 +240,9 @@ export class Unit {
 // Town centers built during the game use another id than the starting one.
 const SAME_BUILDING = { 621: 109, 109: 621 };
 const TC_FOUNDATION = 621;
+const TOWN_CENTER = 109;
+// Population room of a town center (the game's data; 109 is not among the buildings villagers place).
+const TOWN_CENTER_POP = 5;
 // How close a unit told to follow or guard stays to its target (tiles). Estimated.
 const FOLLOW_STOP = 1.5;
 // Siege (rams, mangonels, bombards, scorpions; trebuchets by name): one is enough to raze.
@@ -483,6 +486,7 @@ export class Replay {
 
   #bind(unit, id, t) {
     unit.id = id;
+    unit.boundAt = t; // its first order: it was out by then
     unit.lastOrderT = t; // this is its player's order: it no longer walks to the gather point
     this.#anchor(id, Math.min(unit.spawnT, t));
     if (unit.spawnT > t) {
@@ -1774,30 +1778,113 @@ export class Replay {
     }
   }
 
-  // A player can never have more units than the population limit: when training
-  // would go over it, units must have died. The one left unordered longest (army
-  // first, villagers last) is taken as fallen right then.
+  // Population: a unit only comes out of its building if its player has room
+  // (houses, town centers, castles... up to the population limit), like in the
+  // game. A trained unit no command ever names that would come out with no room
+  // waits until there is some (a house finished, a unit gone) and, if that never
+  // happens, never comes out: the player kept queuing while housed. A unit an
+  // order names waits too, but was out by that order at the latest; if it has
+  // no room by then and that goes over the limit, others must have died: the
+  // one left unordered longest (army first) falls.
   #enforcePopulationLimit() {
     const limit = this.data.game.population_limit;
     if (!limit) return;
     for (const p of this.players) {
       const mine = this.units.filter((u) => u.player === p.number);
-      const spawns = [...mine].sort((a, b) => a.spawnT - b.spawnT);
-      for (const born of spawns) {
+      const room = this.#roomOf(p, limit);
+      const takes = (u) => this.#popOf(u);
+      const usedAt = (t, but) => {
+        let n = 0;
+        for (const u of mine) if (u !== but && u.spawnT <= t && u.removedAt > t) n += takes(u);
+        return n;
+      };
+      const queue = [...mine].sort((a, b) => a.spawnT - b.spawnT);
+      for (let i = 0; i < queue.length; i++) {
+        const born = queue[i];
         const t = born.spawnT;
-        if (born.removedAt <= t) continue;
-        const alive = mine.filter((u) => u.spawnT <= t && u.removedAt > t);
-        let over = alive.length - limit;
-        if (over <= 0) continue;
-        const stale = alive
-          .filter((u) => u !== born)
-          .sort((a, b) => this.#isVillager(a) - this.#isVillager(b) || a.lastOrderT - b.lastOrderT || a.spawnT - b.spawnT);
-        for (const u of stale) {
-          if (over-- <= 0) break;
-          u.removedAt = t;
-          u.fell = true;
+        if (born.removedAt <= t || !takes(born)) continue;
+        const used = usedAt(t, born);
+        if (used + takes(born) <= room.at(t)) continue;
+        // Waits for room: the next moment a unit goes or a building is done. One
+        // an order names was out by that order at the latest.
+        const latest = !born.key ? -Infinity : born.id != null ? (born.boundAt ?? t) : this.duration;
+        const moments = [...room.changes.filter((c) => c > t && c <= latest)];
+        for (const u of mine) if (u !== born && u.spawnT <= t && u.removedAt > t && u.removedAt <= latest) moments.push(u.removedAt);
+        moments.sort((x, y) => x - y);
+        const when = moments.find((c) => c < this.duration && usedAt(c, born) + takes(born) <= room.at(c));
+        if (when != null) {
+          this.#delaySpawn(born, when);
+          // Back in line at its new time.
+          queue.splice(i, 1);
+          let j = i;
+          while (j < queue.length && queue[j].spawnT <= when) j++;
+          queue.splice(j, 0, born);
+          i--;
+          continue;
         }
+        if (born.id != null || !born.key) {
+          let over = used + takes(born) - limit;
+          if (over <= 0) continue;
+          const alive = mine.filter((u) => u !== born && u.spawnT <= t && u.removedAt > t && takes(u));
+          alive.sort((a, b) => this.#isVillager(a) - this.#isVillager(b) || a.lastOrderT - b.lastOrderT || a.spawnT - b.spawnT);
+          for (const u of alive) {
+            if (over <= 0) break;
+            over -= takes(u);
+            u.removedAt = t;
+            u.fell = true;
+          }
+          continue;
+        }
+        born.removedAt = born.spawnT; // never comes out
+        born.stalled = true;
       }
+    }
+  }
+
+  // Population a unit takes (sheep none, most units one).
+  #popOf(u) {
+    const known = u.typeId != null ? this.game?.units?.[u.typeId]?.pop : undefined;
+    if (known != null) return known;
+    return u.typeId != null && HERDABLE.test(this.objectName(u.typeId)) ? 0 : 1;
+  }
+
+  // A player's population room over time: { at(t), changes } from finished
+  // buildings that give it, never above the limit. Huns need no houses.
+  #roomOf(player, limit) {
+    if (player.civilization === 'Huns' || !this.game?.buildings) return { at: () => limit, changes: [] };
+    const steps = [];
+    for (const b of this.buildings) {
+      if (b.player !== player.number) continue;
+      const pop = this.game.buildings[b.typeId]?.pop ?? this.game.buildings[SAME_BUILDING[b.typeId]]?.pop
+        ?? (b.typeId === TOWN_CENTER || b.typeId === TC_FOUNDATION ? TOWN_CENTER_POP : 0);
+      if (!pop || b.pausedAt != null) continue;
+      const done = b.startT + b.buildTime;
+      if (done >= b.removedAt || !Number.isFinite(done)) continue;
+      steps.push({ t: done, d: pop });
+      if (Number.isFinite(b.removedAt)) steps.push({ t: b.removedAt, d: -pop });
+    }
+    steps.sort((x, y) => x.t - y.t);
+    return {
+      changes: steps.map((x) => x.t),
+      at: (t) => {
+        let n = 0;
+        for (const x of steps) {
+          if (x.t > t) break;
+          n += x.d;
+        }
+        return Math.min(limit, n);
+      },
+    };
+  }
+
+  // A unit that had to wait comes out later: what it did before then moves too.
+  #delaySpawn(unit, t) {
+    const by = t - unit.spawnT;
+    unit.spawnT = t;
+    for (const seg of unit.path) if (seg.t0 < t) seg.t0 = Math.min(t, seg.t0 + by);
+    for (const a of unit.activities) {
+      if (a.t1 <= t) a.t1 = a.t0 = t;
+      else if (a.t0 < t) a.t0 = t;
     }
   }
 

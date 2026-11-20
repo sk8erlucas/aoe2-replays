@@ -1179,3 +1179,33 @@ test('a production queue holds 15: clicks beyond it are refused', () => {
   ]);
   assert.equal(r.units.filter((u) => u.key).length, 15);
 });
+
+test('housed: a unit waits for population room and comes out when a house is done', () => {
+  const gameData = {
+    units: { 83: { speed: 0.8, class: 4, train: [[109, 25]] } },
+    buildings: { 109: { size: 4, buildTime: 0 }, 70: { size: 2, buildTime: 25, pop: 5 } },
+    techs: {},
+  };
+  const r = new Replay({
+    game: { duration_ms: 400_000, population_limit: 200, players: [{ number: 1, name: 'A', civilization: 'Britons', color_id: 0, team_id: 2, start: { x: 10, y: 10 } }] },
+    map: { size: 40, terrain: [], elevation: [] },
+    initial_objects: [
+      { id: 100, player: 1, type_id: 109, x: 10, y: 10 },
+      { id: 101, player: 1, type_id: 83, x: 13, y: 10 },
+      { id: 102, player: 1, type_id: 83, x: 13, y: 11 },
+      { id: 103, player: 1, type_id: 83, x: 13, y: 12 },
+    ],
+    timeline: [
+      { t: 1000, type: 'DE_QUEUE', player: 1, object_ids: [100], unit_id: 83, amount: 3 },
+      // The house goes up from 100 s (its builder gets there at once) and is done at 125 s.
+      { t: 100_000, type: 'BUILD', player: 1, building_id: 70, object_ids: [101], x: 13, y: 10 },
+      // The three new villagers (IDs the header never had) are sent somewhere later.
+      { t: 300_000, type: 'MOVE', player: 1, object_ids: [200, 201, 202], x: 20, y: 20 },
+    ],
+    chat: [],
+    legend: { objects: { 109: { name: 'Town Center', category: 'building' }, 83: { name: 'Villager', category: 'unit' }, 70: { name: 'House', category: 'building' } } },
+  }, { gameData });
+  const trained = r.units.filter((u) => u.key).sort((a, b) => a.spawnT - b.spawnT);
+  // The town center gives 5: two come out on time, the third waits for the house.
+  assert.deepEqual(trained.map((u) => u.spawnT), [26_000, 51_000, 125_000]);
+});
