@@ -11,6 +11,7 @@
     "test": "npm test -w @aoe2-replays/viewer && npm test -w apps/web"
   },
   "overrides": {
-    "postcss": "8.5.32"
+    "postcss": "8.5.32",
+    "effect": "3.22.5"
   }
 }

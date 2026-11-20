@@ -1142,3 +1142,40 @@ test('army by kind counts soldiers alive, not villagers or sheep', () => {
   const ov = r.overviewAt(1000).get(1);
   assert.deepEqual([ov.age, ov.villagers, ov.army, ov.buildings], [1, 1, 2, 1]);
 });
+
+function townCenter(timeline) {
+  const gameData = { units: { 83: { speed: 0.8, class: 4, train: [[109, 25]], cost: [50, 0, 0, 0] } }, buildings: { 109: { size: 4, buildTime: 0 } }, techs: { 22: { at: [[109, 25]], cost: [0, 0, 50, 0] } } };
+  return new Replay({
+    game: { duration_ms: 600_000, players: [{ number: 1, name: 'A', color_id: 0, team_id: 2, start: { x: 10, y: 10 } }] },
+    map: { size: 40, terrain: [], elevation: [] },
+    initial_objects: [{ id: 100, player: 1, type_id: 109, x: 10, y: 10 }],
+    timeline,
+    chat: [],
+    legend: { objects: { 109: { name: 'Town Center', category: 'building' }, 83: { name: 'Villager', category: 'unit' } }, technologies: { 22: 'Loom' } },
+  }, { gameData });
+}
+
+test('taking units out of the queue: they never come out and the queue moves up', () => {
+  const r = townCenter([
+    { t: 1000, type: 'DE_QUEUE', player: 1, object_ids: [100], unit_id: 83, amount: 4 },
+    // The second icon (the three waiting villagers), three clicks: all three go.
+    { t: 20_000, type: 'SPECIAL', player: 1, object_ids: [100], order_id: 4, slot_id: 1, target_id: -1 },
+    { t: 20_200, type: 'SPECIAL', player: 1, object_ids: [100], order_id: 4, slot_id: 1, target_id: -1 },
+    { t: 20_400, type: 'SPECIAL', player: 1, object_ids: [100], order_id: 4, slot_id: 1, target_id: -1 },
+    { t: 21_000, type: 'RESEARCH', player: 1, object_ids: [100], technology_id: 22 },
+  ]);
+  const trained = r.units.filter((u) => u.key);
+  assert.equal(trained.length, 1);
+  assert.equal(trained[0].spawnT, 26_000);
+  const loom = r.researches.find((x) => x.techId === 22);
+  assert.deepEqual([loom.t0, loom.t1], [26_000, 51_000], 'Loom waits only for the villager in production');
+  assert.equal(r.log.filter((e) => e.kind === 'dequeue').length, 3);
+});
+
+test('a production queue holds 15: clicks beyond it are refused', () => {
+  const r = townCenter([
+    { t: 1000, type: 'DE_QUEUE', player: 1, object_ids: [100], unit_id: 83, amount: 10 },
+    { t: 2000, type: 'DE_QUEUE', player: 1, object_ids: [100], unit_id: 83, amount: 10 },
+  ]);
+  assert.equal(r.units.filter((u) => u.key).length, 15);
+});
