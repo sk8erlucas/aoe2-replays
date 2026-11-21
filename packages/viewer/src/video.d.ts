@@ -1,5 +1,5 @@
 // '@aoe2-replays/viewer/video': the video encoder (browser only, loads Mediabunny).
-import type { Quality, Renderer, Replay, SpriteSet, TerrainSet, VideoHeight } from './index';
+import type { Quality, Renderer, Replay, SpriteSet, TerrainSet, VideoHeight, VideoZoom } from './index';
 
 export interface VideoFormat {
   codec: 'avc' | 'vp9' | 'vp8';
@@ -7,7 +7,7 @@ export interface VideoFormat {
   mimeType: string;
 }
 /** What this browser can encode at that size (WebCodecs); null if it can't. */
-export function videoFormat(height?: VideoHeight): Promise<VideoFormat | null>;
+export function videoFormat(height?: VideoHeight, vertical?: boolean): Promise<VideoFormat | null>;
 /** The viewer's players panel, drawn top right on every frame. */
 export interface VideoTable {
   caption: string;
@@ -26,8 +26,14 @@ export interface VideoOptions {
   quality?: Quality;
   sprites?: SpriteSet | null;
   terrain?: TerrainSet | null;
-  /** The viewer's renderer: the video starts with its framing and follow mode. */
+  /** The viewer's renderer: the video starts with its follow mode. */
   camera?: Renderer | null;
+  /** Framing: the viewer's, close, medium (default), far, or the whole map. */
+  zoom?: VideoZoom;
+  /** 9:16 instead of 16:9. */
+  vertical?: boolean;
+  /** Tracks to play under the video, in order, looping; null for none. */
+  music?: string[] | null;
   overlay?: { players?: { name: string; color: string }[]; watermark?: string | null; font?: string; table?: VideoTable | null };
   onProgress?: (fraction: number) => void;
   signal?: AbortSignal;

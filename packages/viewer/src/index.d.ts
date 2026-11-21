@@ -90,6 +90,8 @@ export interface GameData {
   buildings: Record<string, { size: number; buildTime: number; cost?: Cost; pop?: number }>;
   /** Tech id -> where it is researched ([building type, seconds]), its cost and the units it upgrades ([from, to]). */
   techs?: Record<string, { at: Array<[number, number]>; up?: Array<[number, number]>; cost?: Cost }>;
+  /** What each map object carries (a gold mine 800, a javelina 300): food, wood, gold or stone. */
+  gaia?: Record<string, number>;
   /** English names of the units techs upgrade to (no replay command names them). */
   names?: Record<string, string>;
 }
@@ -208,6 +210,10 @@ export class Renderer {
   /** Scale for the default close, in-game-like zoom. */
   closeScale(): number;
   setFollow(mode: FollowMode): void;
+  /** Fog of war as this player (and their team) saw it; null for none. */
+  setFog(player: number | null): void;
+  /** The player whose fog of war is shown, or null. */
+  fogPlayer: number | null;
   zoomAt(sx: number, sy: number, factor: number): void;
   pan(dx: number, dy: number): void;
   /** Glide the camera; returns true while it is still moving. */
@@ -359,4 +365,9 @@ export type VideoHeight = 720 | 1080;
 export const VIDEO_SIZES: Record<VideoHeight, [number, number]>;
 /** Length of the video in ms: (to - from) / speed. */
 export function videoLengthMs(range: { from: number; to: number; speed: number }): number;
-export function estimateBytes(range: { from: number; to: number; speed: number; height: VideoHeight }): number;
+export function estimateBytes(range: { from: number; to: number; speed: number; height: VideoHeight; music?: boolean }): number;
+export type VideoZoom = 'viewer' | 'close' | 'medium' | 'far' | 'map';
+/** Share of the viewer's close zoom for each framing ('viewer' and 'map' apart). */
+export const VIDEO_ZOOMS: Record<'close' | 'medium' | 'far', number>;
+/** [width, height]: landscape, or 9:16 portrait. */
+export function videoSize(height?: VideoHeight, vertical?: boolean): [number, number];

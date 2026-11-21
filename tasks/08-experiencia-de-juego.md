@@ -56,25 +56,25 @@ Elegido: **B1** con un subconjunto (edificios y unidades principales, por arquit
 ### Etapa 4: simulación más fiel
 - [x] Actualizar el home con imágenes del nuevo motor gráfico (capturas rehechas el 30/10/2026)
 - [x] Recorridos alrededor de obstáculos (18/11/2026): A* en la grilla de tiles, sin pisar el agua y rodeando bosques; barcos solo por agua. Falta: edificios, acantilados y árboles talados ([21](./21-recorridos-constructores-y-paneles.md))
-- [ ] Viajes a depositar recursos (aldeano ↔ campamento / centro urbano)
-- [ ] Recolección con más fuentes: punto de reunión en recursos (hecho), órdenes a granjas, caza de animales
-- [~] Usar la cola de producción real: las investigaciones ocupan la cola del edificio y las colas con varios edificios elegidos se reparten entre ellos (16/11/2026). Falta: cancelaciones (no están en el replay)
+- [x] Viajes a depositar recursos (21/11/2026, [24](./24-niebla-viajes-y-video.md)): el aldeano junta una carga y la lleva al campamento, molino o centro urbano más cercano, y vuelve. Solo cómo se ve: lo juntado ya cuenta esas caminatas
+- [x] Recolección con más fuentes: punto de reunión en recursos, órdenes a granjas, caza y pastoreo. Desde el 21/11/2026 lo que trae cada animal, árbol, mina y arbusto sale del juego (`gaia` en `game-data.json`: jabalina 300, alce 380...) y se reconocen los arbustos de ananá y las gallinas
+- [~] Usar la cola de producción real: las investigaciones ocupan la cola del edificio y las colas con varios edificios elegidos se reparten entre ellos (16/11/2026). Las cancelaciones sí están en el replay y se aplican desde el 20/11/2026 ([23](./23-recursos-cancelaciones-y-exactitud.md)), con la cola de 15 y la población
 - [x] Mejoras de unidades (18/11/2026): al terminar una investigación las unidades cambian de tipo (Lancero → Piquero → Alabardero), con el tiempo de investigación del juego ([20](./20-aldeanos-parados-y-visor.md))
 - [x] Edificios: tiempo de construcción según cantidad de constructores (16/11/2026): n aldeanos construyen a (n + 2) / 3 la velocidad de uno, como en el juego; cada uno suma desde que recibe la orden. No se descuentan los que se van a otra cosa
 - [x] Destrucción de edificios y muerte de unidades cuando hay evidencia: `DELETE`, muertes estimadas de unidades y edificios arrasados o con cimientos encima (16/11/2026, [19](./19-unidades-y-edificios-destruidos.md))
 - [x] Revisar `DE_TRANSFORM` y `GAME` con partidas completas: `GAME` son comandos internos al inicio (16 y 19, uno de cada por jugador) y `DE_TRANSFORM` llega en ráfagas sobre el mismo objeto; ninguno es una orden del jugador (fuera del APM y del contexto para IA). Detener (`STOP`) frena a la unidad; seguir y guardia la llevan hasta el objetivo; ataque en movimiento y patrulla, hasta el punto
 
 ### Etapa 5: interfaz de espectador
-- [ ] Barra de jugadores como la del juego: recursos estimados, población, edad, puntaje
+- [~] Barra de jugadores como la del juego: el panel de jugadores (`V`) ya tiene recursos (total exacto), población, edad, ejército y aldeanos ([22](./22-puertas-abandonos-y-pestanas.md), [23](./23-recursos-cancelaciones-y-exactitud.md)). Falta el puntaje
 - [~] Panel de producción: qué está entrenando/investigando cada uno. Hechas las investigaciones en curso del jugador seguido y los aldeanos por tarea (18/11/2026, [21](./21-recorridos-constructores-y-paneles.md))
 - [x] Banderas de avance de edad en la línea de tiempo: una por jugador y edad en la llegada estimada (`Replay.ageMarks()`), apiladas en filas cuando se superponen; clic para ir a ese momento
-- [ ] Niebla de guerra opcional por jugador
+- [x] Niebla de guerra opcional por jugador (21/11/2026, [24](./24-niebla-viajes-y-video.md)): selector "Niebla" en la barra; lo que veía ese jugador y su equipo con la visión de cada unidad y edificio del juego. Negro lo nunca visto, oscuro lo ya visto; los enemigos fuera de la vista no se dibujan (tampoco en el minimapa)
 - [x] **Música de fondo** (12/11/2026): botón "♪ Música" en la barra del visor (`MusicControl.tsx`) con seis pistas del juego en orden aleatorio, volumen guardado en el navegador; no arranca sola y los archivos (`public/music`, AAC 96 kbps, ~3 MB cada uno) se bajan recién al activarla. Extraídas con [`tools/music`](../tools/music). Plan original:
   - Pistas de la banda sonora del juego (bajo las Game Content Usage Rules, registradas en `CREDITS.md`) o música libre como alternativa.
   - Que **no arranque sola** (los navegadores bloquean el audio automático y molesta): botón de música en la barra de controles, con volumen y silencio recordados en el navegador.
   - Pistas en archivos comprimidos (Opus/OGG o MP3, ~128 kbps) cargadas solo al activar la música; lista que pasa de una pista a otra.
   - Opcional: pistas según la civilización del jugador seguido o el momento de la partida.
-- [ ] Sonidos del juego (efectos: construir, avanzar de edad, chat) con el mismo control de volumen
+- [ ] Sonidos del juego (efectos: construir, avanzar de edad, chat) con el mismo control de volumen. Los efectos están en bancos de Wwise (`.bnk`/`.wem`): hace falta una herramienta para extraerlos, como `tools/music`
 - [x] Atajos de teclado para el espectador (botón `?` en la barra, o la tecla `?`): espacio, ← → (Mayús: 30 s), Inicio/Fin, `[` `]` velocidad, `+` `−`, WASD, `F` cámara automática, `1`–`8` seguir jugador, `M` mapa completo. No se activan escribiendo ni con Ctrl/Alt
 
 ## Cómo se integra

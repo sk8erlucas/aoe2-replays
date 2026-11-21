@@ -6,8 +6,10 @@
 // pathing.js), trained units appear next to the building
 // that trained them and head for its gather point, and buildings rise linearly
 // over an estimated build time.
-// Resources are consumed by villagers told to gather them, at estimated rates;
+// Resources are consumed by villagers told to gather them, at estimated rates
+// (what each tree, mine, bush or animal holds is the game's, from game-data.json);
 // when one runs out they move on to the nearest of the same kind, like in-game.
+// Gatherers are drawn walking their loads to the nearest drop site and back.
 // Orders on animals become hunting or herding, orders on enemies an attack of a
 // fixed length (the replay never says who won), and deleted objects disappear.
 // Animals only move in the replay through the clicks on them: an order on an
@@ -31,7 +33,7 @@
 import {
   AGE_TECHS, ANIMAL_FOOD, CARCASS_ROT_MS, DANGEROUS_ANIMALS, DROP_SITE_REACH, DROP_SITES, RESEARCH_TIMES, ATTACK_HOLD_MS, BUILD_TIMES, DEFAULT_ANIMAL_FOOD, DEFAULT_BUILD_TIME, DEFAULT_FOOTPRINT,
   DEFAULT_SPEED, DEFAULT_TRAIN_TIME, FADE_MS, FALLEN_AFTER_MS, FOOTPRINTS, GATHER_RATES, HERDABLE, HIDDEN_OBJECT_TYPES,
-  ENEMY_BASE_RADIUS, ENEMY_BUILDING_REACH, HUNTED_REACH, MEAT_RATE, MELEE_STOP, RANGED_CLASSES, RANGED_STOP, RESOURCE_AMOUNTS, RETARGET_RADIUS, SPEEDS, TRAIN_TIMES,
+  ENEMY_BASE_RADIUS, ENEMY_BUILDING_REACH, FARM_RATE, HUNTED_REACH, MEAT_RATE, MELEE_STOP, RANGED_CLASSES, RANGED_STOP, RESOURCE_AMOUNTS, RETARGET_RADIUS, SPEEDS, TRAIN_TIMES,
 } from './palette.js';
 import { isSystemMessage, noticeTimes, settleAgeUps } from './notices.js';
 import { NavGrid } from './pathing.js';
@@ -115,6 +117,22 @@ function fixShiftedIds(timeline) {
     if ((e.type !== 'SPECIAL' && e.type !== 'UNGARRISON') || !e.object_ids?.length) continue;
     if (e.object_ids.every((id) => id >= 1 << 20)) e.object_ids = e.object_ids.map((id) => id >> 8);
   }
+}
+
+// Objects the parser didn't know before November 2026 (aocref lacks them):
+// replays stored then have them nameless, and the bushes as decoration.
+const LEGEND_FIXES = {
+  2650: { name: 'Pineapple Bush', category: 'berries' },
+  2084: { name: 'Wild Chicken A', category: 'animal' },
+  2086: { name: 'Wild Chicken B', category: 'animal' },
+  2088: { name: 'Wild Chicken C', category: 'animal' },
+};
+function withLegendFixes(legend) {
+  const missing = Object.keys(LEGEND_FIXES).filter((id) => legend.objects?.[id] && legend.objects[id].name == null);
+  if (!missing.length) return legend;
+  const objects = { ...legend.objects };
+  for (const id of missing) objects[id] = LEGEND_FIXES[id];
+  return { ...legend, objects };
 }
 
 export function formatTime(ms) {
@@ -259,6 +277,19 @@ const CASTLE = 82;
 const GATE_ALONG_X = 490;
 const GATE_ALONG_Y = 487;
 // Engine activity -> villager job for the panels.
+// Gathering -> the drop sites that take it (a town center takes everything).
+const DROP_OFF = {
+  tree: ['Lumber Camp'], gold: ['Mining Camp'], stone: ['Mining Camp'],
+  berries: ['Mill'], farm: ['Mill'], hunt: ['Mill'], shepherd: ['Mill'],
+};
+const DROP_ANYTHING = /^Town Center/;
+// What a villager carries before walking to drop it off, and how much faster it
+// gathers than the estimated rates (those include the walks). Estimated, for the
+// look of it: the gathering totals don't depend on these.
+const CARRY = 10;
+const RAW_RATE = 1.4;
+// Farther than this from any drop site (tiles), no trips are drawn.
+const TRIP_MAX = 15;
 const VILLAGER_JOB = {
   tree: 'wood', gold: 'gold', stone: 'stone', berries: 'food', farm: 'food', hunt: 'food', shepherd: 'food',
   build: 'build', attack: 'other',
@@ -286,7 +317,7 @@ export class Replay {
   constructor(data, { gameData = null, dry = false } = {}) {
     this.data = data;
     this.game = gameData;
-    this.legend = data.legend ?? { objects: {}, terrain: {}, technologies: {} };
+    this.legend = withLegendFixes(data.legend ?? { objects: {}, terrain: {}, technologies: {} });
     this.duration = data.game.duration_ms;
     this.players = data.game.players;
     this.playerByNumber = new Map(this.players.map((p) => [p.number, p]));
@@ -411,7 +442,7 @@ export class Replay {
           b.size = this.game?.buildings?.[look]?.size || b.size;
         }
       } else if (category !== 'decoration') {
-        const r = { ...o, category, remaining: RESOURCE_AMOUNTS[category] ?? Infinity, depletedAt: Infinity };
+        const r = { ...o, category, remaining: this.game?.gaia?.[o.type_id] ?? RESOURCE_AMOUNTS[category] ?? Infinity, depletedAt: Infinity };
         this.resources.push(r);
         this.resourceById.set(o.id, r);
         const key = this.#cellKey(o.x, o.y);
@@ -928,7 +959,7 @@ export class Replay {
         // (only to one already hunted, see #huntedNear).
         retarget: !DANGEROUS_ANIMALS.test(name),
         name: known ?? name,
-        remaining: known ? ANIMAL_FOOD[known] : DEFAULT_ANIMAL_FOOD,
+        remaining: this.game?.gaia?.[animal.typeId] ?? (known ? ANIMAL_FOOD[known] : DEFAULT_ANIMAL_FOOD),
         depletedAt: Infinity,
       };
       this.animalFood.set(animal, food);
@@ -1898,6 +1929,65 @@ export class Replay {
       && Math.hypot(b.x - x, b.y - y) < b.size / 2 + ENEMY_BUILDING_REACH);
   }
 
+  // A gatherer standing at its resource walks its loads to the nearest drop site
+  // and back, like in the game: work until it carries a load, walk there, walk
+  // back. Only how it looks (position, walking, heading); the estimate of what is
+  // gathered already counts those walks. Null when it isn't gathering or is next
+  // to the drop site.
+  #tripAt(u, at, t) {
+    const a = u.activities.length ? this.#activityRecord(u, t) : null;
+    if (!a || !DROP_OFF[a.kind] || u.hidden.length && u.hiddenAt(t)) return null;
+    if (a.drop === undefined) a.drop = this.#dropSite(u.player, a.kind, at, a.t0);
+    const site = a.drop;
+    if (!site) return null;
+    const dx = site.x - at.x;
+    const dy = site.y - at.y;
+    const d = Math.hypot(dx, dy);
+    const walkTiles = d - site.size / 2 - 0.5;
+    if (walkTiles < 1) return null;
+    const rate = (a.kind === 'hunt' || a.kind === 'shepherd' ? MEAT_RATE : a.kind === 'farm' ? FARM_RATE : GATHER_RATES[a.kind] ?? 0.33) * RAW_RATE;
+    const work = (CARRY / rate) * 1000;
+    const walk = (walkTiles / Math.max(0.1, u.speed)) * 1000;
+    const phase = (t - a.t0) % (work + 2 * walk);
+    if (phase < work) return null;
+    const out = phase < work + walk;
+    const k = out ? (phase - work) / walk : 1 - (phase - work - walk) / walk;
+    const reach = walkTiles / d;
+    return {
+      x: at.x + dx * reach * k,
+      y: at.y + dy * reach * k,
+      moving: true,
+      trip: true,
+      dir: out ? { dx, dy } : { dx: -dx, dy: -dy },
+    };
+  }
+
+  #activityRecord(u, t) {
+    for (let i = u.activities.length - 1; i >= 0; i--) {
+      const a = u.activities[i];
+      if (a.t0 <= t) return a.t1 > t ? a : null;
+    }
+    return null;
+  }
+
+  // Nearest finished building of the player that takes this resource, when the work began.
+  #dropSite(player, kind, at, t) {
+    const names = DROP_OFF[kind];
+    let best = null;
+    let bestD = TRIP_MAX;
+    for (const b of this.buildings) {
+      if (b.player !== player || b.startT + b.buildTime > t || b.removedAt <= t) continue;
+      const name = this.objectName(b.typeId);
+      if (!names.includes(name) && !DROP_ANYTHING.test(name)) continue;
+      const d = Math.hypot(b.x - at.x, b.y - at.y);
+      if (d < bestD) {
+        best = b;
+        bestD = d;
+      }
+    }
+    return best;
+  }
+
   stateAt(t) {
     const units = [];
     for (const u of this.units) {
@@ -1910,7 +2000,8 @@ export class Replay {
         continue;
       }
       if (u.hidden.length && u.hiddenAt(t)) continue; // inside a building
-      units.push({ unit: u, typeId: u.typeAt(t), ...u.positionAt(t) });
+      const at = u.positionAt(t);
+      units.push({ unit: u, typeId: u.typeAt(t), ...at, ...(at.moving ? null : this.#tripAt(u, at, t)) });
     }
     const buildings = [];
     const ruins = [];

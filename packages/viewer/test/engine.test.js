@@ -1209,3 +1209,26 @@ test('housed: a unit waits for population room and comes out when a house is don
   // The town center gives 5: two come out on time, the third waits for the house.
   assert.deepEqual(trained.map((u) => u.spawnT), [26_000, 51_000, 125_000]);
 });
+
+test('a gatherer walks its loads to the nearest drop site and back', () => {
+  const gameData = { units: { 83: { speed: 1, class: 4, train: [[109, 25]] } }, buildings: { 109: { size: 4, buildTime: 0 } }, techs: {} };
+  const r = new Replay({
+    game: { duration_ms: 600_000, players: [{ number: 1, name: 'A', color_id: 0, team_id: 2, start: { x: 10, y: 10 } }] },
+    map: { size: 60, terrain: [], elevation: [] },
+    initial_objects: [
+      { id: 100, player: 1, type_id: 109, x: 10, y: 10 },
+      { id: 101, player: 1, type_id: 83, x: 20, y: 10 },
+      { id: 500, player: 0, type_id: 66, x: 20, y: 10 },
+    ],
+    timeline: [{ t: 1000, type: 'ORDER', player: 1, object_ids: [101], target_id: 500, x: 20, y: 10 }],
+    chat: [],
+    legend: { objects: { 109: { name: 'Town Center', category: 'building' }, 83: { name: 'Villager', category: 'unit' }, 66: { name: 'Gold Mine', category: 'gold' } } },
+  }, { gameData });
+  const seen = [];
+  for (let t = 2000; t < 120_000; t += 1000) seen.push(r.stateAt(t).units.find((u) => u.unit.id === 101));
+  const walking = seen.filter((u) => u.trip);
+  assert.ok(walking.length > 10, 'some of the time it is on its way');
+  assert.ok(seen.some((u) => !u.trip && u.x === 20), 'and some of the time at the mine');
+  assert.ok(Math.min(...walking.map((u) => u.x)) < 13.5, 'it gets to the town center edge');
+  assert.equal(r.unitById.get(101).positionAt(60_000).x, 20, 'its own position stays at the mine');
+});

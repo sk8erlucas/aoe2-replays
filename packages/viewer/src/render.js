@@ -9,6 +9,13 @@
 
 import { ANIMAL_COLOR, PLAYER_COLORS, RESOURCE_COLORS, TERRAIN_COLORS } from './palette.js';
 import { QUALITY_SETTINGS } from './quality.js';
+import { Fog, SEEN } from './fog.js';
+
+// How dark the fog is: never seen (black, like the game) and seen before.
+const FOG_UNSEEN = 255;
+const FOG_EXPLORED = 130;
+// The fog is worked out again at most this often (game ms).
+const FOG_STEP_MS = 500;
 
 const ELEVATION_UNITS = 0.25; // height of one elevation level
 // Unit class (game data) -> a common unit whose sprite stands in for units
@@ -163,6 +170,60 @@ export class Renderer {
     const xi = Math.min(n - 1, Math.max(0, Math.floor(x)));
     const yi = Math.min(n - 1, Math.max(0, Math.floor(y)));
     return (this.elevation[yi * n + xi] ?? 0) * ELEVATION_UNITS;
+  }
+
+  /**
+   * Fog of war as one player (and their team) saw it, or null for none. Their
+   * enemies' units are only drawn where the team sees now; buildings where it
+   * has seen before.
+   */
+  setFog(player) {
+    this.fogPlayer = player ?? null;
+    this.fog = player == null ? null : new Fog(this.replay, player);
+    this.fogGrid = null;
+  }
+
+  // This frame's fog grid (cached for FOG_STEP_MS of game time) and its image.
+  #fogFor(t) {
+    if (!this.fog) return null;
+    const key = Math.floor(t / FOG_STEP_MS);
+    if (this.fogGrid?.key === key) return this.fogGrid;
+    const grid = this.fog.at(key * FOG_STEP_MS);
+    const n = this.size;
+    this.fogCanvas ??= document.createElement('canvas');
+    this.fogCanvas.width = n;
+    this.fogCanvas.height = n;
+    const fctx = this.fogCanvas.getContext('2d');
+    const img = fctx.createImageData(n, n);
+    for (let i = 0; i < grid.length; i++) {
+      img.data[i * 4] = 11;
+      img.data[i * 4 + 1] = 12;
+      img.data[i * 4 + 2] = 13;
+      img.data[i * 4 + 3] = grid[i] === SEEN ? 0 : grid[i] ? FOG_EXPLORED : FOG_UNSEEN;
+    }
+    fctx.putImageData(img, 0, 0);
+    this.fogGrid = { key, grid };
+    return this.fogGrid;
+  }
+
+  // Shown with the fog: always the team's own; the rest only where seen
+  // (units) or explored (buildings).
+  #fogShows(fog, player, x, y, building = false) {
+    if (!fog || player <= 0 || this.fog.viewers.has(player)) return true;
+    const tx = Math.floor(x);
+    const ty = Math.floor(y);
+    const v = tx >= 0 && ty >= 0 && tx < this.size && ty < this.size ? fog.grid[ty * this.size + tx] : 0;
+    return building ? v > 0 : v === SEEN;
+  }
+
+  // Tile (x, y) maps to the screen with an affine transform (elevation aside), so
+  // the fog image (one pixel per tile) is drawn in one go, smoothed.
+  #drawFog(ctx, a, ox, oy) {
+    ctx.save();
+    ctx.imageSmoothingEnabled = true;
+    ctx.transform(a, a / 2, -a, a / 2, ox, oy);
+    ctx.drawImage(this.fogCanvas, 0, 0);
+    ctx.restore();
   }
 
   uv(x, y, z = this.heightAt(x, y)) {
@@ -628,6 +689,7 @@ export class Renderer {
     const b = this.#visibleBounds();
     const inView = (x, y) => x >= b.x0 && x <= b.x1 && y >= b.y0 && y <= b.y1;
     const detail = s >= DETAIL_SCALE;
+    const fog = this.#fogFor(state.t);
 
     // Painter's algorithm: everything that stands up is sorted by depth.
     const items = [];
@@ -640,7 +702,7 @@ export class Renderer {
     }
     for (const it of state.buildings) {
       const bd = it.building;
-      if (!inView(bd.x, bd.y)) continue;
+      if (!inView(bd.x, bd.y) || !this.#fogShows(fog, bd.player, bd.x, bd.y, true)) continue;
       // Farms lie flat on the ground: under everything that stands on them.
       const flat = this.replay.objectName(bd.typeId) === 'Farm';
       items.push({ depth: flat ? -Infinity : bd.x + bd.y + bd.size / 2, draw: () => this.#drawBuilding(bd, it.progress, state, it.planned) });
@@ -650,7 +712,7 @@ export class Renderer {
       items.push({ depth: -Infinity, draw: () => this.#drawRuin(bd, state) });
     }
     for (const u of state.units) {
-      if (!inView(u.x, u.y)) continue;
+      if (!inView(u.x, u.y) || !this.#fogShows(fog, u.unit.player, u.x, u.y)) continue;
       items.push({ depth: u.x + u.y, draw: () => this.#drawUnit(u, state, detail) });
     }
     this.walls = null; // wall shapes depend on this frame's neighbours
@@ -658,11 +720,12 @@ export class Renderer {
 
     // Orders on the ground, under everything else.
     for (const u of state.units) {
-      if (u.moving && u.unit.player > 0 && inView(u.x, u.y)) this.#drawPath(u, state);
+      if (u.moving && !u.trip && u.unit.player > 0 && inView(u.x, u.y)) this.#drawPath(u, state);
     }
     for (const it of items) it.draw();
     if (detail) this.#drawHidden(state, inView);
     ctx.globalAlpha = 1;
+    if (fog) this.#drawFog(ctx, s, w / 2 - this.cam.u * s, h / 2 - this.cam.v * s);
     this.sprites?.endFrame();
     if (pointer) {
       const hit = this.pick(state, pointer.x, pointer.y);
@@ -685,8 +748,9 @@ export class Renderer {
       boxes.push({ x0: lx, x1: rx, y0: ty - b.size * s * 1.2, y1: by, depth: b.x + b.y + b.size / 2 });
     }
     if (!boxes.length) return;
+    const fog = this.fog ? this.fogGrid : null;
     for (const u of state.units) {
-      if (!inView(u.x, u.y)) continue;
+      if (!inView(u.x, u.y) || !this.#fogShows(fog, u.unit.player, u.x, u.y)) continue;
       const [x, y] = this.toScreen(u.x, u.y);
       const mid = y - s * 0.4;
       const depth = u.x + u.y;
@@ -1111,10 +1175,13 @@ export class Renderer {
   }
 
   // Screen direction as one of `count` angles like the game's sprites: 0 = facing right, turning clockwise.
+  // `u.dir` (a walk to drop off a load) wins over the unit's path.
   #angleIndex(unit, u, count) {
     const seg = unit.segmentAt(u.t ?? 0);
-    const dx = (seg.x1 - seg.x0) - (seg.y1 - seg.y0);
-    const dy = (seg.x1 - seg.x0 + seg.y1 - seg.y0) / 2;
+    const mx = u.dir ? u.dir.dx : seg.x1 - seg.x0;
+    const my = u.dir ? u.dir.dy : seg.y1 - seg.y0;
+    const dx = mx - my;
+    const dy = (mx + my) / 2;
     if (Math.abs(dx) + Math.abs(dy) > 1e-3) {
       const a = Math.atan2(dy, dx); // screen y grows downward, so this turns clockwise
       const idx = ((Math.round((a / (2 * Math.PI)) * count) % count) + count) % count;
@@ -1132,14 +1199,14 @@ export class Renderer {
     let ok = false;
     if (unit.player === 0) {
       const keys = this.sprites.gaia(typeId);
-      if (keys?.length) ok = this.#blit(keys[this.#angleIndex(unit, { t: state.t }, keys.length)], sx, sy, GAIA_TINT);
+      if (keys?.length) ok = this.#blit(keys[this.#angleIndex(unit, { t: state.t, dir: u.dir }, keys.length)], sx, sy, GAIA_TINT);
     } else {
       const civ = this.#civ(unit.player);
       const job = this.q.jobs && this.#villagerJob(unit, state.t);
       if (job) {
         const anim = u.moving ? job.walk : job.task;
         if (anim) {
-          const frames = anim[this.#angleIndex(unit, { t: state.t }, anim.length)];
+          const frames = anim[this.#angleIndex(unit, { t: state.t, dir: u.dir }, anim.length)];
           ok = this.#blit(this.#cycle(frames, state.t, u.moving ? 110 : 160), sx, sy, color);
           this.ctx.globalAlpha = 1;
           if (ok) return true;
@@ -1148,7 +1215,7 @@ export class Renderer {
       // Herdables a player took (sheep, turkeys...) keep their animal sprite, in the player's colour.
       const herd = typeId != null && !this.sprites.unit(civ, typeId) && this.sprites.gaia(typeId);
       if (herd?.length) {
-        ok = this.#blit(herd[this.#angleIndex(unit, { t: state.t }, herd.length)], sx, sy, color);
+        ok = this.#blit(herd[this.#angleIndex(unit, { t: state.t, dir: u.dir }, herd.length)], sx, sy, color);
         this.ctx.globalAlpha = 1;
         return ok;
       }
@@ -1158,13 +1225,13 @@ export class Renderer {
         ?? this.sprites.unit(civ, 83);
       if (set) {
         if (u.moving && set.walk) {
-          const frames = set.walk[this.#angleIndex(unit, { t: state.t }, set.walk.length)];
+          const frames = set.walk[this.#angleIndex(unit, { t: state.t, dir: u.dir }, set.walk.length)];
           ok = this.#blit(this.#cycle(frames, state.t, 110), sx, sy, color);
         } else if (this.q.jobs && set.attack && unit.activityAt(state.t) === 'attack') {
-          const frames = set.attack[this.#angleIndex(unit, { t: state.t }, set.attack.length)];
+          const frames = set.attack[this.#angleIndex(unit, { t: state.t, dir: u.dir }, set.attack.length)];
           ok = this.#blit(this.#cycle(frames, state.t, 140), sx, sy, color);
         } else if (set.idle) {
-          ok = this.#blit(set.idle[this.#angleIndex(unit, { t: state.t }, set.idle.length)], sx, sy, color);
+          ok = this.#blit(set.idle[this.#angleIndex(unit, { t: state.t, dir: u.dir }, set.idle.length)], sx, sy, color);
         }
       }
     }
@@ -1208,8 +1275,15 @@ export class Renderer {
       ctx.fillStyle = color;
       ctx.fillRect(m.ox + (u + this.size) * m.s - r, m.oy + (v + this.elevPad) * m.s - r, r * 2, r * 2);
     };
-    for (const it of state.buildings) dot(it.building.x, it.building.y, this.playerColor(it.building.player), 2);
-    for (const u of state.units) if (u.unit.player > 0) dot(u.x, u.y, this.playerColor(u.unit.player), 1);
+    const fog = this.#fogFor(state.t);
+    for (const it of state.buildings) {
+      const bd = it.building;
+      if (this.#fogShows(fog, bd.player, bd.x, bd.y, true)) dot(bd.x, bd.y, this.playerColor(bd.player), 2);
+    }
+    for (const u of state.units) {
+      if (u.unit.player > 0 && this.#fogShows(fog, u.unit.player, u.x, u.y)) dot(u.x, u.y, this.playerColor(u.unit.player), 1);
+    }
+    if (fog) this.#drawFog(ctx, m.s, m.ox + this.size * m.s, m.oy + this.elevPad * m.s);
 
     // Current view rectangle.
     const { w: cw, h: ch } = this.view;
@@ -1244,15 +1318,17 @@ export class Renderer {
     const s = this.cam.scale;
     const reach = Math.max(8, s * 0.5);
     let best = null;
+    const fog = this.fog ? this.#fogFor(state.t) : null;
     for (const u of state.units) {
+      if (!this.#fogShows(fog, u.unit.player, u.x, u.y)) continue;
       const [x, y] = this.toScreen(u.x, u.y);
       const d = Math.hypot(x - sx, y - s * 0.45 - sy);
       if (d < reach && (!best || d < best.d)) best = { d, u };
     }
     if (best) return { kind: 'unit', ...best.u };
     const [wx, wy] = this.toWorld(sx, sy);
-    const hit = state.buildings.find(({ building: b }) =>
-      Math.abs(b.x - wx) <= b.size / 2 + 0.5 && Math.abs(b.y - wy) <= b.size / 2 + 0.5);
+    const hit = state.buildings.find(({ building: b }) => this.#fogShows(fog, b.player, b.x, b.y, true)
+      && Math.abs(b.x - wx) <= b.size / 2 + 0.5 && Math.abs(b.y - wy) <= b.size / 2 + 0.5);
     return hit ? { kind: 'building', ...hit } : null;
   }
 }

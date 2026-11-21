@@ -137,7 +137,7 @@ export const RANGED_STOP = 5;
 export const MELEE_STOP = 0.8;
 // Food in a hunted or herded animal, and how fast one villager takes it (per
 // game second, walks included). The animal disappears when its food runs out.
-export const ANIMAL_FOOD = { Sheep: 100, Goose: 100, Turkey: 100, Llama: 100, Pig: 100, Cow: 150, 'Water Buffalo': 150, Goat: 100, Deer: 140, Zebra: 140, Ostrich: 140, Boar: 340, Elephant: 340, Rhinoceros: 340 };
+export const ANIMAL_FOOD = { Sheep: 100, Goose: 100, Turkey: 100, Llama: 100, Pig: 100, Cow: 150, 'Water Buffalo': 150, Goat: 100, Chicken: 75, Deer: 140, Zebra: 140, Ostrich: 140, Boar: 340, Elephant: 340, Rhinoceros: 340 };
 export const DEFAULT_ANIMAL_FOOD = 140;
 export const MEAT_RATE = 0.4;
 // A carcass left with some food rots away in the game; here it vanishes after this long
@@ -153,7 +153,7 @@ export const ENEMY_BASE_RADIUS = 18;
 export const FADE_MS = 2_000;
 
 // Animals a villager herds (shepherd) rather than hunts.
-export const HERDABLE = /^(Sheep|Goose|Turkey|Llama|Cow|Pig|Water Buffalo|Goat)\b/;
+export const HERDABLE = /^(Sheep|Goose|Turkey|Llama|Cow|Pig|Water Buffalo|Goat|Chicken)\b/;
 // Hunted only after luring them one at a time: hunters never move on to the next by themselves.
 export const DANGEROUS_ANIMALS = /\b(Boar|Javelina|Elephant|Rhinoceros|Bear)\b/;
 

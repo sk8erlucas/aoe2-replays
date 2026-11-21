@@ -6,7 +6,7 @@ import { useI18n } from "@/i18n/I18nProvider";
 // The game's soundtrack (public/music, see public/images/CREDITS.md). Never starts on
 // its own: the files are only fetched after the first press of the button. Once on,
 // it plays while the replay plays and pauses with it, keeping its place.
-const TRACKS = ["01", "02", "03", "04", "05", "06"].map((n) => `/music/track-${n}.m4a`);
+export const TRACKS = ["01", "02", "03", "04", "05", "06"].map((n) => `/music/track-${n}.m4a`);
 const VOLUME_KEY = "viewer-music-volume";
 
 function readVolume(): number {

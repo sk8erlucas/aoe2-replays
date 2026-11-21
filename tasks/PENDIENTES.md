@@ -2,6 +2,14 @@
 
 Separados entre lo que necesita una decisión o acción tuya y lo que se puede avanzar sin vos.
 
+## Sesión del 21/11/2026: niebla, viajes a depositar y video
+Detalle en [24](./24-niebla-viajes-y-video.md), con la partida `/m/522595678?p=397671` (4v4 Black Forest, 78 min).
+- **Arbustos de ananá y gallinas** (objetos nuevos del juego) y **lo que trae cada animal y recurso, del juego**: muchos menos aldeanos "parados" falsos.
+- **Niebla de guerra** opcional por jugador (selector "Niebla").
+- **Viajes a depositar**: los aldeanos llevan sus cargas al campamento y vuelven.
+- **Video**: encuadre elegible (Media por defecto), vertical 9:16 y música del juego.
+- **Para probar en el navegador**: la niebla, los viajes y un video con música y en vertical.
+
 ## Sesión del 20/11/2026: recursos por tipo y cancelaciones
 Detalle en [23](./23-recursos-cancelaciones-y-exactitud.md), con la partida `/m/522363603?p=5675276` (4v4 Black Forest, 68 min).
 - **Recursos**: total exacto y comida, madera, oro y piedra estimados, ajustados al total del juego cada ~17 s. Costos sacados del juego.

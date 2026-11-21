@@ -1,11 +1,14 @@
 """Game data the viewer engine uses instead of guesses (game-data.json).
 
-- units: speed, class, cost, population it takes (pop, only if not 1) and
-  where each unit is trained (building, seconds);
-- buildings: footprint, build time, cost and population room (pop: house 5);
+- units: speed, class, cost, line of sight (los, tiles), population it takes
+  (pop, only if not 1) and where each unit is trained (building, seconds);
+- buildings: footprint, build time, cost, line of sight and population room
+  (pop: house 5);
 - techs: research time, cost, where, and the units they upgrade ("upgrade unit"
   commands: Knight -> Cavalier). A replay's queue orders always name the base
   unit, so the engine applies these when the research is done;
+- gaia: what each map object carries (trees, mines, bushes, animals): amount
+  of its resource (food, wood, gold or stone), as the game has it;
 - names: English names (the game's string table) of the units techs upgrade
   to, which a replay's legend doesn't have since no command names them.
 
@@ -64,13 +67,15 @@ def game_data(dat, game: Path):
             trained = unit.type == UNIT or (at is not None and at.type == BUILDING)
             cost = _cost(unit.creatable.resource_costs)
             if trained and unit.id not in units:
-                units[unit.id] = {'speed': round(unit.speed, 3), 'class': unit.class_, 'train': trains}
+                units[unit.id] = {'speed': round(unit.speed, 3), 'class': unit.class_, 'los': round(unit.line_of_sight, 1),
+                                  'train': trains}
                 if cost:
                     units[unit.id]['cost'] = cost
                 if _pop(unit) != -1:
                     units[unit.id]['pop'] = -_pop(unit)
             elif unit.type == BUILDING and not trained and unit.id not in buildings:
-                buildings[unit.id] = {'size': round(unit.collision_size_x * 2), 'buildTime': trains[0][1]}
+                buildings[unit.id] = {'size': round(unit.collision_size_x * 2), 'buildTime': trains[0][1],
+                                      'los': round(unit.line_of_sight, 1)}
                 if cost:
                     buildings[unit.id]['cost'] = cost
                 if _pop(unit) > 0:
@@ -94,6 +99,13 @@ def game_data(dat, game: Path):
 
     strings = _strings(game)
     gaia = dat.civs[0].units
+    carries = {}
+    for unit in gaia:
+        if unit is None or unit.type == BUILDING:
+            continue
+        amount = max((s.amount for s in unit.resource_storages if s.type in COST_INDEX), default=0)
+        if amount > 0:
+            carries[unit.id] = round(amount)
     names = {}
     for entry in techs.values():
         for _, to in entry.get('up', []):
@@ -101,14 +113,14 @@ def game_data(dat, game: Path):
             name = unit and strings.get(unit.language_dll_name)
             if name:
                 names[to] = name
-    return {'units': units, 'buildings': buildings, 'techs': techs, 'names': names}
+    return {'units': units, 'buildings': buildings, 'techs': techs, 'gaia': carries, 'names': names}
 
 
 def write(dat, game: Path, out: Path):
     data = game_data(dat, game)
     (out / 'game-data.json').write_text(json.dumps(data, separators=(',', ':')), encoding='utf-8')
     print(f"game data: {len(data['units'])} units, {len(data['buildings'])} buildings, "
-          f"{len(data['techs'])} techs, {len(data['names'])} names")
+          f"{len(data['techs'])} techs, {len(data['gaia'])} gaia objects, {len(data['names'])} names")
 
 
 def main():
