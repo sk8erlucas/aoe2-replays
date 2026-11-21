@@ -9,4 +9,4 @@ export { SpriteSet } from './sprites.js';
 export { TerrainSet } from './terrain.js';
 export { FpsWatch, QUALITIES, QUALITY_SETTINGS, lowerQuality, pickQuality } from './quality.js';
 // The encoder itself (Mediabunny) is a separate entry: '@aoe2-replays/viewer/video'.
-export { VIDEO_SIZES, estimateBytes, videoLengthMs } from './videoPlan.js';
+export { VIDEO_SIZES, VIDEO_ZOOMS, estimateBytes, videoLengthMs, videoSize } from './videoPlan.js';

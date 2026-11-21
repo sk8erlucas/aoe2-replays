@@ -85,6 +85,15 @@ def test_names_and_legend(sample):
     assert legend['technologies']['22'] == 'Loom'
 
 
+def test_new_objects_aocref_lacks():
+    from aoe2_parser import reference
+
+    # Pineapple bushes are forage (food), wild chickens are hunted.
+    lg = reference.legend([], [(2650, 10, 0), (2084, 70, 0)], [], [], [])
+    assert lg['objects']['2650'] == {'name': 'Pineapple Bush', 'category': 'berries'}
+    assert lg['objects']['2084'] == {'name': 'Wild Chicken A', 'category': 'animal'}
+
+
 def test_event_converts_raw_bytes():
     from mgz.fast import Action
 

@@ -11,9 +11,11 @@ import {
   type SpriteSet,
   type TerrainSet,
   type VideoHeight,
+  type VideoZoom,
 } from "@aoe2-replays/viewer";
 import type { Player } from "@aoe2-replays/shared";
 import type { VideoFormat, VideoTable } from "@aoe2-replays/viewer/video";
+import { TRACKS } from "@/components/MusicControl";
 import { usePopup } from "@/components/usePopup";
 import { useI18n } from "@/i18n/I18nProvider";
 import { panelCell, panelTable, readPanelTab } from "@/lib/panelTable";
@@ -23,6 +25,7 @@ let encoder: Promise<typeof import("@aoe2-replays/viewer/video")> | null = null;
 const loadEncoder = () => (encoder ??= import("@aoe2-replays/viewer/video"));
 
 const SPEEDS = [4, 8, 16, 32];
+const ZOOMS: VideoZoom[] = ["close", "medium", "far", "map", "viewer"];
 
 type Props = {
   replay: Replay;
@@ -53,6 +56,12 @@ function parseClock(text: string): number | null {
   return parts.reduce((total, p) => total * 60 + Number(p), 0) * 1000;
 }
 
+// The soundtrack from a random track, so videos don't all sound the same.
+function startingAtRandom(tracks: string[]): string[] {
+  const k = Math.floor(Math.random() * tracks.length);
+  return [...tracks.slice(k), ...tracks.slice(0, k)];
+}
+
 function slug(text: string) {
   return text.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "") || "match";
 }
@@ -67,6 +76,9 @@ export function VideoExport({ replay, renderer, now, pause, players, color, pane
   const [speed, setSpeed] = useState(16);
   const [height, setHeight] = useState<VideoHeight>(720);
   const [watermark, setWatermark] = useState(true);
+  const [zoom, setZoom] = useState<VideoZoom>("medium");
+  const [vertical, setVertical] = useState(false);
+  const [music, setMusic] = useState(true);
   const [withPanel, setWithPanel] = useState(panels);
   useEffect(() => setWithPanel(panels), [panels]);
   const [status, setStatus] = useState<Status>({ kind: "idle" });
@@ -77,7 +89,7 @@ export function VideoExport({ replay, renderer, now, pause, players, color, pane
     if (!open) return;
     let alive = true;
     loadEncoder()
-      .then((m) => m.videoFormat(height))
+      .then((m) => m.videoFormat(height, vertical))
       .catch(() => null)
       .then((f) => {
         if (alive) setFormat(f);
@@ -85,7 +97,7 @@ export function VideoExport({ replay, renderer, now, pause, players, color, pane
     return () => {
       alive = false;
     };
-  }, [open, height]);
+  }, [open, height, vertical]);
 
   // Free the last video, and stop a recording if the viewer goes away.
   const lastUrl = useRef<string | null>(null);
@@ -146,6 +158,9 @@ export function VideoExport({ replay, renderer, now, pause, players, color, pane
         sprites,
         terrain,
         camera: renderer.current,
+        zoom,
+        vertical,
+        music: music ? startingAtRandom(TRACKS) : null,
         overlay: {
           players: players.map((p) => ({ name: p.name, color: color(p.number) ?? "#fff" })),
           watermark: watermark ? location.host : null,
@@ -181,7 +196,7 @@ export function VideoExport({ replay, renderer, now, pause, players, color, pane
   }
 
   const recording = status.kind === "recording";
-  const estimate = range && { ms: videoLengthMs({ ...range, speed }), mb: estimateBytes({ ...range, speed, height }) / 1e6 };
+  const estimate = range && { ms: videoLengthMs({ ...range, speed }), mb: estimateBytes({ ...range, speed, height, music }) / 1e6 };
 
   return (
     <div className="topbar-popup video-export" ref={box}>
@@ -236,6 +251,27 @@ export function VideoExport({ replay, renderer, now, pause, players, color, pane
                     <option value={720}>720p</option>
                     <option value={1080}>1080p</option>
                   </select>
+                </label>
+                <label>
+                  {v.zoom}{" "}
+                  <select value={zoom} onChange={(e) => setZoom(e.target.value as VideoZoom)}>
+                    {ZOOMS.map((z) => (
+                      <option key={z} value={z}>
+                        {v.zooms[z]}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <label>
+                  {v.shape}{" "}
+                  <select value={vertical ? "v" : "h"} onChange={(e) => setVertical(e.target.value === "v")}>
+                    <option value="h">{v.landscape}</option>
+                    <option value="v">{v.portrait}</option>
+                  </select>
+                </label>
+                <label className="video-check">
+                  <input type="checkbox" checked={music} onChange={(e) => setMusic(e.target.checked)} />
+                  {v.music}
                 </label>
                 <label className="video-check">
                   <input type="checkbox" checked={watermark} onChange={(e) => setWatermark(e.target.checked)} />

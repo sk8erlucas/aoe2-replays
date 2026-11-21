@@ -149,6 +149,9 @@ function ReplayStage({ data, actions, extras, moment, gameData }: ViewerProps & 
   const [playing, setPlaying] = useState(false);
   const [speed, setSpeed] = useState(2);
   const [follow, setFollowState] = useState<FollowMode>("auto");
+  // Fog of war as one player saw it (null: none). Kept across renderer rebuilds.
+  const [fog, setFogState] = useState<number | null>(null);
+  const fogRef = useRef<number | null>(null);
   const [tooltip, setTooltip] = useState<Tooltip>(null);
   const [tab, setTab] = useState<"events" | "chat" | "analysis" | "ai">("events");
   const [notice, setNotice] = useState<string | null>(null);
@@ -228,6 +231,13 @@ function ReplayStage({ data, actions, extras, moment, gameData }: ViewerProps & 
     return p ? PLAYER_COLORS[p.color_id] : undefined;
   };
 
+  function setFog(player: number | null) {
+    fogRef.current = player;
+    renderer.current?.setFog(player);
+    setFogState(player);
+    dirty.current = true;
+  }
+
   function setFollow(mode: FollowMode) {
     renderer.current?.setFollow(mode);
     setFollowState(mode);
@@ -269,6 +279,7 @@ function ReplayStage({ data, actions, extras, moment, gameData }: ViewerProps & 
     r.centerOn(first.x, first.y, { scale: r.closeScale(), instant: true });
     r.setFollow("auto");
     setFollowState("auto");
+    r.setFog(fogRef.current);
     // ?t=<seconds> opens the match at that moment (shareable links).
     const startAt = Number(new URLSearchParams(location.search).get("t"));
     if (startAt > 0) time.current = Math.min(replay.duration, startAt * 1000);
@@ -765,6 +776,17 @@ function ReplayStage({ data, actions, extras, moment, gameData }: ViewerProps & 
             {players.map((p) => (
               <option key={p.number} value={p.number}>
                 {tr.viewer.follow(p.name)}
+              </option>
+            ))}
+          </select>
+        </label>
+        <label title={tr.viewer.fogHint}>
+          {tr.viewer.fog}{" "}
+          <select value={fog === null ? "none" : String(fog)} onChange={(e) => setFog(e.target.value === "none" ? null : Number(e.target.value))}>
+            <option value="none">{tr.viewer.fogNone}</option>
+            {players.map((p) => (
+              <option key={p.number} value={p.number}>
+                {tr.viewer.fogOf(p.name)}
               </option>
             ))}
           </select>

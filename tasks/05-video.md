@@ -8,9 +8,9 @@ Botón "🎬 Video" en la barra del visor (`VideoExport.tsx`), con el grabador e
 - [x] Opciones: desde/hasta (m:ss, con "desde el momento actual"), velocidad (4×, 8×, 16×, 32×), 720p o 1080p. Estimación de duración y peso (~3,7 Mbps en 720p, ~8,3 en 1080p).
 - [x] Barra de progreso y cancelación; al terminar se descarga solo y queda el enlace "Descargar".
 - [x] Marca de agua opcional con la dirección del sitio; reloj y jugadores con su color arriba a la izquierda.
-- [x] La cámara arranca con el encuadre y el modo de seguimiento del visor (auto, un jugador o libre).
+- [x] La cámara arranca con el modo de seguimiento del visor (auto, un jugador o libre). **Encuadre** (21/11/2026): Cerca, Media (nueva por defecto: la del visor se veía muy de cerca), Lejos, Mapa entero o Como en el visor; medido sobre el lado corto, así 1080p y vertical encuadran igual que 720p. Si el visor tiene niebla, el video también.
 - [x] Render en servidor: no hace falta por ahora (todo corre en el navegador, sin costo).
-- [ ] Probar en Safari, Firefox y en un celular (solo se probó Chrome de escritorio, también con la web real).
-- [ ] Música de fondo en el video (Mediabunny acepta una pista de audio: se podría mezclar la de `public/music`).
+- [ ] Probar en Safari, Firefox y en un celular (solo se probó Chrome de escritorio, también con la web real). **La música, el vertical y los encuadres nuevos no se probaron en un navegador** (21/11/2026).
+- [x] Música de fondo en el video (21/11/2026): opción "Música del juego" (activada); las pistas de `public/music` desde una al azar, una tras otra, con entrada y salida suaves, en AAC (MP4) u Opus (WebM) a 128 kbps. Si el navegador no puede codificar audio, el video sale mudo.
 - [ ] Partidas largas en 1080p pesan mucho (una de 25 min a 16× da ~95 s y ~100 MB): evaluar bajar el bitrate o avisar.
-- [ ] Opción vertical (9:16) para redes.
+- [x] Opción vertical (9:16) para redes (21/11/2026): "Formato" horizontal o vertical (720×1280 / 1080×1920).
