@@ -26,8 +26,12 @@ export interface VideoOptions {
   quality?: Quality;
   sprites?: SpriteSet | null;
   terrain?: TerrainSet | null;
-  /** The viewer's renderer: the video starts with its follow mode. */
+  /** The viewer's renderer, for the 'viewer' framing. */
   camera?: Renderer | null;
+  /** Who the camera follows: where the action is, or a player (never free). Default 'auto'. */
+  follow?: 'auto' | number;
+  /** Fog of war as this player (and team) saw it; null (default) for none. */
+  fog?: number | null;
   /** Framing: the viewer's, close, medium (default), far, or the whole map. */
   zoom?: VideoZoom;
   /** 9:16 instead of 16:9. */

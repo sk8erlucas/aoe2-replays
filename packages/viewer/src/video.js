@@ -54,7 +54,10 @@ function abortError() {
 /**
  * Renders [from, to] of the match (game ms) and resolves with the video.
  *
- * - `camera`: the viewer's renderer; the video starts with its follow mode.
+ * - `camera`: the viewer's renderer, for the 'viewer' framing.
+ * - `follow`: who the camera follows, 'auto' (where the action is) or a player
+ *   number. Never free: a camera that doesn't move makes a still video.
+ * - `fog`: fog of war as this player (and team) saw it, or null.
  * - `zoom`: 'viewer' (its framing), 'close', 'medium', 'far' or 'map' (all of it).
  * - `vertical`: 9:16 instead of 16:9.
  * - `music`: URLs of tracks to play under the video (in order, looping), or null.
@@ -72,6 +75,8 @@ export async function recordVideo(replay, options) {
     sprites = null,
     terrain = null,
     camera = null,
+    follow = 'auto',
+    fog = null,
     zoom = 'medium',
     vertical = false,
     music = null,
@@ -88,8 +93,8 @@ export async function recordVideo(replay, options) {
   r.setFixedSize(w, h);
   if (sprites) r.setSprites(sprites);
   if (terrain) await r.setTerrain(terrain);
-  placeCamera(r, camera, from, zoom);
-  if (camera?.fogPlayer != null) r.setFog(camera.fogPlayer);
+  placeCamera(r, camera, from, zoom, typeof follow === 'number' ? follow : 'auto');
+  if (fog != null) r.setFog(fog);
 
   const container = format.extension === 'mp4' ? new Mp4OutputFormat({ fastStart: 'in-memory' }) : new WebMOutputFormat();
   const output = new Output({ format: container, target: new BufferTarget() });
@@ -158,10 +163,10 @@ export async function recordVideo(replay, options) {
   return { blob: new Blob([output.target.buffer], { type: format.mimeType }), extension: format.extension };
 }
 
-// The viewer's follow mode, framed as asked: the viewer's own zoom, a share of
-// the close zoom (sized to the video's short side, so 1080p frames like 720p),
-// or the whole map.
-function placeCamera(r, camera, t, zoom) {
+// Follows `follow` ('auto' or a player), framed as asked: the viewer's own
+// zoom, a share of the close zoom (sized to the video's short side, so 1080p
+// frames like 720p), or the whole map (which then stays still).
+function placeCamera(r, camera, t, zoom, follow) {
   if (zoom === 'map') {
     r.fit();
     r.cam = { ...r.target };
@@ -171,20 +176,14 @@ function placeCamera(r, camera, t, zoom) {
   const scale = zoom === 'viewer' && camera
     ? camera.target.scale * (side(r.view) / side(camera.view))
     : r.closeScale() * (VIDEO_ZOOMS[zoom] ?? VIDEO_ZOOMS.medium) * (side(r.view) / 720);
-  if (!camera) {
-    r.setFollow('auto');
-    const f = r.replay.latestFocus(t) ?? r.replay.focusOf(r.replay.players[0]?.number ?? 1, t);
-    r.centerOn(f.x, f.y, { scale, instant: true });
-    return;
-  }
-  r.setFollow(camera.follow);
-  r.target = { u: camera.target.u, v: camera.target.v, scale: Math.min(r.maxScale, Math.max(r.minScale, scale)) };
+  const f = follow === 'auto'
+    ? r.replay.latestFocus(t) ?? r.replay.focusOf(r.replay.players[0]?.number ?? 1, t)
+    : r.replay.focusOf(follow, t);
+  r.centerOn(f.x, f.y, { scale, instant: true });
+  r.setFollow(follow);
+  // Start on the action (or the player), not on a glide toward it.
+  r.update(0, t);
   r.cam = { ...r.target };
-  // Followed players: start on them, not on a glide from where the viewer was.
-  if (camera.follow != null) {
-    r.update(0, t);
-    r.cam = { ...r.target };
-  }
 }
 
 const SAMPLE_RATE = 48_000;

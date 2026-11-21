@@ -41,3 +41,15 @@ test('where a unit was stays explored after it leaves', () => {
   assert.equal(grid[10 * 50 + 10], EXPLORED);
   assert.equal(grid[40 * 50 + 10], SEEN);
 });
+
+test('an explored map starts explored; with everything visible nothing hides', () => {
+  const r = match();
+  r.data.game.reveal_map = 'explored';
+  const grid = new Fog(r, 1).at(1000);
+  assert.equal(grid[40 * 50 + 40], EXPLORED, 'the terrain shows, the enemy unit does not');
+  assert.equal(grid[10 * 50 + 10], SEEN);
+  r.data.game.reveal_map = 'all_visible';
+  const all = new Fog(r, 1);
+  assert.equal(all.hides, false);
+  assert.ok(all.at(1000).every((v) => v === SEEN));
+});

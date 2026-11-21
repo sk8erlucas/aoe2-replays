@@ -41,6 +41,7 @@ Límites contra archivos armados a propósito: el header descomprimido no puede 
     "duration_ms": 51091, "world_time_ms": 51091, "speed": 1.69,
     "population_limit": 200, "victory_type_id": 1, "starting_age_id": 0,
     "treaty_length": 0, "multiplayer": true,
+    "reveal_map": "explored",       // normal | explored | all_visible | no_fog; null si no se encuentra (opcional)
     "players": [{ "number": 1, "name": "…", "profile_id": 123, "civilization_id": 28, "civilization": "Khmer",
                   "color_id": 1, "team_id": 2, "is_ai": false, "start": { "x": 121, "y": 22 } }]
   },
@@ -60,7 +61,7 @@ Límites contra archivos armados a propósito: el header descomprimido no puede 
 }
 ```
 
-`terrain` y `elevation`: el tile (x, y) está en el índice `y * size + x`. `resource_totals` sale de los `sync` de DE (`total_res` de `mgz.fast`): es el número que tenía el juego, no una estimación; no viene separado por recurso. `color_id` es base 0 (0 azul … 7 naranja). Categorías de terreno: `grass forest water deep_water shallows sand road snow farm rock`; de objetos: `tree gold stone berries relic animal unit building decoration`. Los nombres salen de `aocref` (instalado, no copiado: no tiene licencia publicada); las categorías y los overrides para IDs nuevos están en [`reference.py`](src/aoe2_parser/reference.py). Los campos de cada evento del `timeline` dependen del `type` (los que da `mgz.fast`, con `player_id` renombrado a `player`).
+`terrain` y `elevation`: el tile (x, y) está en el índice `y * size + x`. `reveal_map` es la opción "Revelar mapa" de la sala: con `explored` el terreno se ve desde el inicio pero la niebla de guerra sigue ocultando al enemigo. En el save 68.9 `mgz` lee la sala en un lugar equivocado; el parche la busca cerca del final del header por el tamaño del mapa y la población. `resource_totals` sale de los `sync` de DE (`total_res` de `mgz.fast`): es el número que tenía el juego, no una estimación; no viene separado por recurso. `color_id` es base 0 (0 azul … 7 naranja). Categorías de terreno: `grass forest water deep_water shallows sand road snow farm rock`; de objetos: `tree gold stone berries relic animal unit building decoration`. Los nombres salen de `aocref` (instalado, no copiado: no tiene licencia publicada); las categorías y los overrides para IDs nuevos están en [`reference.py`](src/aoe2_parser/reference.py). Los campos de cada evento del `timeline` dependen del `type` (los que da `mgz.fast`, con `player_id` renombrado a `player`).
 
 ## Pendiente
 

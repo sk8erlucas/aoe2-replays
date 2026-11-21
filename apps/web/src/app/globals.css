@@ -1058,6 +1058,7 @@ button.link:hover { color: var(--bronze); }
 }
 .field-hint { font-weight: 400; color: var(--ink-faint); font-size: 12px; margin: 0; }
 .form-error { margin: 0; color: var(--danger); font-weight: 600; }
+.form-warning { margin: 0; color: var(--bronze); font-weight: 600; }
 .form-notice { margin: 0; color: var(--bronze-dark); font-weight: 600; }
 .form-actions { display: flex; justify-content: center; }
 .auth-alt { text-align: center; margin: 8px 0 0; }
@@ -1185,7 +1186,7 @@ button.danger:hover:not(:disabled) { background: var(--danger); color: var(--pap
 .music-control input[type="range"] { width: 80px; accent-color: var(--bronze-light); }
 
 /* Video export (viewer controls) */
-.video-panel { width: min(360px, calc(100vw - 24px)); padding: 14px 16px; bottom: calc(100% + 8px); top: auto; left: 0; right: auto; }
+.video-panel { width: min(360px, calc(100vw - 24px)); max-height: calc(100svh - 120px); overflow-y: auto; padding: 14px 16px; bottom: calc(100% + 8px); top: auto; left: 0; right: auto; }
 .video-panel h2 { font-size: 15px; margin: 0 0 10px; }
 .video-panel form, .video-panel fieldset { display: grid; gap: 10px; }
 .video-panel fieldset { border: 0; margin: 0; padding: 0; min-width: 0; }

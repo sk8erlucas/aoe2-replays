@@ -2,6 +2,12 @@
 
 Separados entre lo que necesita una decisión o acción tuya y lo que se puede avanzar sin vos.
 
+## Sesión del 22/11/2026: mapa explorado y opciones del video
+Detalle en [24](./24-niebla-viajes-y-video.md#correcciones-22112026).
+- **Mapa explorado**: el replay trae la opción "Revelar mapa" (el parser la leía mal); la niebla distingue lo explorado de lo que se ve ahora.
+- **Video**: elegir a quién sigue la cámara (nunca libre) y la niebla; aviso si pesa más de 300 MB.
+- **Clics sin recursos**: las unidades que no se podían pagar no salen.
+
 ## Sesión del 21/11/2026: niebla, viajes a depositar y video
 Detalle en [24](./24-niebla-viajes-y-video.md), con la partida `/m/522595678?p=397671` (4v4 Black Forest, 78 min).
 - **Arbustos de ananá y gallinas** (objetos nuevos del juego) y **lo que trae cada animal y recurso, del juego**: muchos menos aldeanos "parados" falsos.

@@ -48,6 +48,11 @@ def _text(value):
     return value.replace('\x00', '') if isinstance(value, str) else value
 
 
+# The lobby's "reveal map" setting. Explored: the whole map starts explored (the
+# terrain shows, the fog of war still hides the enemy); all visible: no fog at all.
+REVEAL_MAP = {0: 'normal', 1: 'explored', 2: 'all_visible', 3: 'no_fog'}
+
+
 def _parse_header(data):
     try:
         header = mgz_header.parse(io.BytesIO(data))
@@ -227,6 +232,7 @@ def parse_replay(data: bytes) -> dict:
             'starting_age_id': de['starting_age_id'],
             'treaty_length': de['treaty_length'],
             'multiplayer': de['multiplayer'],
+            'reveal_map': REVEAL_MAP.get(header['lobby'].get('reveal_map_id')),
             'world_time_ms': postgame.get('world_time') if postgame else None,
             'players': _players(header),
         },

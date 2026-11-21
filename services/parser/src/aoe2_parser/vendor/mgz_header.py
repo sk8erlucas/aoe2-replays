@@ -751,6 +751,17 @@ def parse_metadata(header, save, skip_ai=True):
     ), num_players
 
 
+# aoe2-replays patch: the lobby's reveal map setting (0 normal, 1 explored, 2 all
+# visible, 3 no fog), found by its neighbours: reveal, 4 bytes, map size, population.
+def find_reveal_map(buf, map_size, population, window=8192):
+    end = len(buf) - 16
+    for i in range(end, max(-1, end - window), -1):
+        reveal, _, size, pop = struct.unpack_from('<IIII', buf, i)
+        if size == map_size and pop == population and reveal < 8:
+            return reveal
+    return None
+
+
 def parse(data):
     """Parse recorded game header."""
     try:
@@ -765,6 +776,10 @@ def parse(data):
         players, mod, device = parse_players(header, num_players, version, save)
         scenario = parse_scenario(header, num_players, version, save)
         lobby = parse_lobby(header, version, save)
+        # aoe2-replays patch: in save 68.9 parse_lobby reads too early (all zeros). The
+        # lobby sits near the end of the header: find it by its map size and population.
+        if version is Version.DE and de:
+            lobby['reveal_map_id'] = find_reveal_map(header.getvalue(), map_['dimension'], de['population_limit'])
     except (struct.error, zlib.error, AssertionError, MemoryError, ValueError) as e:
         raise RuntimeError(f"could not parse: {e}")
     return dict(
