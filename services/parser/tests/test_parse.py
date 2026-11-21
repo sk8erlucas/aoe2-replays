@@ -85,6 +85,11 @@ def test_names_and_legend(sample):
     assert legend['technologies']['22'] == 'Loom'
 
 
+def test_reveal_map(sample):
+    # This 4v4 Black Forest was played with the map explored.
+    assert sample['game']['reveal_map'] == 'explored'
+
+
 def test_new_objects_aocref_lacks():
     from aoe2_parser import reference
 

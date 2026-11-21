@@ -26,6 +26,8 @@ const loadEncoder = () => (encoder ??= import("@aoe2-replays/viewer/video"));
 
 const SPEEDS = [4, 8, 16, 32];
 const ZOOMS: VideoZoom[] = ["close", "medium", "far", "map", "viewer"];
+// Above this the dialog warns: the file is made and kept on the person's device.
+const HEAVY_MB = 300;
 
 type Props = {
   replay: Replay;
@@ -79,6 +81,16 @@ export function VideoExport({ replay, renderer, now, pause, players, color, pane
   const [zoom, setZoom] = useState<VideoZoom>("medium");
   const [vertical, setVertical] = useState(false);
   const [music, setMusic] = useState(true);
+  // Who the camera follows (never free: it would never move) and whose fog, as in the viewer when opened.
+  const [follow, setFollow] = useState<"auto" | number>("auto");
+  const [fog, setFog] = useState<number | null>(null);
+  const fogHides = replay.data.game.reveal_map !== "all_visible";
+  useEffect(() => {
+    if (!open) return;
+    const r = renderer.current;
+    setFollow(typeof r?.follow === "number" ? r.follow : "auto");
+    setFog(r?.fogPlayer ?? null);
+  }, [open, renderer]);
   const [withPanel, setWithPanel] = useState(panels);
   useEffect(() => setWithPanel(panels), [panels]);
   const [status, setStatus] = useState<Status>({ kind: "idle" });
@@ -158,6 +170,8 @@ export function VideoExport({ replay, renderer, now, pause, players, color, pane
         sprites,
         terrain,
         camera: renderer.current,
+        follow,
+        fog: fogHides ? fog : null,
         zoom,
         vertical,
         music: music ? startingAtRandom(TRACKS) : null,
@@ -253,6 +267,30 @@ export function VideoExport({ replay, renderer, now, pause, players, color, pane
                   </select>
                 </label>
                 <label>
+                  {v.follow}{" "}
+                  <select value={String(follow)} onChange={(e) => setFollow(e.target.value === "auto" ? "auto" : Number(e.target.value))}>
+                    <option value="auto">{v.followAuto}</option>
+                    {players.map((p) => (
+                      <option key={p.number} value={p.number}>
+                        {p.name}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                {fogHides && (
+                  <label>
+                    {v.fog}{" "}
+                    <select value={fog === null ? "none" : String(fog)} onChange={(e) => setFog(e.target.value === "none" ? null : Number(e.target.value))}>
+                      <option value="none">{v.fogNone}</option>
+                      {players.map((p) => (
+                        <option key={p.number} value={p.number}>
+                          {v.fogOf(p.name)}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                )}
+                <label>
                   {v.zoom}{" "}
                   <select value={zoom} onChange={(e) => setZoom(e.target.value as VideoZoom)}>
                     {ZOOMS.map((z) => (
@@ -283,9 +321,12 @@ export function VideoExport({ replay, renderer, now, pause, players, color, pane
                 </label>
               </fieldset>
               {estimate ? (
-                <p className="muted">
-                  {v.estimate(formatTime(estimate.ms), Math.max(1, Math.round(estimate.mb)), format?.extension.toUpperCase() ?? "")}
-                </p>
+                <>
+                  <p className="muted">
+                    {v.estimate(formatTime(estimate.ms), Math.max(1, Math.round(estimate.mb)), format?.extension.toUpperCase() ?? "")}
+                  </p>
+                  {estimate.mb > HEAVY_MB && <p className="form-warning">{v.heavy(Math.round(estimate.mb))}</p>}
+                </>
               ) : (
                 <p className="form-error">{v.badRange}</p>
               )}

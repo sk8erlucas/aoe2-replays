@@ -367,6 +367,7 @@ export class Replay {
     this.#clearBuiltOver();
     this.#applyResigns();
     this.#enforcePopulationLimit();
+    this.#dropUnaffordable();
   }
 
   objectName(typeId) {
@@ -1872,6 +1873,22 @@ export class Replay {
     }
   }
 
+  // A click the player couldn't pay for is refused by the game: a trained unit
+  // whose cost the estimated stock (corrected to the game's totals every ~17 s)
+  // couldn't cover never comes out, unless an order names it (then it existed).
+  // Needs the replay's totals and the game's costs; the stock is kept for stockAt.
+  #dropUnaffordable() {
+    if (!this.data.resource_totals?.length || !this.game?.units) return;
+    const result = stockTimeline(this);
+    this.stock = result?.players ?? null;
+    for (const u of result?.refused ?? []) {
+      if (u.id != null || u.stalled) continue;
+      u.removedAt = u.spawnT;
+      u.stalled = true;
+      u.unaffordable = true;
+    }
+  }
+
   // Population a unit takes (sheep none, most units one).
   #popOf(u) {
     const known = u.typeId != null ? this.game?.units?.[u.typeId]?.pop : undefined;
@@ -2084,7 +2101,7 @@ export class Replay {
    * doesn't carry the totals.
    */
   stockAt(t) {
-    if (this.stock === undefined) this.stock = stockTimeline(this);
+    if (this.stock === undefined) this.stock = stockTimeline(this)?.players ?? null;
     if (!this.stock) return null;
     const out = new Map();
     for (const p of this.players) {

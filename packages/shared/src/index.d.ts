@@ -32,6 +32,8 @@ export interface Game {
   treaty_length: number;
   multiplayer: boolean;
   players: Player[];
+  /** The lobby's reveal map setting. Optional: older replays lack it; null if not found. */
+  reveal_map?: 'normal' | 'explored' | 'all_visible' | 'no_fog' | null;
 }
 
 export interface GameMap {

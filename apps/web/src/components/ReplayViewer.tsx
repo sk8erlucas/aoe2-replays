@@ -780,7 +780,7 @@ function ReplayStage({ data, actions, extras, moment, gameData }: ViewerProps & 
             ))}
           </select>
         </label>
-        <label title={tr.viewer.fogHint}>
+        {data.game.reveal_map !== "all_visible" && <label title={tr.viewer.fogHint}>
           {tr.viewer.fog}{" "}
           <select value={fog === null ? "none" : String(fog)} onChange={(e) => setFog(e.target.value === "none" ? null : Number(e.target.value))}>
             <option value="none">{tr.viewer.fogNone}</option>
@@ -790,7 +790,7 @@ function ReplayStage({ data, actions, extras, moment, gameData }: ViewerProps & 
               </option>
             ))}
           </select>
-        </label>
+        </label>}
         <label title={tr.viewer.qualityHint}>
           {tr.viewer.quality}{" "}
           <select value={qualityPref} onChange={(e) => chooseQuality(e.target.value as QualityPref)}>

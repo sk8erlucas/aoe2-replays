@@ -6,6 +6,12 @@
 // what was seen every EXPLORE_STEP_MS, so it never needs replaying every frame.
 // Positions are the engine's estimates, and line of sight upgrades (Town
 // Watch, Treadmill...) and civilization bonuses are not counted.
+//
+// Exploring is not the fog: what was explored keeps showing (terrain,
+// buildings as last seen) but enemy units only show where the team sees now.
+// The lobby's "reveal map" changes where it starts (game.reveal_map): explored,
+// the whole map starts explored; all visible, everything is seen; no fog,
+// whatever was explored stays seen.
 
 export const SEEN = 2;
 export const EXPLORED = 1;
@@ -23,13 +29,25 @@ export class Fog {
     // Players without a team (1 or less) see alone.
     this.viewers = new Set(team > 1 ? replay.players.filter((p) => p.team_id === team).map((p) => p.number) : [player]);
     this.explored = []; // explored[k]: union of what was seen up to k * EXPLORE_STEP_MS
+    this.reveal = replay.data.game.reveal_map ?? 'normal';
+  }
+
+  /** False when the match was played with everything visible: the fog hides nothing. */
+  get hides() {
+    return this.reveal !== 'all_visible';
   }
 
   /** The grid at t (Uint8Array, index y * size + x). */
   at(t) {
+    if (!this.hides) return new Uint8Array(this.size * this.size).fill(SEEN);
     const grid = this.#seen(t);
+    if (this.reveal === 'explored') {
+      for (let i = 0; i < grid.length; i++) if (!grid[i]) grid[i] = EXPLORED;
+      return grid;
+    }
     const ever = this.#exploredUntil(t);
-    for (let i = 0; i < grid.length; i++) if (!grid[i] && ever[i]) grid[i] = EXPLORED;
+    const left = this.reveal === 'no_fog' ? SEEN : EXPLORED;
+    for (let i = 0; i < grid.length; i++) if (!grid[i] && ever[i]) grid[i] = left;
     return grid;
   }
 

@@ -33,16 +33,18 @@ const INCOME = {
 };
 
 /**
- * Per player, the stock at each sync: [{ t, total, drift, food, wood, gold, stone }]
- * (drift: game total minus the estimate before correcting it),
- * chronological. Null if the replay has no totals (parsed before November 2026).
+ * { players, refused }: per player, the stock at each sync, chronological:
+ * [{ t, total, drift, food, wood, gold, stone }] (drift: game total minus the
+ * estimate before correcting it); and the trained units whose purchase the
+ * stock couldn't pay (the game would have refused the click). Null if the
+ * replay has no totals (parsed before November 2026).
  */
 export function stockTimeline(replay) {
   const syncs = replay.data.resource_totals;
   if (!syncs?.length) return null;
   const players = replay.players.map((p) => p.number);
   const flows = new Map(players.map((n) => [n, []])); // player -> [{ t, delta: [4] }]
-  const flow = (player, t, delta) => flows.get(player)?.push({ t, delta });
+  const flow = (player, t, delta, unit = null) => flows.get(player)?.push({ t, delta, unit });
   const cost = (c, k = 1) => (c ? c.map((v) => -v * k) : null);
 
   const units = replay.game?.units ?? {};
@@ -77,7 +79,7 @@ export function stockTimeline(replay) {
   for (const u of replay.units) {
     if (u.queuedAt == null) continue;
     const c = cost(units[u.queuedType]?.cost);
-    if (c) flow(u.player, u.queuedAt, c);
+    if (c) flow(u.player, u.queuedAt, c, u);
   }
   for (const b of replay.buildings) {
     if (b.t <= 0) continue; // the map's
@@ -115,6 +117,7 @@ export function stockTimeline(replay) {
   // charged only if it could be paid (the game refuses the click otherwise),
   // and at each sync the estimate is corrected to the game's total.
   const out = new Map();
+  const refused = new Set();
   for (const n of players) {
     const moves = flows.get(n).sort((a, b) => a.t - b.t);
     const changes = rates.get(n).sort((a, b) => a.t - b.t);
@@ -148,8 +151,12 @@ export function stockTimeline(replay) {
           const ch = changes[c++];
           rate[ch.r] = Math.max(0, rate[ch.r] + ch.rate);
         } else {
-          const { delta } = moves[m++];
-          if (affordable(stock, delta)) delta.forEach((v, i) => {
+          const { delta, unit } = moves[m++];
+          if (!affordable(stock, delta)) {
+            if (unit) refused.add(unit);
+            continue;
+          }
+          delta.forEach((v, i) => {
             stock[i] += v;
             if (v < 0) spent[i] -= v;
           });
@@ -165,7 +172,7 @@ export function stockTimeline(replay) {
     }
     out.set(n, samples);
   }
-  return out;
+  return { players: out, refused };
 }
 
 // A purchase (only costs) the estimated stock can pay, like the game checks.
