@@ -217,9 +217,11 @@ def parse_map(data, version, save):
     """Parse map."""
     tile_format = '<xbbx'
     if version is Version.DE:
-        tile_format = '<bxb6x'
+        # aoe2-replays patch: DE terrain IDs go past 127 ("Forest, Spruce" is 131):
+        # read them unsigned, or they come out negative.
+        tile_format = '<Bxb6x'
         if save >= 62.0:
-            tile_format = '<bxxb6x'
+            tile_format = '<Bxxb6x'
         data.read(8)
     size_x, size_y, zone_num = unpack('<III', data)
     tile_num = size_x * size_y

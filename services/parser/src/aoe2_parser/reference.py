@@ -9,12 +9,12 @@ import pkgutil
 from functools import cache
 
 # IDs missing from aocref (save 68.9, builds 185872 and 188329; pineapple bushes
-# and chickens seen in November 2026). Names read
+# and chickens seen in November 2026, spruce forests on Black Forest). Names read
 # from the game's own data file and string table; used only when aocref has none.
 TERRAIN_OVERRIDES = {113: 'forest'}
 OBJECT_OVERRIDES = {1984: 'tree', 2650: 'berries'}
 NAME_OVERRIDES = {
-    'terrain': {113: 'Forest, Lush Bamboo'},
+    'terrain': {113: 'Forest, Lush Bamboo', 131: 'Forest, Spruce'},
     'objects': {
         697: 'Flare',
         890: 'Empty TC annex',
@@ -43,7 +43,11 @@ NAME_OVERRIDES = {
         2556: 'Settlement',
         2595: 'Black Panther',
         2596: 'Flamingo',
+        2578: 'Raven',
         2650: 'Pineapple Bush',
+        2731: 'Tree (Spruce)',
+        2732: 'Tree (Spruce Snow)',
+        2737: 'Elk',
     },
     'technologies': {906: 'Fishing Lines', 1402: 'Champi Runner'},
 }

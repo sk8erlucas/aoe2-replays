@@ -793,7 +793,7 @@ test('shift-queued farms are shared out, one villager each', () => {
 });
 
 // Two players on opposite teams, with game data for barracks, castles and town centers.
-function battle(timeline, { duration = 900_000 } = {}) {
+function battle(timeline, { duration = 900_000, objects = [] } = {}) {
   const gameData = {
     units: {
       83: { speed: 0.8, class: 4, train: [[109, 25]] },
@@ -819,6 +819,7 @@ function battle(timeline, { duration = 900_000 } = {}) {
       { id: 200, player: 2, type_id: 109, x: 90, y: 90 },
       { id: 201, player: 2, type_id: 83, x: 88, y: 90 },
       { id: 202, player: 2, type_id: 70, x: 80, y: 80 },
+      ...objects,
     ],
     timeline,
     chat: [],
@@ -829,6 +830,7 @@ function battle(timeline, { duration = 900_000 } = {}) {
         70: { name: 'House', category: 'building' }, 83: { name: 'Villager', category: 'unit' },
         41: { name: 'Huskarl', category: 'unit' }, 74: { name: 'Militia', category: 'unit' },
         35: { name: 'Battering Ram', category: 'unit' },
+        72: { name: 'Palisade Wall', category: 'building' },
       },
     },
   }, { gameData });
@@ -1231,4 +1233,60 @@ test('a gatherer walks its loads to the nearest drop site and back', () => {
   assert.ok(seen.some((u) => !u.trip && u.x === 20), 'and some of the time at the mine');
   assert.ok(Math.min(...walking.map((u) => u.x)) < 13.5, 'it gets to the town center edge');
   assert.equal(r.unitById.get(101).positionAt(60_000).x, 20, 'its own position stays at the mine');
+});
+
+test('an id only moved at first but later attack-moved binds to a soldier', () => {
+  const r = battle([
+    { t: 1000, type: 'BUILD', player: 1, building_id: 12, object_ids: [101], x: 20, y: 10 },
+    { t: 60_000, type: 'DE_QUEUE', player: 1, object_ids: [500], amount: 1, unit_id: 74 },
+    { t: 150_000, type: 'DE_QUEUE', player: 1, object_ids: [100], amount: 1, unit_id: 83 },
+    { t: 200_000, type: 'MOVE', player: 1, object_ids: [301], x: 40, y: 40 },
+    { t: 210_000, type: 'DE_ATTACK_MOVE', player: 1, object_ids: [301], x: 60, y: 60 },
+  ]);
+  assert.equal(r.unitById.get(301)?.typeId, 74);
+});
+
+test('a castle told to shoot at a wall brings it down, and arrows fly', () => {
+  const objects = [
+    { id: 110, player: 1, type_id: 82, x: 70, y: 70 },
+    { id: 203, player: 2, type_id: 72, x: 76, y: 70 },
+  ];
+  const r = battle([
+    { t: 300_000, type: 'ORDER', player: 1, object_ids: [110], target_id: 203, x: 76, y: 70 },
+    { t: 600_000, type: 'MOVE', player: 2, object_ids: [201], x: 85, y: 85 },
+  ], { objects });
+  const wall = r.buildingById.get(203);
+  assert.equal(wall.removedAt, 325_000);
+  const shots = [];
+  for (let t = 301_000; t < 303_000; t += 100) shots.push(...r.shotsAt(r.stateAt(t)));
+  assert.ok(shots.length > 0);
+  assert.ok(shots.every((s) => s.player === 1 && s.x1 === 76 && s.p >= 0 && s.p < 1));
+  assert.equal(r.shotsAt(r.stateAt(400_000)).length, 0, 'the wall is gone');
+});
+
+test('a castle shoots at enemies in range on its own, not at friends', () => {
+  const objects = [{ id: 110, player: 1, type_id: 82, x: 70, y: 70 }];
+  const volley = (r) => {
+    const shots = [];
+    for (let t = 400_000; t < 402_000; t += 100) shots.push(...r.shotsAt(r.stateAt(t)));
+    return shots;
+  };
+  const enemy = battle([{ t: 300_000, type: 'MOVE', player: 2, object_ids: [201], x: 74, y: 74 }], { objects });
+  assert.ok(volley(enemy).length > 0);
+  const own = battle([{ t: 300_000, type: 'MOVE', player: 1, object_ids: [101], x: 74, y: 74 }], { objects });
+  assert.equal(volley(own).length, 0);
+});
+
+test('spruce forests from replays parsed before November 2026 are trees', () => {
+  const r = replay([], {
+    map: { size: 2, terrain: [-125, 0, 0, 0], elevation: [0, 0, 0, 0] },
+    initial_objects: [{ id: 300, player: 0, type_id: 2731, class_id: 10, x: 0.5, y: 0.5 }],
+    legend: {
+      objects: { 2731: { name: null, category: 'decoration' } },
+      terrain: { '-125': { name: null, category: 'grass' }, 0: { name: 'Grass', category: 'grass' } },
+    },
+  });
+  assert.equal(r.data.map.terrain[0], 131);
+  assert.deepEqual(r.legend.terrain[131], { name: 'Forest, Spruce', category: 'forest' });
+  assert.equal(r.resources.find((x) => x.id === 300)?.category, 'tree');
 });

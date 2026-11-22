@@ -187,6 +187,11 @@ export class Replay {
   ageMarks(): Array<{ player: number; age: number; t: number }>;
   latestFocus(t: number): { t: number; player: number; x: number; y: number } | null;
   stateAt(t: number): State;
+  /**
+   * Arrows and siege shots in the air at state.t (estimated, only drawn):
+   * from (x0, y0, z0) to (x1, y1, z1), p of the way there.
+   */
+  shotsAt(state: State): Array<{ player: number; x0: number; y0: number; z0: number; x1: number; y1: number; z1: number; p: number; ball: boolean }>;
   logUntil(t: number): LogEntry[];
 }
 

@@ -135,6 +135,23 @@ export const ATTACK_HOLD_MS = 25_000;
 export const RANGED_CLASSES = new Set([0, 13, 18, 22, 36, 44, 51, 54, 55]);
 export const RANGED_STOP = 5;
 export const MELEE_STOP = 0.8;
+// What shoots on its own, by building name: range (tiles from its edge) and
+// arrows per volley, drawn from where they would leave. Only how it looks:
+// arrows hit nothing (a replay has no hit points). Approximate.
+export const BUILDING_FIRE = {
+  Castle: { range: 8, arrows: 3, z: 2.2 },
+  Krepost: { range: 8, arrows: 2, z: 1.8 },
+  Donjon: { range: 7, arrows: 1, z: 1.8 },
+  'Town Center': { range: 6, arrows: 2, z: 1.6 },
+  'Watch Tower': { range: 8, arrows: 1, z: 2.2 },
+  'Guard Tower': { range: 8, arrows: 1, z: 2.2 },
+  Keep: { range: 8, arrows: 1, z: 2.4 },
+  'Fortified Tower': { range: 8, arrows: 2, z: 2.2 },
+  'Bombard Tower': { range: 8, arrows: 1, z: 2.2, ball: true },
+};
+// Seconds between volleys (buildings and ranged units), and how fast an arrow flies (tiles/s).
+export const FIRE_PERIOD_MS = 2000;
+export const ARROW_SPEED = 8;
 // Food in a hunted or herded animal, and how fast one villager takes it (per
 // game second, walks included). The animal disappears when its food runs out.
 export const ANIMAL_FOOD = { Sheep: 100, Goose: 100, Turkey: 100, Llama: 100, Pig: 100, Cow: 150, 'Water Buffalo': 150, Goat: 100, Chicken: 75, Deer: 140, Zebra: 140, Ostrich: 140, Boar: 340, Elephant: 340, Rhinoceros: 340 };

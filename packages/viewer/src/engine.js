@@ -12,6 +12,8 @@
 // Gatherers are drawn walking their loads to the nearest drop site and back.
 // Orders on animals become hunting or herding, orders on enemies an attack of a
 // fixed length (the replay never says who won), and deleted objects disappear.
+// Castles, towers and town centers shoot at enemies in range, and archers and
+// siege at their target (shotsAt): only drawn, arrows take no hit points.
 // Animals only move in the replay through the clicks on them: an order on an
 // animal says where it was right then, so it walks there (a boar lured to the
 // town center, a sheep pushed home). Animals are food shared by everyone eating
@@ -31,7 +33,7 @@
 // replay (SPECIAL order 4): they never happen and the queue moves up.
 
 import {
-  AGE_TECHS, ANIMAL_FOOD, CARCASS_ROT_MS, DANGEROUS_ANIMALS, DROP_SITE_REACH, DROP_SITES, RESEARCH_TIMES, ATTACK_HOLD_MS, BUILD_TIMES, DEFAULT_ANIMAL_FOOD, DEFAULT_BUILD_TIME, DEFAULT_FOOTPRINT,
+  AGE_TECHS, ANIMAL_FOOD, ARROW_SPEED, BUILDING_FIRE, CARCASS_ROT_MS, FIRE_PERIOD_MS, DANGEROUS_ANIMALS, DROP_SITE_REACH, DROP_SITES, RESEARCH_TIMES, ATTACK_HOLD_MS, BUILD_TIMES, DEFAULT_ANIMAL_FOOD, DEFAULT_BUILD_TIME, DEFAULT_FOOTPRINT,
   DEFAULT_SPEED, DEFAULT_TRAIN_TIME, FADE_MS, FALLEN_AFTER_MS, FOOTPRINTS, GATHER_RATES, HERDABLE, HIDDEN_OBJECT_TYPES,
   ENEMY_BASE_RADIUS, ENEMY_BUILDING_REACH, FARM_RATE, HUNTED_REACH, MEAT_RATE, MELEE_STOP, RANGED_CLASSES, RANGED_STOP, RESOURCE_AMOUNTS, RETARGET_RADIUS, SPEEDS, TRAIN_TIMES,
 } from './palette.js';
@@ -120,19 +122,40 @@ function fixShiftedIds(timeline) {
 }
 
 // Objects the parser didn't know before November 2026 (aocref lacks them):
-// replays stored then have them nameless, and the bushes as decoration.
+// replays stored then have them nameless, the bushes as decoration and the
+// spruce trees too (so whole forests were missing).
 const LEGEND_FIXES = {
   2650: { name: 'Pineapple Bush', category: 'berries' },
   2084: { name: 'Wild Chicken A', category: 'animal' },
   2086: { name: 'Wild Chicken B', category: 'animal' },
   2088: { name: 'Wild Chicken C', category: 'animal' },
+  2731: { name: 'Tree (Spruce)', category: 'tree' },
+  2732: { name: 'Tree (Spruce Snow)', category: 'tree' },
+  2737: { name: 'Elk', category: 'animal' },
 };
+const TERRAIN_FIXES = { 131: { name: 'Forest, Spruce', category: 'forest' } };
 function withLegendFixes(legend) {
   const missing = Object.keys(LEGEND_FIXES).filter((id) => legend.objects?.[id] && legend.objects[id].name == null);
-  if (!missing.length) return legend;
+  const terrain = Object.keys(legend.terrain ?? {}).some((id) => id < 0 || (TERRAIN_FIXES[id] && legend.terrain[id].name == null));
+  if (!missing.length && !terrain) return legend;
   const objects = { ...legend.objects };
   for (const id of missing) objects[id] = LEGEND_FIXES[id];
-  return { ...legend, objects };
+  return { ...legend, objects, terrain: terrain ? fixTerrainLegend(legend.terrain) : legend.terrain };
+}
+
+// Before November 2026 the parser read terrain IDs past 127 as negative
+// ("Forest, Spruce", 131, came out as -125): the map's and the legend's.
+function fixTerrainIds(data) {
+  if (!data.map?.terrain?.some((v) => v < 0)) return;
+  data.map = { ...data.map, terrain: data.map.terrain.map((v) => (v < 0 ? v + 256 : v)) };
+}
+function fixTerrainLegend(terrain) {
+  const out = {};
+  for (const [key, value] of Object.entries(terrain)) {
+    const id = Number(key) < 0 ? Number(key) + 256 : Number(key);
+    out[id] = value.name == null && TERRAIN_FIXES[id] ? TERRAIN_FIXES[id] : value;
+  }
+  return out;
 }
 
 export function formatTime(ms) {
@@ -271,6 +294,7 @@ const RAZE_MIN_ATTACKERS = 3;
 // Footprints that overlap by more than this (tiles) can't both stand.
 const OVERLAP_SLACK = 0.25;
 const CASTLE = 82;
+const WALL_NAME = /Wall|Gate|Palisade/;
 // The stone gates a player builds, by the axis they run along on the map the
 // renderer gets (turned by toGameOrientation; in the game's own coordinates it is
 // the other way around). See #mapGates.
@@ -315,6 +339,7 @@ export class Replay {
    * speeds, train and build times, and says where each unit is trained.
    */
   constructor(data, { gameData = null, dry = false } = {}) {
+    fixTerrainIds(data);
     this.data = data;
     this.game = gameData;
     this.legend = withLegendFixes(data.legend ?? { objects: {}, terrain: {}, technologies: {} });
@@ -345,6 +370,8 @@ export class Replay {
     this.researches = [];
     // Taken out of a queue: { player, t, at (when queued), unitId | techId }. Paid, then given back.
     this.cancelled = [];
+    // Castles and towers told to shoot at something: { from, target, t }, chronological.
+    this.buildingShots = [];
 
     // Object IDs are handed out in creation order: (id, time) pairs that are known
     // place an unknown ID in time, to bind it to the unit trained around then.
@@ -540,9 +567,15 @@ export class Replay {
     const seen = new Map(); // unknown id -> { t, player, want }
     for (const e of dry.data.timeline) {
       if (!UNIT_COMMANDS.has(e.type)) continue;
+      // Over all its orders: one villager order (gather, build) makes it a
+      // villager; otherwise attacks, attack-moves and patrols make it a soldier.
+      // Its first order alone is often a plain move, which says nothing.
+      const want = dry.#orderWants(e) ?? (e.type === 'DE_ATTACK_MOVE' || e.type === 'PATROL' ? 'military' : null);
       for (const id of e.object_ids ?? []) {
-        if (seen.has(id) || dry.unitById.has(id) || dry.buildingById.has(id)) continue;
-        seen.set(id, { id, t: e.t, player: e.player, want: dry.#orderWants(e) });
+        if (dry.unitById.has(id) || dry.buildingById.has(id)) continue;
+        const known = seen.get(id);
+        if (!known) seen.set(id, { id, t: e.t, player: e.player, want });
+        else if (want && known.want !== 'villager') known.want = want;
       }
     }
     // When each ID was created, roughly: no later than the first order to any
@@ -844,6 +877,7 @@ export class Replay {
       }
       this.#approach(unit, t, other.positionAt(t), reach, i);
       unit.startActivity(t, 'attack', t + ATTACK_HOLD_MS);
+      (unit.targets ??= []).push({ t, target: other });
       return true;
     }
     const place = this.buildingById.get(e.target_id) ?? this.#bindClicked(e);
@@ -851,6 +885,7 @@ export class Replay {
     if (this.#enemies(unit.player, place.player)) {
       this.#approach(unit, t, place, place.size / 2 + (villager ? MELEE_STOP : reach), i);
       unit.startActivity(t, 'attack', t + ATTACK_HOLD_MS);
+      (unit.targets ??= []).push({ t, target: place });
       return true;
     }
     if (!villager || place.player !== unit.player) return false;
@@ -1715,6 +1750,17 @@ export class Replay {
       }
       let target = this.buildingById.get(e.target_id);
       if (!target && e.type === 'ATTACK_GROUND' && e.x != null) target = this.#buildingAt(e.x, e.y, e.t);
+      // Castles and towers shoot at units on their own, never at buildings: an
+      // order on a building (often a wall in their way) is the player's.
+      const shooters = e.type === 'ORDER' ? ids.map((id) => this.buildingById.get(id))
+        .filter((b) => b?.player === e.player && this.#fire(b)) : [];
+      if (shooters.length && !target && e.x != null && !this.unitById.has(e.target_id)) {
+        target = this.#enemyBuildingAt(e.player, e.x, e.y, e.t);
+      }
+      const shot = target ?? this.unitById.get(e.target_id);
+      if (shot && this.#enemies(e.player, shot.player)) {
+        for (const from of shooters) this.buildingShots.push({ from, target: shot, t: e.t });
+      }
       if (!target) continue;
       if (target.player === e.player) {
         lastUse.set(target, e.t);
@@ -1729,6 +1775,11 @@ export class Replay {
         if (SIEGE_CLASSES.has(this.game?.units?.[unit.typeId]?.class) || SIEGE_NAME.test(this.objectName(unit.typeId))) a.siege = true;
       }
       if (e.type === 'ATTACK_GROUND') a.siege = true;
+      // A castle or tower kept on a wall brings it down; other buildings take more.
+      for (const from of shooters) {
+        if (WALL_NAME.test(this.objectName(target.typeId))) a.siege = true;
+        else a.attackers.add(from);
+      }
       a.last = e.t;
       assaults.set(target, a);
     }
@@ -1741,6 +1792,27 @@ export class Replay {
       b.removedAt = fellAt;
       b.razed = true;
     }
+  }
+
+  // The nearest standing building of an enemy of `player` whose footprint holds (x, y) at t.
+  #enemyBuildingAt(player, x, y, t) {
+    let best = null;
+    let bestD = Infinity;
+    for (const b of this.buildings) {
+      if (b.t > t || b.removedAt <= t || !this.#enemies(player, b.player)) continue;
+      if (Math.abs(b.x - x) > b.size / 2 || Math.abs(b.y - y) > b.size / 2) continue;
+      const d = Math.hypot(b.x - x, b.y - y);
+      if (d < bestD) {
+        best = b;
+        bestD = d;
+      }
+    }
+    return best;
+  }
+
+  // How a building shoots (BUILDING_FIRE), or null if it doesn't.
+  #fire(b) {
+    return BUILDING_FIRE[this.objectName(b.typeId)] ?? null;
   }
 
   // Standing building whose footprint holds (x, y) at t.
@@ -2036,6 +2108,94 @@ export class Replay {
     }
     const resigned = new Set([...this.resignedAt].filter(([, rt]) => rt <= t).map(([p]) => p));
     return { t, units, buildings, ruins, resigned };
+  }
+
+  /**
+   * Arrows in the air at state.t (from stateAt): castles, towers and town
+   * centers shoot volleys at the nearest enemies in range, or at what their
+   * player told them to; archers and siege at what they were sent to attack,
+   * once there. Each: { player, x0, y0, z0, x1, y1, z1, p (0..1 of the way), ball }.
+   * Only how it looks: the replay has no hit points, so nothing falls to these.
+   */
+  shotsAt(state) {
+    const t = state.t;
+    const shots = [];
+    const cell = 4;
+    const grid = new Map();
+    for (const s of state.units) {
+      if (s.fading != null || s.unit.player <= 0) continue;
+      const key = `${Math.floor(s.x / cell)},${Math.floor(s.y / cell)}`;
+      if (!grid.has(key)) grid.set(key, []);
+      grid.get(key).push(s.unit);
+    }
+    // Shooter-specific volley times, so they don't all fire together.
+    const volley = (seed) => {
+      const phase = (seed * 7919) % FIRE_PERIOD_MS;
+      return t - ((t + phase) % FIRE_PERIOD_MS);
+    };
+    const fly = (from, x0, y0, z0, x1, y1, z1, at, ball = false) => {
+      const flight = (Math.hypot(x1 - x0, y1 - y0) / ARROW_SPEED) * 1000;
+      const p = (t - at) / Math.max(150, flight);
+      if (p >= 0 && p < 1) shots.push({ player: from, x0, y0, z0, x1, y1, z1, p, ball });
+    };
+    const ordered = new Map(); // building -> its last order
+    for (const o of this.buildingShots) {
+      if (o.t > t) break;
+      ordered.set(o.from, o);
+    }
+    for (const { building: b, progress, planned } of state.buildings) {
+      if (planned || progress < 1) continue;
+      const fire = this.#fire(b);
+      if (!fire) continue;
+      const shotT = volley(b.id ?? b.x * 997 + b.y);
+      if (shotT < b.startT + b.buildTime) continue;
+      const reach = fire.range + b.size / 2;
+      const o = ordered.get(b);
+      if (o && shotT < o.t + ATTACK_HOLD_MS && o.target.removedAt > shotT) {
+        const at = o.target.positionAt ? o.target.positionAt(shotT) : o.target;
+        if (Math.hypot(at.x - b.x, at.y - b.y) <= reach + (o.target.size ?? 0) / 2) {
+          for (let i = 0; i < fire.arrows; i++) fly(b.player, b.x, b.y, fire.z, at.x, at.y, 0.4, shotT + i * 150, fire.ball);
+          continue;
+        }
+      }
+      // The nearest enemies where they were when the volley left.
+      const near = [];
+      const r = Math.ceil((reach + 2) / cell);
+      const cx = Math.floor(b.x / cell);
+      const cy = Math.floor(b.y / cell);
+      for (let gx = cx - r; gx <= cx + r; gx++) {
+        for (let gy = cy - r; gy <= cy + r; gy++) {
+          for (const u of grid.get(`${gx},${gy}`) ?? []) {
+            if (!this.#enemies(b.player, u.player) || u.spawnT > shotT || u.removedAt <= shotT) continue;
+            if (u.hidden.length && u.hiddenAt(shotT)) continue;
+            const at = u.positionAt(shotT);
+            const d = Math.hypot(at.x - b.x, at.y - b.y);
+            if (d <= reach) near.push({ at, d });
+          }
+        }
+      }
+      near.sort((a, z) => a.d - z.d);
+      for (let i = 0; i < Math.min(fire.arrows, near.length * fire.arrows); i++) {
+        const { at } = near[i % near.length];
+        fly(b.player, b.x, b.y, fire.z, at.x, at.y, 0.4, shotT + i * 150, fire.ball);
+      }
+    }
+    for (const s of state.units) {
+      const u = s.unit;
+      if (!u.targets || s.moving || s.fading != null || u.activityAt(t) !== 'attack') continue;
+      const cls = this.game?.units?.[u.typeAt(t)]?.class;
+      if (!RANGED_CLASSES.has(cls)) continue;
+      let o = null;
+      for (const x of u.targets) if (x.t <= t) o = x;
+      if (!o || o.target.removedAt <= t) continue;
+      const shotT = volley(u.id ?? u.spawnT);
+      if (shotT < o.t) continue;
+      const at = o.target.positionAt ? o.target.positionAt(shotT) : o.target;
+      const from = u.positionAt(shotT);
+      if (from.moving || Math.hypot(at.x - from.x, at.y - from.y) > RANGED_STOP + (o.target.size ?? 0) / 2 + 1.5) continue;
+      fly(u.player, from.x, from.y, 0.5, at.x, at.y, o.target.size ? 0.6 : 0.4, shotT, SIEGE_CLASSES.has(cls));
+    }
+    return shots;
   }
 
   /**

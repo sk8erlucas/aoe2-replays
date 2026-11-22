@@ -99,6 +99,19 @@ def test_new_objects_aocref_lacks():
     assert lg['objects']['2084'] == {'name': 'Wild Chicken A', 'category': 'animal'}
 
 
+def test_spruce_forest():
+    from aoe2_parser import reference
+
+    # Spruce forests (Black Forest, November 2026): terrain 131 and its trees.
+    lg = reference.legend([131], [(2731, 10, 0)], [], [], [])
+    assert lg['terrain']['131'] == {'name': 'Forest, Spruce', 'category': 'forest'}
+    assert lg['objects']['2731'] == {'name': 'Tree (Spruce)', 'category': 'tree'}
+
+
+def test_terrain_ids_are_unsigned(sample):
+    assert min(sample['map']['terrain']) >= 0
+
+
 def test_event_converts_raw_bytes():
     from mgz.fast import Action
 
