@@ -7,11 +7,18 @@
 // Positions are the engine's estimates, and line of sight upgrades (Town
 // Watch, Treadmill...) and civilization bonuses are not counted.
 //
+// As in the game, whoever attacks the team shows where it is, even from
+// outside its sight: an enemy unit fighting one of the team's (by order or on
+// its own) and a castle or tower with the team's units in range are seen
+// while it lasts.
+//
 // Exploring is not the fog: what was explored keeps showing (terrain,
 // buildings as last seen) but enemy units only show where the team sees now.
 // The lobby's "reveal map" changes where it starts (game.reveal_map): explored,
 // the whole map starts explored; all visible, everything is seen; no fog,
 // whatever was explored stays seen.
+
+import { BUILDING_FIRE, RANGED_STOP } from './palette.js';
 
 export const SEEN = 2;
 export const EXPLORED = 1;
@@ -19,6 +26,8 @@ const EXPLORE_STEP_MS = 30_000;
 const DEFAULT_UNIT_LOS = 4;
 const DEFAULT_BUILDING_LOS = 4;
 const TOWN_CENTER_LOS = 8;
+const ATTACKER_REVEAL = 1.5; // tiles seen around an attacker out of sight
+const ATTACK_REACH = RANGED_STOP + 2; // farther from its target it isn't attacking yet
 
 export class Fog {
   constructor(replay, player) {
@@ -74,14 +83,37 @@ export class Fog {
         grid.fill(SEEN, ty * n + x0, ty * n + x1 + 1);
       }
     };
+    const ours = [];
     for (const u of this.replay.units) {
-      if (!this.viewers.has(u.player) || u.spawnT > t || u.removedAt <= t) continue;
+      if (u.player <= 0 || u.spawnT > t || u.removedAt <= t) continue;
       if (u.hidden.length && u.hiddenAt(t)) continue;
+      if (!this.viewers.has(u.player)) {
+        // An enemy attacking one of the team's shows itself.
+        if (!u.targets || u.activityAt(t) !== 'attack') continue;
+        let target = null;
+        for (const o of u.targets) if (o.t <= t) target = o.target;
+        if (!target || !this.viewers.has(target.player) || target.removedAt <= t) continue;
+        const at = u.positionAt(t);
+        const to = target.positionAt ? target.positionAt(t) : target;
+        if (Math.hypot(to.x - at.x, to.y - at.y) <= ATTACK_REACH + (target.size ?? 0) / 2) stamp(at.x, at.y, ATTACKER_REVEAL);
+        continue;
+      }
       const at = u.positionAt(t);
+      ours.push(at);
       stamp(at.x, at.y, game?.units?.[u.typeAt(t)]?.los ?? DEFAULT_UNIT_LOS);
     }
     for (const b of this.replay.buildings) {
-      if (!this.viewers.has(b.player) || b.t > t || b.removedAt <= t) continue;
+      if (b.t > t || b.removedAt <= t) continue;
+      if (!this.viewers.has(b.player)) {
+        // An enemy castle or tower shooting at the team's units.
+        const fire = b.player > 0 && BUILDING_FIRE[this.replay.objectName(b.typeId)];
+        if (!fire || t < b.startT + b.buildTime) continue;
+        const reach = fire.range + b.size / 2;
+        if (ours.some((at) => Math.abs(at.x - b.x) <= reach && Math.abs(at.y - b.y) <= reach && Math.hypot(at.x - b.x, at.y - b.y) <= reach)) {
+          stamp(b.x, b.y, b.size / 2 + ATTACKER_REVEAL);
+        }
+        continue;
+      }
       const known = game?.buildings?.[b.typeId]?.los;
       const los = known ?? (/^Town Center/.test(this.replay.objectName(b.typeId)) ? TOWN_CENTER_LOS : DEFAULT_BUILDING_LOS);
       stamp(b.x, b.y, los + b.size / 2);

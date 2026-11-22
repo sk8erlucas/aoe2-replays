@@ -1050,27 +1050,54 @@ export class Renderer {
   }
 
   // Shape of a wall tile from the walls of the same player around it (this frame).
+  // Palisades join palisades (and their gates); stone and fortified walls, each other.
+  #wallKind(b) {
+    return /Palisade/.test(this.replay.objectName(b.typeId)) ? 'p' : 's';
+  }
+
   #wallShape(b, state) {
     if (!this.walls) {
-      this.walls = new Map();
+      this.walls = new Set();
       for (const it of state.buildings) {
         const w = it.building;
-        if (w.size <= 1) this.walls.set(`${w.player}:${Math.round(w.x)},${Math.round(w.y)}`, w.typeId);
+        const x = Math.round(w.x);
+        const y = Math.round(w.y);
+        const kind = `${w.player}${this.#wallKind(w)}`;
+        if (w.size <= 1) this.walls.add(`${kind}:${x},${y}`);
+        else if (/Gate/.test(this.replay.objectName(w.typeId))) {
+          // A gate joins the wall on either side of it, along whichever line it is on.
+          const r = Math.ceil(w.size / 2);
+          for (let k = -r; k <= r; k++) {
+            for (const [dx, dy] of [[k, 0], [0, k], [k, k], [k, -k]]) this.walls.add(`${kind}:${x + dx},${y + dy}`);
+          }
+        }
       }
     }
     const x = Math.round(b.x);
     const y = Math.round(b.y);
-    const has = (dx, dy) => this.walls.has(`${b.player}:${x + dx},${y + dy}`);
-    const alongX = has(1, 0) || has(-1, 0);
-    const alongY = has(0, 1) || has(0, -1);
-    // A corner between the two axes is a pillar; on a stepped line the axis wins,
-    // so the wall reads as one run instead of a row of towers.
-    if (alongX && alongY) return WALL_SHAPE.pillar;
-    if (alongX) return WALL_SHAPE.x;
-    if (alongY) return WALL_SHAPE.y;
-    const horizontal = has(1, -1) || has(-1, 1);
-    const vertical = has(1, 1) || has(-1, -1);
-    if (horizontal !== vertical) return horizontal ? WALL_SHAPE.horizontal : WALL_SHAPE.vertical;
+    const kind = `${b.player}${this.#wallKind(b)}`;
+    const has = (dx, dy) => this.walls.has(`${kind}:${x + dx},${y + dy}`);
+    const px = has(1, 0);
+    const nx = has(-1, 0);
+    const py = has(0, 1);
+    const ny = has(0, -1);
+    // As in the game: a run between two pieces is wall; where it ends, turns
+    // or stands alone there is a post (the pillar). On a stepped line the
+    // axis wins, so it reads as one run instead of a row of posts.
+    if (px && nx && !py && !ny) return WALL_SHAPE.x;
+    if (py && ny && !px && !nx) return WALL_SHAPE.y;
+    if (px || nx || py || ny) {
+      const diagonal = has(1, -1) || has(-1, 1) || has(1, 1) || has(-1, -1);
+      if ((px || nx) && !(py || ny) && diagonal) return WALL_SHAPE.x;
+      if ((py || ny) && !(px || nx) && diagonal) return WALL_SHAPE.y;
+      return WALL_SHAPE.pillar;
+    }
+    const h1 = has(1, -1);
+    const h2 = has(-1, 1);
+    const v1 = has(1, 1);
+    const v2 = has(-1, -1);
+    if (h1 && h2 && !v1 && !v2) return WALL_SHAPE.horizontal;
+    if (v1 && v2 && !h1 && !h2) return WALL_SHAPE.vertical;
     return WALL_SHAPE.pillar;
   }
 

@@ -149,6 +149,16 @@ export const BUILDING_FIRE = {
   'Fortified Tower': { range: 8, arrows: 2, z: 2.2 },
   'Bombard Tower': { range: 8, arrows: 1, z: 2.2, ball: true },
 };
+// Soldiers fight on their own, as in the game, by stance (STANCE command):
+// aggressive (the default) takes on enemies in sight and chases them;
+// defensive too, but goes back after a short chase; stand ground only shoots
+// (or hits) what is in reach, without moving; no attack, nothing. Attack-move
+// and patrol fight what they meet on the way and then go on. Looked at every
+// COMBAT_STEP_MS of game time. Approximate: nobody falls in these fights.
+export const STANCES = ['aggressive', 'defensive', 'stand', 'none'];
+export const COMBAT_STEP_MS = 3000;
+export const DEFENSIVE_CHASE = 5; // tiles from where it stood before going back
+export const MIN_SIGHT = 4; // tiles: units with a shorter line of sight still react this far
 // Seconds between volleys (buildings and ranged units), and how fast an arrow flies (tiles/s).
 export const FIRE_PERIOD_MS = 2000;
 export const ARROW_SPEED = 8;
