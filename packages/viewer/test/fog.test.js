@@ -53,3 +53,36 @@ test('an explored map starts explored; with everything visible nothing hides', (
   assert.equal(all.hides, false);
   assert.ok(all.at(1000).every((v) => v === SEEN));
 });
+
+test('an enemy attacking the team from out of sight is seen while it attacks', () => {
+  const gameData = {
+    units: { 83: { speed: 1, class: 4, los: 4, train: [] }, 4: { speed: 1, class: 0, los: 6, train: [] } },
+    buildings: {}, techs: {},
+  };
+  const archerAt = (timeline) => {
+    const r = new Replay({
+      game: {
+        duration_ms: 200_000,
+        players: [
+          { number: 1, name: 'A', color_id: 0, team_id: 2, start: { x: 10, y: 10 } },
+          { number: 3, name: 'C', color_id: 2, team_id: 3, start: { x: 40, y: 40 } },
+        ],
+      },
+      map: { size: 50, terrain: [], elevation: [] },
+      initial_objects: [
+        { id: 101, player: 1, type_id: 83, x: 10, y: 10 },
+        { id: 302, player: 3, type_id: 4, x: 30, y: 10 },
+      ],
+      timeline,
+      chat: [],
+      legend: { objects: { 83: { name: 'Villager', category: 'unit' }, 4: { name: 'Archer', category: 'unit' } } },
+    }, { gameData });
+    const fog = new Fog(r, 1);
+    const at = r.unitById.get(302).positionAt(60_000);
+    return fog.sees(fog.at(60_000), at.x, at.y);
+  };
+  // 5 tiles off: out of the villager's sight (4), in the archer's range.
+  assert.equal(archerAt([{ t: 1000, type: 'MOVE', player: 3, object_ids: [302], x: 15, y: 10 }]), true);
+  assert.equal(archerAt([{ t: 1000, type: 'MOVE', player: 3, object_ids: [302], x: 15, y: 10 },
+    { t: 2000, type: 'STANCE', player: 3, stance_id: 3, object_ids: [302] }]), false);
+});

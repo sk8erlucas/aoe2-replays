@@ -9,6 +9,7 @@ Detalle en [25](./25-bosques-flechas-y-soldados.md), con la partida `/m/52284641
 - **Castillos, torres, centros urbanos y arqueros disparan flechas** (solo se ve; nadie cae por ellas).
 - **Castillo que tira murallas por orden del jugador**: cuenta como asalto y las tira.
 - **Para probar en el navegador**: esa partida (bosques, la pelea del min 39 y las flechas).
+- **Segunda tanda (noche)**: los soldados pelean solos según su agresividad (y en patrulla y ataque en movimiento), las carretas ya no aparecen en la pelea, el que ataca desde fuera de la visión se ve, y las murallas tienen postes en las puntas y esquinas como en el juego.
 
 ## Sesión del 22/11/2026: mapa explorado y opciones del video
 Detalle en [24](./24-niebla-viajes-y-video.md#correcciones-22112026).

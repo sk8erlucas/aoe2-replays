@@ -14,6 +14,9 @@
 // fixed length (the replay never says who won), and deleted objects disappear.
 // Castles, towers and town centers shoot at enemies in range, and archers and
 // siege at their target (shotsAt): only drawn, arrows take no hit points.
+// Soldiers also fight on their own by stance (STANCE command; aggressive by
+// default), and on attack-move and patrol, what they meet (#autoFight): they
+// close in and fight, but nobody falls from those fights.
 // Animals only move in the replay through the clicks on them: an order on an
 // animal says where it was right then, so it walks there (a boar lured to the
 // town center, a sheep pushed home). Animals are food shared by everyone eating
@@ -33,7 +36,7 @@
 // replay (SPECIAL order 4): they never happen and the queue moves up.
 
 import {
-  AGE_TECHS, ANIMAL_FOOD, ARROW_SPEED, BUILDING_FIRE, CARCASS_ROT_MS, FIRE_PERIOD_MS, DANGEROUS_ANIMALS, DROP_SITE_REACH, DROP_SITES, RESEARCH_TIMES, ATTACK_HOLD_MS, BUILD_TIMES, DEFAULT_ANIMAL_FOOD, DEFAULT_BUILD_TIME, DEFAULT_FOOTPRINT,
+  AGE_TECHS, ANIMAL_FOOD, ARROW_SPEED, BUILDING_FIRE, CARCASS_ROT_MS, COMBAT_STEP_MS, DEFENSIVE_CHASE, FIRE_PERIOD_MS, MIN_SIGHT, STANCES, DANGEROUS_ANIMALS, DROP_SITE_REACH, DROP_SITES, RESEARCH_TIMES, ATTACK_HOLD_MS, BUILD_TIMES, DEFAULT_ANIMAL_FOOD, DEFAULT_BUILD_TIME, DEFAULT_FOOTPRINT,
   DEFAULT_SPEED, DEFAULT_TRAIN_TIME, FADE_MS, FALLEN_AFTER_MS, FOOTPRINTS, GATHER_RATES, HERDABLE, HIDDEN_OBJECT_TYPES,
   ENEMY_BASE_RADIUS, ENEMY_BUILDING_REACH, FARM_RATE, HUNTED_REACH, MEAT_RATE, MELEE_STOP, RANGED_CLASSES, RANGED_STOP, RESOURCE_AMOUNTS, RETARGET_RADIUS, SPEEDS, TRAIN_TIMES,
 } from './palette.js';
@@ -73,6 +76,11 @@ const QUEUE_LIMIT = 15;
 const BELL_CAPACITY = 15;
 const BELL_RADIUS = 20;
 // Commands whose selection is units (not a building being told to train or rally).
+// Only soldiers get these (stances, attack-move, patrol).
+const MILITARY_ORDERS = new Set(['STANCE', 'DE_ATTACK_MOVE', 'PATROL']);
+const TRADE_CLASS = 19;
+const MONK_CLASS = 18;
+const ARMY_SHARE = 0.75;
 const UNIT_COMMANDS = new Set(['MOVE', 'ORDER', 'BUILD', 'WALL', 'PATROL', 'ATTACK_GROUND', 'DE_ATTACK_MOVE']);
 // A unit first commanded this long before its estimated training end can still be it:
 // the estimate ignores what speeds training up (civ bonuses).
@@ -200,6 +208,16 @@ export class Unit {
     return false;
   }
 
+  /** Its stance at t (STANCES in palette.js): aggressive until told otherwise. */
+  stanceAt(t) {
+    let stance = 'aggressive';
+    for (const s of this.stances ?? []) {
+      if (s.t > t) break;
+      stance = s.stance;
+    }
+    return stance;
+  }
+
   /** Its type at t: the trained one, or the last upgrade done by then. */
   typeAt(t) {
     let type = this.typeId;
@@ -235,13 +253,28 @@ export class Unit {
     return null;
   }
 
+  // Segments are in time order: the last one started by t. Asked mostly for
+  // times a little after the last one (the simulation, playback), so the last
+  // answer and the one after it are tried first.
   segmentAt(t) {
-    let seg = this.path[0];
-    for (const s of this.path) {
-      if (s.t0 > t) break;
-      seg = s;
+    const path = this.path;
+    const c = this.cursor ?? 0;
+    if (c < path.length && path[c].t0 <= t) {
+      if (c + 1 >= path.length || path[c + 1].t0 > t) return path[c];
+      if (c + 2 >= path.length || path[c + 2].t0 > t) {
+        this.cursor = c + 1;
+        return path[c + 1];
+      }
     }
-    return seg;
+    let lo = 0;
+    let hi = path.length - 1;
+    while (lo < hi) {
+      const mid = (lo + hi + 1) >> 1;
+      if (path[mid].t0 <= t) lo = mid;
+      else hi = mid - 1;
+    }
+    this.cursor = lo;
+    return path[lo];
   }
 
   positionAt(t) {
@@ -256,7 +289,8 @@ export class Unit {
     return { x: seg.x0 + dx * k, y: seg.y0 + dy * k, moving: true, target: { x: seg.x1, y: seg.y1 } };
   }
 
-  moveTo(t, x, y) {
+  /** Walks to (x, y) from t. `auto`: not its player's order (it fights on its own). */
+  moveTo(t, x, y, auto = false) {
     const from = this.positionAt(t);
     // Commands at the same time replace each other (and what was left of the way there).
     while (this.path.length > 1 && this.path[this.path.length - 1].t0 >= t) this.path.pop();
@@ -265,7 +299,7 @@ export class Unit {
     let t0 = t;
     let at = from;
     for (const p of points) {
-      this.path.push({ t0, x0: at.x, y0: at.y, x1: p.x, y1: p.y, speed: this.speed });
+      this.path.push({ t0, x0: at.x, y0: at.y, x1: p.x, y1: p.y, speed: this.speed, ...(auto ? { auto } : null) });
       t0 += (Math.hypot(p.x - at.x, p.y - at.y) / Math.max(0.1, this.speed)) * 1000;
       at = p;
     }
@@ -383,7 +417,15 @@ export class Replay {
     this.nav = dry ? null : NavGrid.fromMap(data.map, this.legend.terrain);
     this.#loadInitialObjects();
     // A dry run only trains: when each unit comes out, to match it with its ID.
-    this.plannedIds = dry ? new Map() : Replay.#planIds(new Replay(data, { gameData, dry: true }));
+    if (dry) this.plannedIds = new Map();
+    else {
+      const run = new Replay(data, { gameData, dry: true });
+      this.plannedIds = Replay.#planIds(run);
+      this.idWants = run.idWants; // what all of an unknown ID's orders say it is
+      // IDs that turn out to be buildings (a castle given an order before its
+      // ID is known): never units.
+      this.laterBuildings = new Set(run.buildingById.keys());
+    }
     this.#processTimeline();
     if (dry) return;
     this.#applyUpgrades();
@@ -526,18 +568,19 @@ export class Replay {
   #resolveUnit(id, player, t, want = null) {
     const known = this.unitById.get(id);
     if (known) return known;
-    if (this.buildingById.has(id)) return null;
+    if (this.buildingById.has(id) || this.laterBuildings?.has(id)) return null;
+    want = this.idWants?.get(id) ?? want;
     const planned = this.trainedByKey.get(this.plannedIds.get(id));
     if (planned && planned.id == null && planned.player === player) return this.#bind(planned, id, t);
     // Prefer the unit trained when this ID was created (IDs grow in creation
     // order), then one already out of its building, then the kind the order wants.
     const [from, to] = this.#idWindow(id);
     const gap = (u) => (u.spawnT < from ? from - u.spawnT : u.spawnT > to ? u.spawnT - to : 0);
-    const kindMiss = (u) => (want && this.#isVillager(u) !== (want === 'villager') ? 1 : 0);
+    const kindMiss = (u) => (want && this.#kindOf(u) !== want ? 1 : 0);
     const unbound = this.units
       .filter((u) => u.id == null && u.player === player)
-      .sort((a, b) => Math.round((gap(a) - gap(b)) / 5000) || (a.spawnT > t) - (b.spawnT > t)
-        || kindMiss(a) - kindMiss(b) || a.spawnT - b.spawnT);
+      .sort((a, b) => kindMiss(a) - kindMiss(b) || Math.round((gap(a) - gap(b)) / 5000)
+        || (a.spawnT > t) - (b.spawnT > t) || a.spawnT - b.spawnT);
     if (unbound[0]) return this.#bind(unbound[0], id, t);
     const start = this.playerByNumber.get(player)?.start ?? { x: 0, y: 0 };
     return this.#addUnit(new Unit({ id, player, typeId: null, x: start.x + 2, y: start.y + 2, t, approx: true }));
@@ -565,21 +608,44 @@ export class Replay {
    */
   static #planIds(dry) {
     const seen = new Map(); // unknown id -> { t, player, want }
+    const groups = []; // object_ids of plain moves to 3 or more units
+    // Who commands each ID: an order on an ID an enemy commands is an attack,
+    // even before the target is known as a unit.
+    const owner = new Map();
     for (const e of dry.data.timeline) {
-      if (!UNIT_COMMANDS.has(e.type)) continue;
+      for (const id of e.object_ids ?? []) if (!owner.has(id)) owner.set(id, e.player);
+    }
+    const attacks = (e) => e.type === 'ORDER' && owner.has(e.target_id) && dry.#enemies(e.player, owner.get(e.target_id));
+    for (const e of dry.data.timeline) {
+      if (!UNIT_COMMANDS.has(e.type) && e.type !== 'STANCE') continue;
       // Over all its orders: one villager order (gather, build) makes it a
-      // villager; otherwise attacks, attack-moves and patrols make it a soldier.
-      // Its first order alone is often a plain move, which says nothing.
-      const want = dry.#orderWants(e) ?? (e.type === 'DE_ATTACK_MOVE' || e.type === 'PATROL' ? 'military' : null);
+      // villager, one to trade a trade cart; otherwise attacks, attack-moves,
+      // patrols and stances make it a soldier. Its first order alone is often
+      // a plain move, which says nothing.
+      const want = dry.#orderWants(e) ?? (MILITARY_ORDERS.has(e.type) || attacks(e) ? 'military' : null);
       for (const id of e.object_ids ?? []) {
         if (dry.unitById.has(id) || dry.buildingById.has(id)) continue;
         const known = seen.get(id);
         if (!known) seen.set(id, { id, t: e.t, player: e.player, want });
-        else if (want && known.want !== 'villager') known.want = want;
+        else if (want && (!known.want || known.want === 'military')) known.want = want;
+      }
+      if (!want && (e.object_ids?.length ?? 0) >= 3) groups.push(e.object_ids);
+    }
+    // Weaker: moved along with soldiers (a group of 3 or more, most of the
+    // members that say what they are soldiers) makes it a soldier, if nothing else says.
+    const kindOfId = (id) => seen.get(id)?.want ?? (dry.unitById.has(id) ? dry.#kindOf(dry.unitById.get(id)) : null);
+    for (const ids of groups) {
+      const kinds = ids.map(kindOfId).filter(Boolean);
+      if (kinds.length < 2 || kinds.filter((k) => k === 'military').length < kinds.length * ARMY_SHARE) continue;
+      for (const id of ids) {
+        const x = seen.get(id);
+        if (x && !x.want) x.inArmy = true;
       }
     }
+    for (const x of seen.values()) if (x.inArmy) x.want = 'military';
     // When each ID was created, roughly: no later than the first order to any
     // higher ID (of any player), and new units usually get an order soon.
+    dry.idWants = new Map([...seen.values()].filter((x) => x.want).map((x) => [x.id, x.want]));
     const all = [...seen.values()].sort((a, b) => b.id - a.id);
     let soonest = Infinity;
     for (const x of all) x.created = soonest = Math.min(soonest, x.t);
@@ -597,7 +663,7 @@ export class Replay {
         const id = ids[i];
         const u = units[j];
         if (u.spawnT > id.t + BIND_SLACK_MS) return 0;
-        if (id.want && dry.#isVillager(u) !== (id.want === 'villager')) return 0;
+        if (id.want && dry.#kindOf(u) !== id.want) return 0;
         return 2 - Math.min(Math.abs(id.created - u.spawnT), BIND_DRIFT_MS) / BIND_DRIFT_MS;
       };
       // Best order-keeping matching: score[i][j] over the first i ids and j units.
@@ -678,13 +744,26 @@ export class Replay {
         continue;
       }
 
-      // Any new order for a unit interrupts what it was gathering (or the wall it was building).
+      if (e.type === 'STANCE') {
+        const stance = STANCES[e.stance_id] ?? 'aggressive';
+        for (const id of ids) {
+          const unit = this.#resolveUnit(id, e.player, e.t, 'military');
+          if (unit?.player === e.player) (unit.stances ??= []).push({ t: e.t, stance });
+        }
+        continue;
+      }
+
+      // Any new order for a unit interrupts what it was gathering (or the wall
+      // it was building), and whatever it was fighting on its own.
       for (const id of KEEPS_WORKING.has(e.type) ? [] : ids) {
         this.#leaveWall(id, e.t);
         const unit = this.unitById.get(id);
         if (unit) {
           this.#stopGathering(unit, e.t);
           unit.lastOrderT = e.t;
+          unit.sweep = null;
+          unit.fight = null;
+          if (unit.activities[unit.activities.length - 1]?.auto) unit.stopActivity(e.t);
         }
       }
       if (e.type === 'GATHER_POINT') {
@@ -783,7 +862,12 @@ export class Replay {
             }
             if (e.type === 'ORDER' && this.#engage(unit, e, i)) return;
             const [ox, oy] = formationOffset(i);
+            const from = unit.positionAt(e.t);
             unit.moveTo(e.t, e.x + ox, e.y + oy);
+            // Attack-move and patrol fight what they meet; patrol goes back and forth.
+            if (e.type === 'DE_ATTACK_MOVE' || e.type === 'PATROL') {
+              unit.sweep = { x: e.x + ox, y: e.y + oy, back: e.type === 'PATROL' ? { x: from.x, y: from.y } : null };
+            }
             // Builders work until the building is done (or a new order comes);
             // whoever builds a farm then farms it, like in the game.
             if (built) this.#buildThen(unit, built, e.t);
@@ -806,8 +890,17 @@ export class Replay {
     const other = this.unitById.get(e.target_id);
     if (other) return other.player === 0 ? null : this.#enemies(e.player, other.player) ? 'military' : null;
     const place = this.buildingById.get(e.target_id);
-    if (place) return this.#enemies(e.player, place.player) ? 'military' : 'villager';
-    return null;
+    if (!place) return null;
+    if (this.#enemies(e.player, place.player)) return 'military';
+    // Trade carts are sent to markets; a villager on a market only repairs it.
+    if (/^Market/.test(this.objectName(place.typeId))) return 'trade';
+    return 'villager';
+  }
+
+  // What an order can tell apart: villager, trade (carts) or military (the rest).
+  #kindOf(unit) {
+    if (this.#isVillager(unit)) return 'villager';
+    return this.game?.units?.[unit.typeId]?.class === TRADE_CLASS ? 'trade' : 'military';
   }
 
   #isVillager(unit) {
@@ -831,18 +924,18 @@ export class Replay {
     return n;
   }
 
-  #approach(unit, t, at, stop, i) {
+  #approach(unit, t, at, stop, i, auto = false) {
     const from = unit.positionAt(t);
     const dx = from.x - at.x;
     const dy = from.y - at.y;
     const d = Math.hypot(dx, dy);
     if (d <= stop) {
-      unit.moveTo(t, from.x, from.y);
+      unit.moveTo(t, from.x, from.y, auto);
       return;
     }
     const k = stop / d;
     const [ox, oy] = formationOffset(i);
-    unit.moveTo(t, at.x + dx * k + ox * 0.4, at.y + dy * k + oy * 0.4);
+    unit.moveTo(t, at.x + dx * k + ox * 0.4, at.y + dy * k + oy * 0.4, auto);
   }
 
   /**
@@ -1630,6 +1723,210 @@ export class Replay {
         }
       }
       this.#rotCarcasses(now);
+      if (!this.dry && now % COMBAT_STEP_MS === 0) this.#autoFight(now);
+    }
+  }
+
+  // What a unit type is in a fight: a ship (kept out: they are on the water),
+  // or a soldier that fights on its own (land infantry, archers and cavalry;
+  // not villagers, trade carts, monks or siege). Cached per type.
+  #combatType(typeId) {
+    this.combatTypes ??= new Map();
+    let c = this.combatTypes.get(typeId);
+    if (!c) {
+      const cls = this.game?.units?.[typeId]?.class;
+      const military = typeId != null && this.#kindOf({ typeId }) === 'military';
+      c = {
+        ship: SHIP_CLASSES.has(cls),
+        fighter: military && cls != null && cls !== MONK_CLASS && !SHIP_CLASSES.has(cls) && !SIEGE_CLASSES.has(cls)
+          && !SIEGE_NAME.test(this.objectName(typeId)),
+      };
+      this.combatTypes.set(typeId, c);
+    }
+    return c;
+  }
+
+  // Players' units out and alive at `now`, kept up as the simulation moves on
+  // (now only grows): new units wait until they come out.
+  #aliveAt(now) {
+    const a = (this.aliveCache ??= { seen: 0, waiting: [], alive: [] });
+    for (; a.seen < this.units.length; a.seen++) {
+      const u = this.units[a.seen];
+      if (u.player > 0) a.waiting.push(u);
+    }
+    const still = [];
+    for (const u of a.waiting) {
+      if (u.removedAt <= now) continue;
+      if (u.spawnT <= now) a.alive.push(u);
+      else still.push(u);
+    }
+    a.waiting = still;
+    a.alive = a.alive.filter((u) => u.removedAt > now && u.spawnT <= now);
+    return a.alive;
+  }
+
+  // Which side a player is on: their team, or alone without one.
+  #side(player) {
+    const team = this.playerByNumber.get(player)?.team_id ?? 0;
+    return team > 1 ? team : -player;
+  }
+
+  // Every COMBAT_STEP_MS: soldiers take on enemies by their stance (see STANCES).
+  // A grid of 8-tile cells per side (flat arrays, reused), and which sides
+  // are in each cell, to skip the many soldiers with no enemy around.
+  #autoFight(now) {
+    const sides = (this.sideIndex ??= new Map(this.players.map((p) => [p.number, this.#sideIndex(p.number)])));
+    const sideCount = this.sideNumbers.length;
+    if (sideCount < 2) return;
+    const n = Math.ceil((this.data.map?.size || 256) / 8) + 1;
+    const g = (this.fightGrid ??= {
+      cells: Array.from({ length: sideCount * n * n }, () => []),
+      mask: new Uint16Array(n * n),
+      used: [],
+    });
+    for (const i of g.used) g.cells[i].length = 0;
+    g.used.length = 0;
+    g.mask.fill(0);
+    const cellOf = (v) => Math.min(n - 1, Math.max(0, Math.floor(v / 8)));
+    const fighters = [];
+    for (const u of this.#aliveAt(now)) {
+      if (u.hidden.length && u.hiddenAt(now)) continue;
+      const c = this.#combatType(u.upgrades.length ? u.typeAt(now) : u.typeId);
+      if (c.ship) continue;
+      const at = u.positionAt(now);
+      const side = sides.get(u.player) ?? 0;
+      const cell = cellOf(at.x) * n + cellOf(at.y);
+      const i = side * n * n + cell;
+      const entry = (u.gridEntry ??= { u, at, side, cell });
+      entry.at = at;
+      entry.side = side;
+      entry.cell = cell;
+      if (!g.cells[i].length) g.used.push(i);
+      g.cells[i].push(entry);
+      g.mask[cell] |= 1 << side;
+      if (c.fighter && (this.resignedAt.get(u.player) ?? Infinity) > now) fighters.push(entry);
+    }
+    const nearest = (entry, radius) => {
+      const { at, side: own } = entry;
+      let best = null;
+      let bestD = radius;
+      const r = Math.ceil(radius / 8);
+      const cx = cellOf(at.x);
+      const cy = cellOf(at.y);
+      for (let gx = Math.max(0, cx - r); gx <= Math.min(n - 1, cx + r); gx++) {
+        for (let gy = Math.max(0, cy - r); gy <= Math.min(n - 1, cy + r); gy++) {
+          const cell = gx * n + gy;
+          if (!(g.mask[cell] & ~(1 << own))) continue;
+          for (let side = 0; side < sideCount; side++) {
+            if (side === own) continue;
+            for (const o of g.cells[side * n * n + cell]) {
+              const d = Math.hypot(o.at.x - at.x, o.at.y - at.y);
+              if (d <= bestD) {
+                best = o;
+                bestD = d;
+              }
+            }
+          }
+        }
+      }
+      return best;
+    };
+    // Enemies within two cells (16 tiles, past anyone's sight).
+    const enemyAround = ({ at, side }) => {
+      const cx = cellOf(at.x);
+      const cy = cellOf(at.y);
+      const others = ~(1 << side);
+      for (let gx = Math.max(0, cx - 2); gx <= Math.min(n - 1, cx + 2); gx++) {
+        for (let gy = Math.max(0, cy - 2); gy <= Math.min(n - 1, cy + 2); gy++) if (g.mask[gx * n + gy] & others) return true;
+      }
+      return false;
+    };
+    for (const f of fighters) {
+      const { u } = f;
+      if (!u.fight && !u.sweep && !enemyAround(f) && u.activityAt(now) !== 'attack') continue;
+      if (u.stanceAt(now) === 'none') continue;
+      this.#fight(f, nearest, now);
+    }
+  }
+
+  // Sides numbered from 0 (teams, and each player without one), for the grid.
+  #sideIndex(player) {
+    this.sideNumbers ??= [];
+    const side = this.#side(player);
+    let i = this.sideNumbers.indexOf(side);
+    if (i < 0) i = this.sideNumbers.push(side) - 1;
+    return i;
+  }
+
+  #fight(entry, nearest, now) {
+    const { u, at } = entry;
+    const type = this.game?.units?.[u.typeAt(now)];
+    const reach = RANGED_CLASSES.has(type?.class) ? RANGED_STOP : MELEE_STOP;
+    const sight = Math.max(MIN_SIGHT, type?.los ?? 0);
+    const stance = u.stanceAt(now);
+    const last = u.activities[u.activities.length - 1];
+    if (u.activityAt(now) === 'attack' && !last?.auto) {
+      // Told to attack a unit: keep after it while it is in sight.
+      const other = u.targets?.[u.targets.length - 1]?.target;
+      if (other instanceof Unit && other.removedAt > now) {
+        const to = other.positionAt(now);
+        const d = Math.hypot(to.x - at.x, to.y - at.y);
+        if (d > reach + 1 && d < sight * 2) this.#approach(u, now, to, reach, 0);
+      }
+      return;
+    }
+    if (u.activityAt(now) && !last?.auto) return; // busy with something else
+    if (at.moving && !u.sweep && !u.fight) return; // a plain move walks past enemies
+
+    // The enemy it was on, while in reach of a chase; else the nearest in sight.
+    let target = null;
+    const fight = u.fight;
+    const on = fight?.target;
+    if (on && on.removedAt > now && !(on.hidden.length && on.hiddenAt(now))) {
+      const to = on.positionAt(now);
+      const far = Math.hypot(to.x - at.x, to.y - at.y);
+      const fromHome = Math.hypot(to.x - fight.home.x, to.y - fight.home.y);
+      const keep = stance === 'stand' ? far <= reach + 0.5
+        : stance === 'defensive' ? fromHome <= DEFENSIVE_CHASE + reach : far <= sight * 1.5;
+      if (keep) target = { u: on, at: to };
+    }
+    if (!target) target = nearest(entry, stance === 'stand' ? reach + 0.5 : sight);
+
+    if (!target) {
+      if (fight) {
+        u.fight = null;
+        if (last?.auto) u.stopActivity(now);
+        if (stance === 'defensive') u.moveTo(now, fight.home.x, fight.home.y, true);
+        else if (u.sweep) u.moveTo(now, u.sweep.x, u.sweep.y, true);
+      } else if (u.sweep && !at.moving) {
+        // At the end of an attack-move it stops; a patrol turns back.
+        const { back } = u.sweep;
+        if (!back) u.sweep = null;
+        else {
+          u.sweep = { x: back.x, y: back.y, back: { x: u.sweep.x, y: u.sweep.y } };
+          u.moveTo(now, back.x, back.y, true);
+        }
+      }
+      return;
+    }
+
+    if (on !== target.u) {
+      u.fight = { target: target.u, home: fight?.home ?? { x: at.x, y: at.y } };
+      (u.targets ??= []).push({ t: now, target: target.u });
+    }
+    const d = Math.hypot(target.at.x - at.x, target.at.y - at.y);
+    if (stance !== 'stand') {
+      if (d > reach + 0.3) {
+        // A new way only if the target moved off from where it was going.
+        const end = u.path[u.path.length - 1];
+        const aim = Math.hypot(end.x1 - target.at.x, end.y1 - target.at.y);
+        if (!at.moving || aim > reach + 1) this.#approach(u, now, target.at, reach, 0, true);
+      } else if (at.moving) u.moveTo(now, at.x, at.y, true);
+    }
+    if (last?.kind === 'attack' && last.auto && last.t1 >= now) last.t1 = now + COMBAT_STEP_MS + 500;
+    else {
+      u.startActivity(now, 'attack', now + COMBAT_STEP_MS + 500);
+      u.activities[u.activities.length - 1].auto = true;
     }
   }
 
@@ -1714,13 +2011,15 @@ export class Replay {
     for (const u of this.units) {
       if (u.player <= 0 || u.removedAt < Infinity) continue;
       const playedOn = Math.min(lastOrderOf.get(u.player) ?? 0, this.resignedAt.get(u.player) ?? Infinity);
-      const last = u.activities[u.activities.length - 1];
+      // Only what its player told it: fights on its own (and the walks they
+      // take) say nothing about how it ended.
+      const last = u.activities.findLast((a) => !a.auto);
       let fellAt = null;
       if (last?.kind === 'attack' && u.lastOrderT <= last.t0) {
         fellAt = last.t1;
       } else if (!last || last.t1 <= u.lastOrderT) {
         // Last sent somewhere enemy (next to their buildings or base) and left there.
-        const seg = u.path[u.path.length - 1];
+        const seg = u.path.findLast((p) => !p.auto);
         const moved = Math.hypot(seg.x1 - seg.x0, seg.y1 - seg.y0);
         if (moved > 0 && seg.t0 >= u.lastOrderT && this.#enemyGround(u.player, seg.x1, seg.y1, seg.t0)) {
           fellAt = seg.t0 + (moved / Math.max(0.1, seg.speed)) * 1000 + ATTACK_HOLD_MS;

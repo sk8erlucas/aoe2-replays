@@ -1290,3 +1290,89 @@ test('spruce forests from replays parsed before November 2026 are trees', () => 
   assert.deepEqual(r.legend.terrain[131], { name: 'Forest, Spruce', category: 'forest' });
   assert.equal(r.resources.find((x) => x.id === 300)?.category, 'tree');
 });
+
+// A militia of player 1 at (50, 50) and B's villager walking up to (53, 50).
+function standoff(extra = [], { objects = [] } = {}) {
+  return battle([
+    { t: 1000, type: 'MOVE', player: 2, object_ids: [201], x: 53, y: 50 },
+    ...extra,
+    { t: 800_000, type: 'MOVE', player: 1, object_ids: [101], x: 15, y: 10 },
+    { t: 800_000, type: 'MOVE', player: 2, object_ids: [200], x: 90, y: 90 },
+  ], { objects: [{ id: 150, player: 1, type_id: 74, x: 50, y: 50 }, ...objects] });
+}
+
+test('soldiers take on enemies in sight on their own, and the fight is no death', () => {
+  const r = standoff();
+  const militia = r.unitById.get(150);
+  const at = militia.positionAt(120_000);
+  assert.ok(Math.hypot(at.x - 53, at.y - 50) < 1.5, JSON.stringify(at));
+  assert.equal(militia.activityAt(120_000), 'attack');
+  assert.equal(militia.removedAt, Infinity, 'fighting on its own says nothing about how it ended');
+});
+
+test('stances: no attack and stand ground keep the soldier where it is', () => {
+  for (const stance of [2, 3]) {
+    const r = standoff([{ t: 500, type: 'STANCE', player: 1, stance_id: stance, object_ids: [150] }]);
+    const at = r.unitById.get(150).positionAt(120_000);
+    assert.deepEqual([at.x, at.y], [50, 50], `stance ${stance}`);
+  }
+});
+
+test('a soldier on a plain move walks past enemies; on attack-move it fights them', () => {
+  // B's villager waits at (60, 50), on the way to (70, 50).
+  const walk = (type) => battle([
+    { t: 1000, type: 'MOVE', player: 2, object_ids: [201], x: 60, y: 50 },
+    { t: 100_000, type, player: 1, object_ids: [150], x: 70, y: 50 },
+    { t: 800_000, type: 'MOVE', player: 2, object_ids: [200], x: 90, y: 90 },
+  ], { objects: [{ id: 150, player: 1, type_id: 74, x: 50, y: 50 }] });
+  assert.equal(walk('MOVE').unitById.get(150).positionAt(200_000).x, 70);
+  const swept = walk('DE_ATTACK_MOVE').unitById.get(150).positionAt(200_000);
+  assert.ok(Math.abs(swept.x - 60) < 1.5, JSON.stringify(swept));
+});
+
+test('a patrol goes back and forth until the next order', () => {
+  const r = battle([
+    { t: 1000, type: 'PATROL', player: 1, object_ids: [150], x: 60, y: 50 },
+    { t: 800_000, type: 'MOVE', player: 1, object_ids: [101], x: 15, y: 10 },
+  ], { objects: [{ id: 150, player: 1, type_id: 74, x: 50, y: 50 }] });
+  const u = r.unitById.get(150);
+  const xs = Array.from({ length: 12 }, (_, i) => u.positionAt(5000 + i * 5000).x);
+  assert.ok(Math.max(...xs) > 59 && xs.slice(4).some((x) => x < 52), xs.join(' '));
+});
+
+test('a unit only ever given stances and plain moves with soldiers is a soldier; trade carts trade', () => {
+  const gameData = {
+    units: {
+      83: { speed: 0.8, class: 4, train: [[109, 25]] },
+      74: { speed: 0.96, class: 6, train: [[12, 21]] },
+      128: { speed: 1.25, class: 19, train: [[84, 51]] },
+    },
+    buildings: {},
+  };
+  const r = new Replay({
+    game: { duration_ms: 300_000, players: [{ number: 1, name: 'A', color_id: 0, team_id: 2, start: { x: 10, y: 10 } }] },
+    map: { size: 40, terrain: [], elevation: [] },
+    initial_objects: [
+      { id: 100, player: 1, type_id: 109, x: 10, y: 10 },
+      { id: 110, player: 1, type_id: 12, x: 14, y: 10 },
+      { id: 120, player: 1, type_id: 84, x: 20, y: 20 },
+    ],
+    timeline: [
+      { t: 0, type: 'DE_QUEUE', player: 1, object_ids: [120], unit_id: 128, amount: 1 },
+      { t: 1000, type: 'DE_QUEUE', player: 1, object_ids: [110], unit_id: 74, amount: 1 },
+      { t: 100_000, type: 'MOVE', player: 1, object_ids: [5001], x: 30, y: 30 },
+      { t: 100_000, type: 'STANCE', player: 1, stance_id: 1, object_ids: [5001] },
+      { t: 100_000, type: 'ORDER', player: 1, object_ids: [5002], target_id: 120, x: 20, y: 20 },
+    ],
+    chat: [],
+    legend: {
+      objects: {
+        109: { name: 'Town Center', category: 'building' }, 12: { name: 'Barracks', category: 'building' },
+        84: { name: 'Market', category: 'building' }, 128: { name: 'Trade Cart', category: 'unit' },
+        74: { name: 'Militia', category: 'unit' },
+      },
+    },
+  }, { gameData });
+  assert.equal(r.unitById.get(5001)?.typeId, 74);
+  assert.equal(r.unitById.get(5002)?.typeId, 128);
+});
