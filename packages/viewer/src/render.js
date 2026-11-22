@@ -18,6 +18,7 @@ const FOG_EXPLORED = 130;
 const FOG_STEP_MS = 500;
 
 const ELEVATION_UNITS = 0.25; // height of one elevation level
+const ARROW_ARC = 0.12; // how high an arrow arcs, per tile it flies
 // Unit class (game data) -> a common unit whose sprite stands in for units
 // without their own, such as civilization unique units.
 // What a villager is doing (engine activity) -> job animation in the sprites.
@@ -724,12 +725,51 @@ export class Renderer {
     }
     for (const it of items) it.draw();
     if (detail) this.#drawHidden(state, inView);
+    if (detail) this.#drawShots(state, inView, fog);
     ctx.globalAlpha = 1;
     if (fog) this.#drawFog(ctx, s, w / 2 - this.cam.u * s, h / 2 - this.cam.v * s);
     this.sprites?.endFrame();
     if (pointer) {
       const hit = this.pick(state, pointer.x, pointer.y);
       if (hit?.kind === 'building') this.#drawRally(hit.building, state);
+    }
+  }
+
+  // Arrows (and siege stones) in the air, on top of everything: they fly high.
+  #drawShots(state, inView, fog) {
+    const shots = this.replay.shotsAt?.(state);
+    if (!shots?.length) return;
+    const { ctx } = this;
+    const s = this.cam.scale;
+    const point = (a, p) => {
+      const x = a.x0 + (a.x1 - a.x0) * p;
+      const y = a.y0 + (a.y1 - a.y0) * p;
+      const arc = Math.hypot(a.x1 - a.x0, a.y1 - a.y0) * ARROW_ARC * 4 * p * (1 - p);
+      return { x, y, screen: this.toScreen(x, y, this.heightAt(x, y) + a.z0 + (a.z1 - a.z0) * p + arc) };
+    };
+    ctx.globalAlpha = 1;
+    ctx.lineCap = 'round';
+    for (const a of shots) {
+      const now = point(a, a.p);
+      if (!inView(now.x, now.y) || !this.#fogShows(fog, a.player, now.x, now.y)) continue;
+      const [x, y] = now.screen;
+      if (a.ball) {
+        ctx.fillStyle = '#2b2622';
+        ctx.beginPath();
+        ctx.arc(x, y, Math.max(1.5, s * 0.07), 0, Math.PI * 2);
+        ctx.fill();
+        continue;
+      }
+      // Pointing where it flies: along the arc, a fixed length on screen.
+      const [px, py] = point(a, Math.max(0, a.p - 0.02)).screen;
+      const len = Math.hypot(x - px, y - py) || 1;
+      const k = (s * 0.45) / len;
+      ctx.strokeStyle = 'rgba(40,30,20,0.9)';
+      ctx.lineWidth = Math.max(1, s / 30);
+      ctx.beginPath();
+      ctx.moveTo(x - (x - px) * k, y - (y - py) * k);
+      ctx.lineTo(x, y);
+      ctx.stroke();
     }
   }
 

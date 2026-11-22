@@ -16,9 +16,10 @@ const DAY_MS = 86400_000;
  * Bump when the parser starts giving data worth downloading a stored match
  * again for: matches stored with an older one are refreshed when opened (see
  * refreshMatch). 1: resource_totals (19/11/2026). 2: reveal_map and new map
- * objects (pineapple bushes, chickens) (21/11/2026).
+ * objects (pineapple bushes, chickens) (21/11/2026). 3: spruce forests (trees
+ * and terrain IDs past 127) (22/11/2026).
  */
-export const MATCH_PARSER_REVISION = 2;
+export const MATCH_PARSER_REVISION = 3;
 // Longest a viewer waits for a refresh before getting the stored copy.
 const REFRESH_WAIT_MS = 20_000;
 

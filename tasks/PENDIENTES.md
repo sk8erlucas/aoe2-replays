@@ -2,6 +2,14 @@
 
 Separados entre lo que necesita una decisión o acción tuya y lo que se puede avanzar sin vos.
 
+## Sesión del 22/11/2026 (tarde): bosques, flechas y soldados
+Detalle en [25](./25-bosques-flechas-y-soldados.md), con la partida `/m/522846419?p=5675276` (4v4 Black Forest, 61 min).
+- **Árboles que faltaban**: un árbol nuevo del juego (abeto) y su terreno que el parser no conocía; ahora son bosque. Las partidas guardadas se corrigen solas.
+- **Soldados que se veían como aldeanos**: los Huskarls de Fibonaku en la pelea.
+- **Castillos, torres, centros urbanos y arqueros disparan flechas** (solo se ve; nadie cae por ellas).
+- **Castillo que tira murallas por orden del jugador**: cuenta como asalto y las tira.
+- **Para probar en el navegador**: esa partida (bosques, la pelea del min 39 y las flechas).
+
 ## Sesión del 22/11/2026: mapa explorado y opciones del video
 Detalle en [24](./24-niebla-viajes-y-video.md#correcciones-22112026).
 - **Mapa explorado**: el replay trae la opción "Revelar mapa" (el parser la leía mal); la niebla distingue lo explorado de lo que se ve ahora.
