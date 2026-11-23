@@ -15,8 +15,11 @@
 // Castles, towers and town centers shoot at enemies in range, and archers and
 // siege at their target (shotsAt): only drawn, arrows take no hit points.
 // Soldiers also fight on their own by stance (STANCE command; aggressive by
-// default), and on attack-move and patrol, what they meet (#autoFight): they
-// close in and fight, but nobody falls from those fights.
+// default), and on attack-move and patrol, what they meet (#autoFight).
+// Deaths, while simulating: a soldier left out when its group is ordered again
+// died in between (exact to that window, #deathEvidence); otherwise hit points
+// run out in the fights (#hit: the game's numbers, upgrades and civ bonuses),
+// never before the orders last name the unit.
 // Animals only move in the replay through the clicks on them: an order on an
 // animal says where it was right then, so it walks there (a boar lured to the
 // town center, a sheep pushed home). Animals are food shared by everyone eating
@@ -80,6 +83,12 @@ const BELL_RADIUS = 20;
 const MILITARY_ORDERS = new Set(['STANCE', 'DE_ATTACK_MOVE', 'PATROL']);
 const TRADE_CLASS = 19;
 const MONK_CLASS = 18;
+// A group ordered again: these orders select units, so a unit missing from one
+// is no longer selectable (dead). See #deathEvidence.
+const GROUP_ORDERS = new Set(['MOVE', 'ORDER', 'DE_ATTACK_MOVE', 'PATROL', 'STANCE', 'FORMATION', 'STOP', 'GUARD', 'FOLLOW', 'ATTACK_GROUND']);
+const DROP_WINDOW_MS = 180_000; // the same group ordered again within this
+const GROUP_KEPT = 0.5; // ...keeping at least this share of it
+const DROP_LATEST_MS = 15_000; // in a longer window, it falls this long before the window ends
 const ARMY_SHARE = 0.75;
 const UNIT_COMMANDS = new Set(['MOVE', 'ORDER', 'BUILD', 'WALL', 'PATROL', 'ATTACK_GROUND', 'DE_ATTACK_MOVE']);
 // A unit first commanded this long before its estimated training end can still be it:
@@ -372,7 +381,9 @@ export class Replay {
    * `gameData` (optional, from tools/sprites game-data.json) replaces guessed
    * speeds, train and build times, and says where each unit is trained.
    */
-  constructor(data, { gameData = null, dry = false } = {}) {
+  // `deathEvidence: false` leaves out the deaths the orders show (to measure
+  // the rest against them).
+  constructor(data, { gameData = null, dry = false, deathEvidence = true } = {}) {
     fixTerrainIds(data);
     this.data = data;
     this.game = gameData;
@@ -381,6 +392,7 @@ export class Replay {
     this.players = data.game.players;
     this.playerByNumber = new Map(this.players.map((p) => [p.number, p]));
     this.units = [];
+    this.newUnits = []; // added since the last fight step (see #aliveAt)
     this.unitById = new Map();
     this.buildings = [];
     this.buildingById = new Map();
@@ -415,6 +427,9 @@ export class Replay {
 
     if (!dry) fixShiftedIds(data.timeline);
     this.nav = dry ? null : NavGrid.fromMap(data.map, this.legend.terrain);
+    // What the orders say about deaths, exactly: see #deathEvidence.
+    this.evidence = dry ? null : Replay.#deathEvidence(data.timeline);
+    if (this.evidence && !deathEvidence) this.evidence.fell = new Map();
     this.#loadInitialObjects();
     // A dry run only trains: when each unit comes out, to match it with its ID.
     if (dry) this.plannedIds = new Map();
@@ -534,8 +549,67 @@ export class Replay {
     }
     unit.path[0].speed = unit.speed;
     this.units.push(unit);
-    if (unit.id != null) this.unitById.set(unit.id, unit);
+    this.newUnits.push(unit);
+    if (unit.id != null) {
+      this.unitById.set(unit.id, unit);
+      this.#applyDeath(unit);
+    }
     return unit;
+  }
+
+  /**
+   * What the orders say about each ID, before simulating (exact, from the
+   * replay alone):
+   * - seen: the last time it was alive (named in an order, its own player's
+   *   or an enemy's on it);
+   * - fell: when a soldier died, for one left out of its group: a player
+   *   orders the same group again (most of it, within DROP_WINDOW_MS) and it
+   *   is missing, and it never shows up again. The game only selects living
+   *   units, so it died between the two orders: halfway, or DROP_LATEST_MS
+   *   before the second in a long window (the fight can take it earlier).
+   */
+  static #deathEvidence(timeline) {
+    const seen = new Map();
+    for (const e of timeline) {
+      for (const id of e.object_ids ?? []) seen.set(id, e.t);
+      if (e.target_id != null && e.target_id >= 0) seen.set(e.target_id, Math.max(seen.get(e.target_id) ?? 0, e.t));
+    }
+    const fell = new Map();
+    const recent = new Map(); // player -> its last orders to 3 or more units: { t, ids }
+    for (const e of timeline) {
+      if (!GROUP_ORDERS.has(e.type)) continue;
+      const ids = e.object_ids ?? [];
+      if (ids.length < 3) continue;
+      const now = new Set(ids);
+      const list = (recent.get(e.player) ?? []).filter((p) => e.t - p.t <= DROP_WINDOW_MS);
+      for (const p of list) {
+        const kept = ids.filter((id) => p.ids.has(id)).length;
+        if (kept < 3 || kept < ids.length * GROUP_KEPT) continue;
+        for (const id of p.ids) {
+          if (now.has(id) || fell.has(id) || (seen.get(id) ?? 0) > p.t) continue;
+          const t = Math.round(Math.max((p.t + e.t) / 2, e.t - DROP_LATEST_MS));
+          fell.set(id, { from: p.t, to: e.t, t });
+        }
+      }
+      list.push({ t: e.t, ids: now });
+      recent.set(e.player, list);
+    }
+    return { seen, fell };
+  }
+
+  // A soldier the orders show died (see #deathEvidence) is gone from then on,
+  // already while simulating: it no longer fights, sees or takes room.
+  #applyDeath(unit) {
+    const f = this.evidence?.fell.get(unit.id);
+    if (!f || unit.removedAt <= f.t || this.#kindOf(unit) !== 'military') return;
+    unit.removedAt = Math.max(f.t, unit.spawnT);
+    unit.fell = true;
+    unit.fellExact = f; // its death is known to within this window
+  }
+
+  // The last time the orders show this unit alive (-Infinity if never named).
+  #seenAt(unit) {
+    return unit.id == null ? -Infinity : this.evidence?.seen.get(unit.id) ?? -Infinity;
   }
 
   #buildSeconds(typeId) {
@@ -596,6 +670,7 @@ export class Replay {
       unit.path[0].t0 = t;
     }
     this.unitById.set(id, unit);
+    this.#applyDeath(unit);
     return unit;
   }
 
@@ -1288,6 +1363,7 @@ export class Replay {
     if (building.queueEnd >= item.t1 - 1) building.queueEnd -= shift;
     if (item.unit) {
       const u = item.unit;
+      u.dequeued = true;
       this.units.splice(this.units.indexOf(u), 1);
       this.trainedByKey.delete(u.key);
       if (u.id != null) this.unitById.delete(u.id);
@@ -1686,6 +1762,10 @@ export class Replay {
         }
       }
       for (const [unit, resource] of this.gatherers) {
+        if (unit.removedAt <= now) {
+          this.gatherers.delete(unit);
+          continue;
+        }
         const resigned = this.resignedAt.get(unit.player);
         if (resigned != null && resigned <= now) {
           this.gatherers.delete(unit);
@@ -1749,19 +1829,19 @@ export class Replay {
   // Players' units out and alive at `now`, kept up as the simulation moves on
   // (now only grows): new units wait until they come out.
   #aliveAt(now) {
-    const a = (this.aliveCache ??= { seen: 0, waiting: [], alive: [] });
-    for (; a.seen < this.units.length; a.seen++) {
-      const u = this.units[a.seen];
-      if (u.player > 0) a.waiting.push(u);
+    const a = (this.aliveCache ??= { waiting: [], alive: [] });
+    if (this.newUnits.length) {
+      for (const u of this.newUnits) if (u.player > 0) a.waiting.push(u);
+      this.newUnits = [];
     }
     const still = [];
     for (const u of a.waiting) {
-      if (u.removedAt <= now) continue;
+      if (u.removedAt <= now || u.dequeued) continue;
       if (u.spawnT <= now) a.alive.push(u);
       else still.push(u);
     }
     a.waiting = still;
-    a.alive = a.alive.filter((u) => u.removedAt > now && u.spawnT <= now);
+    a.alive = a.alive.filter((u) => u.removedAt > now && u.spawnT <= now && !u.dequeued);
     return a.alive;
   }
 
@@ -1841,12 +1921,133 @@ export class Replay {
       }
       return false;
     };
+    for (const b of this.#firingBuildings(now)) {
+      const side = sides.get(b.player) ?? 0;
+      const fire = this.#fire(b);
+      const target = nearest({ at: b, side }, fire.range + b.size / 2);
+      if (target && target.u.removedAt > now) this.#hit(b, target.u, now, fire.arrows);
+    }
     for (const f of fighters) {
       const { u } = f;
       if (!u.fight && !u.sweep && !enemyAround(f) && u.activityAt(now) !== 'attack') continue;
       if (u.stanceAt(now) === 'none') continue;
       this.#fight(f, nearest, now);
     }
+  }
+
+  // Finished castles, towers and town centers standing at `now`, of players still in.
+  #firingBuildings(now) {
+    this.firing ??= this.buildings.filter((b) => b.player > 0 && this.#fire(b));
+    if (this.firing.length !== this.firingOf) {
+      // New ones placed since: look again (cheap, few buildings shoot).
+      this.firing = this.buildings.filter((b) => b.player > 0 && this.#fire(b));
+    }
+    this.firingOf = this.firing.length;
+    return this.firing.filter((b) => b.removedAt > now && now >= b.startT + b.buildTime
+      && (this.resignedAt.get(b.player) ?? Infinity) > now);
+  }
+
+  /**
+   * One combat step of `attacker` (a unit, or a building) on `target`: its hits
+   * in COMBAT_STEP_MS, as the game works them out (per hit, each attack class
+   * the target has an armour for: attack minus armour, at least 1 in all;
+   * ranged ones times their accuracy), with both sides' upgrades and
+   * civilization bonuses at `now`. A unit at 0 falls, but never before the
+   * orders last name it (then it holds on at 1). Estimated: who hits whom is
+   * the engine's guess, and positions are too.
+   */
+  #hit(attacker, target, now, volleys = 1) {
+    const a = this.#stats(attacker.player, attacker instanceof Unit ? attacker.typeAt(now) : attacker.typeId, now, !(attacker instanceof Unit));
+    const t = this.#stats(target.player, target.typeAt(now), now);
+    if (!a?.atk.size || !t) return;
+    let perHit = 0;
+    for (const [cls, amount] of a.atk) {
+      const armour = t.arm.get(cls);
+      if (armour != null) perHit += Math.max(0, amount - armour);
+    }
+    perHit = Math.max(1, perHit) * (a.acc ?? 100) / 100;
+    const hits = (COMBAT_STEP_MS / 1000 / Math.max(0.5, a.reload)) * volleys;
+    target.hp ??= t.hp;
+    target.hp -= perHit * hits;
+    if (target.hp > 0) return;
+    if (this.#seenAt(target) >= now) {
+      target.hp = 1; // alive in a later order: it gets away this time
+      return;
+    }
+    target.removedAt = now;
+    target.fell = true;
+    target.killed = true; // fell in a fight the engine worked out
+  }
+
+  /**
+   * Combat numbers of a unit (or building) type for a player at `now`: the
+   * game's (game-data.json), with the effects of the player's researches done
+   * by then and its civilization's bonuses. Null without combat data. Cached
+   * until the player's next research or age.
+   */
+  #stats(player, typeId, now, building = false) {
+    const base = building ? this.game?.buildings?.[typeId] : this.game?.units?.[typeId];
+    if (!base?.hp) return null;
+    const done = this.#effectsDone(player, now);
+    const key = `${player}:${building ? 'b' : 'u'}${typeId}:${done.length}`;
+    this.statCache ??= new Map();
+    const hit = this.statCache.get(key);
+    if (hit) return hit;
+    const st = {
+      hp: base.hp,
+      atk: new Map(base.atk ?? []),
+      arm: new Map(base.arm ?? []),
+      reload: base.reload ?? 2,
+      acc: base.acc,
+    };
+    const cls = base.class;
+    for (const fx of done) {
+      for (const [type, unit, klass, attr, amount] of fx) {
+        if (unit === -1 && klass === -1) continue;
+        if (unit !== -1 && unit !== typeId) continue;
+        if (klass !== -1 && klass !== cls) continue;
+        if (attr === 0) st.hp = type === 0 ? amount : type === 4 ? st.hp + amount : st.hp * amount;
+        else if (attr === 10) st.reload = type === 0 ? amount : type === 4 ? st.reload + amount : st.reload * amount;
+        else if (attr === 8 || attr === 9) {
+          if (type === 5) continue;
+          // Attack and armour amounts carry their class: class * 256 + amount.
+          const sign = amount < 0 ? -1 : 1;
+          const v = Math.abs(Math.round(amount));
+          const c = v >> 8;
+          const n = sign * (v & 255);
+          const map = attr === 9 ? st.atk : st.arm;
+          if (type === 0) map.set(c, n);
+          else if (map.has(c)) map.set(c, map.get(c) + n);
+        }
+      }
+    }
+    this.statCache.set(key, st);
+    return st;
+  }
+
+  // Effect lists in force for a player at `now`: its civilization's bonuses
+  // (those waiting for an age once it is reached) and its researches done.
+  #effectsDone(player, now) {
+    if (this.fxMemo?.now !== now) this.fxMemo = { now, byPlayer: new Map() };
+    const memo = this.fxMemo.byPlayer.get(player);
+    if (memo) return memo;
+    const techs = this.game?.techs;
+    const civ = this.playerByNumber.get(player)?.civilization_id;
+    const done = new Set();
+    const out = [];
+    for (const r of this.researches) {
+      if (r.player !== player || r.t1 > now) continue;
+      done.add(r.techId);
+      const fx = techs?.[r.techId]?.fx;
+      if (fx) out.push(fx);
+    }
+    // Ages: 104 (Dark) from the start, 101-103 when researched.
+    done.add(104);
+    for (const bonus of this.game?.civs?.[civ] ?? []) {
+      if ((bonus.req ?? []).every((id) => done.has(id))) out.push(bonus.fx);
+    }
+    this.fxMemo.byPlayer.set(player, out);
+    return out;
   }
 
   // Sides numbered from 0 (teams, and each player without one), for the grid.
@@ -1866,12 +2067,13 @@ export class Replay {
     const stance = u.stanceAt(now);
     const last = u.activities[u.activities.length - 1];
     if (u.activityAt(now) === 'attack' && !last?.auto) {
-      // Told to attack a unit: keep after it while it is in sight.
+      // Told to attack a unit: keep after it while it is in sight, and hit it once there.
       const other = u.targets?.[u.targets.length - 1]?.target;
       if (other instanceof Unit && other.removedAt > now) {
         const to = other.positionAt(now);
         const d = Math.hypot(to.x - at.x, to.y - at.y);
         if (d > reach + 1 && d < sight * 2) this.#approach(u, now, to, reach, 0);
+        else if (d <= reach + 1) this.#hit(u, other, now);
       }
       return;
     }
@@ -1915,6 +2117,7 @@ export class Replay {
       (u.targets ??= []).push({ t: now, target: target.u });
     }
     const d = Math.hypot(target.at.x - at.x, target.at.y - at.y);
+    if (d <= reach + 1) this.#hit(u, target.u, now);
     if (stance !== 'stand') {
       if (d > reach + 0.3) {
         // A new way only if the target moved off from where it was going.
@@ -2025,7 +2228,10 @@ export class Replay {
           fellAt = seg.t0 + (moved / Math.max(0.1, seg.speed)) * 1000 + ATTACK_HOLD_MS;
         }
       }
-      if (fellAt == null || playedOn - fellAt < FALLEN_AFTER_MS) continue;
+      if (fellAt == null) continue;
+      // Alive as long as the orders name it.
+      fellAt = Math.max(fellAt, this.#seenAt(u) + FADE_MS);
+      if (playedOn - fellAt < FALLEN_AFTER_MS) continue;
       u.removedAt = fellAt;
       u.fell = true;
     }
@@ -2228,7 +2434,7 @@ export class Replay {
         if (born.id != null || !born.key) {
           let over = used + takes(born) - limit;
           if (over <= 0) continue;
-          const alive = mine.filter((u) => u !== born && u.spawnT <= t && u.removedAt > t && takes(u));
+          const alive = mine.filter((u) => u !== born && u.spawnT <= t && u.removedAt > t && takes(u) && this.#seenAt(u) <= t);
           alive.sort((a, b) => this.#isVillager(a) - this.#isVillager(b) || a.lastOrderT - b.lastOrderT || a.spawnT - b.spawnT);
           for (const u of alive) {
             if (over <= 0) break;

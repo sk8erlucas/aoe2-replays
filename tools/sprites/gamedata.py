@@ -10,7 +10,13 @@
 - gaia: what each map object carries (trees, mines, bushes, animals): amount
   of its resource (food, wood, gold or stone), as the game has it;
 - names: English names (the game's string table) of the units techs upgrade
-  to, which a replay's legend doesn't have since no command names them.
+  to, which a replay's legend doesn't have since no command names them;
+- combat, for units and buildings that fight: hit points (hp), attacks and
+  armours by class ([[class, amount]]), reload (s), range (tiles) and
+  accuracy (%, ranged); and the effects that change them: each tech's (fx:
+  [type, unit, class, attribute, amount], types 0 set, 4 add, 5 multiply) and
+  each civilization's bonuses (civs). The engine uses them to estimate when
+  units die.
 
 Run on its own to refresh only this file (fast), or from extract.py.
 """
@@ -21,6 +27,10 @@ import re
 from pathlib import Path
 
 UNIT, BUILDING = 70, 80
+# Effect commands that change combat: 0 set, 4 add, 5 multiply; on hit
+# points (0), armour (8), attack (9), reload (10) and range (12).
+FX_TYPES = {0, 4, 5}
+FX_ATTRIBUTES = {0, 8, 9, 10, 12}
 UPGRADE_UNIT = 3
 # Resource 4 is population headroom: a building gives it, a unit takes it (negative).
 POP = 4
@@ -52,6 +62,33 @@ def _strings(game: Path):
     return out
 
 
+def _combat(unit):
+    """Hit points, and attacks, armours, reload, range and accuracy if it fights."""
+    out = {'hp': unit.hit_points} if unit.hit_points > 0 else {}
+    t50 = getattr(unit, 'type_50', None)
+    if not t50:
+        return out
+    arm = [[a.class_, a.amount] for a in t50.armours]
+    if arm:
+        out['arm'] = arm
+    atk = [[a.class_, a.amount] for a in t50.attacks if a.amount > 0]
+    if atk:
+        out['atk'] = atk
+        out['reload'] = round(t50.reload_time, 3)
+        out['range'] = round(t50.max_range, 2)
+        if t50.accuracy_percent < 100:
+            out['acc'] = t50.accuracy_percent
+    return out
+
+
+def _fx(dat, effect_id):
+    """An effect's commands that change combat: [type, unit, class, attribute, amount]."""
+    if not 0 <= effect_id < len(dat.effects):
+        return []
+    return [[c.type, c.a, c.b, c.c, round(c.d, 3)] for c in dat.effects[effect_id].effect_commands
+            if c.type in FX_TYPES and c.c in FX_ATTRIBUTES]
+
+
 def game_data(dat, game: Path):
     units, buildings = {}, {}
     for civ in dat.civs[1:]:
@@ -68,14 +105,14 @@ def game_data(dat, game: Path):
             cost = _cost(unit.creatable.resource_costs)
             if trained and unit.id not in units:
                 units[unit.id] = {'speed': round(unit.speed, 3), 'class': unit.class_, 'los': round(unit.line_of_sight, 1),
-                                  'train': trains}
+                                  'train': trains, **_combat(unit)}
                 if cost:
                     units[unit.id]['cost'] = cost
                 if _pop(unit) != -1:
                     units[unit.id]['pop'] = -_pop(unit)
             elif unit.type == BUILDING and not trained and unit.id not in buildings:
                 buildings[unit.id] = {'size': round(unit.collision_size_x * 2), 'buildTime': trains[0][1],
-                                      'los': round(unit.line_of_sight, 1)}
+                                      'los': round(unit.line_of_sight, 1), **_combat(unit)}
                 if cost:
                     buildings[unit.id]['cost'] = cost
                 if _pop(unit) > 0:
@@ -95,6 +132,9 @@ def game_data(dat, game: Path):
                    if c.type == UPGRADE_UNIT and c.a in units and c.b >= 0]
             if ups:
                 entry['up'] = ups
+        fx = _fx(dat, tech.effect_id)
+        if fx:
+            entry['fx'] = fx
         techs[tech_id] = entry
 
     strings = _strings(game)
@@ -113,7 +153,34 @@ def game_data(dat, game: Path):
             name = unit and strings.get(unit.language_dll_name)
             if name:
                 names[to] = name
-    return {'units': units, 'buildings': buildings, 'techs': techs, 'gaia': carries, 'names': names}
+            # What a unit is upgraded to fights too: its own combat numbers.
+            if unit and to not in units:
+                combat = _combat(unit)
+                if combat:
+                    units[to] = {'speed': round(unit.speed, 3), 'class': unit.class_,
+                                 'los': round(unit.line_of_sight, 1), 'train': [], **combat}
+    # Civilization bonuses: the civ's tech tree effect, and its hidden techs
+    # (researched on their own, often with an age: req lists the techs they
+    # wait for, ages 101-103 included). By civilization id.
+    civs = {}
+    for civ_id, civ in enumerate(dat.civs):
+        if not civ_id:
+            continue
+        bonuses = []
+        fx = _fx(dat, civ.tech_tree_id)
+        if fx:
+            bonuses.append({'fx': fx})
+        for tech_id, tech in enumerate(dat.techs):
+            if tech.civ != civ_id or any(r.location_id >= 0 for r in tech.research_locations):
+                continue
+            fx = _fx(dat, tech.effect_id)
+            if not fx:
+                continue
+            req = [r for r in tech.required_techs if r >= 0][: max(0, tech.required_tech_count)]
+            bonuses.append({'tech': tech_id, 'req': req, 'fx': fx} if req else {'tech': tech_id, 'fx': fx})
+        if bonuses:
+            civs[civ_id] = bonuses
+    return {'units': units, 'buildings': buildings, 'techs': techs, 'gaia': carries, 'names': names, 'civs': civs}
 
 
 def write(dat, game: Path, out: Path):

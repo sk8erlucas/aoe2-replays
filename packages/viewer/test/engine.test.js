@@ -793,14 +793,16 @@ test('shift-queued farms are shared out, one villager each', () => {
 });
 
 // Two players on opposite teams, with game data for barracks, castles and town centers.
-function battle(timeline, { duration = 900_000, objects = [] } = {}) {
+function battle(timeline, { duration = 900_000, objects = [], combat = null } = {}) {
   const gameData = {
+    ...(combat ?? {}),
     units: {
       83: { speed: 0.8, class: 4, train: [[109, 25]] },
       41: { speed: 1.05, class: 6, train: [[82, 13]] }, // Huskarl as the castle trains it
       759: { speed: 1.05, class: 6, train: [[82, 13], [12, 16]] }, // ...and its barracks twin
       74: { speed: 0.96, class: 6, train: [[12, 21]] },
       35: { speed: 0.5, class: 13, train: [[49, 36]] },
+      ...combat?.units,
     },
     buildings: { 12: { size: 3, buildTime: 50 }, 82: { size: 4, buildTime: 200 }, 621: { size: 4, buildTime: 150 }, 70: { size: 2, buildTime: 25 } },
   };
@@ -1375,4 +1377,71 @@ test('a unit only ever given stances and plain moves with soldiers is a soldier;
   }, { gameData });
   assert.equal(r.unitById.get(5001)?.typeId, 74);
   assert.equal(r.unitById.get(5002)?.typeId, 128);
+});
+
+// Militia (4 melee, 50 hp) and villagers (25 hp, no melee armour): the game's numbers.
+const COMBAT = {
+  units: {
+    83: { speed: 0.8, class: 4, train: [[109, 25]], hp: 25, arm: [[4, 0], [3, 0]], atk: [[4, 3]], reload: 2 },
+    74: { speed: 0.96, class: 6, train: [[12, 21]], hp: 50, arm: [[4, 0], [3, 1]], atk: [[4, 4]], reload: 2 },
+  },
+  techs: { 67: { at: [[103, 50]], fx: [[4, -1, 6, 9, 1025]] } }, // Forging: infantry +1 melee
+};
+
+test('a soldier kills an enemy villager it fights, by hit points', () => {
+  const r = battle([
+    { t: 1000, type: 'MOVE', player: 2, object_ids: [201], x: 52, y: 50 },
+    { t: 800_000, type: 'MOVE', player: 1, object_ids: [101], x: 15, y: 10 },
+    { t: 800_000, type: 'MOVE', player: 2, object_ids: [200], x: 90, y: 90 },
+  ], { objects: [{ id: 150, player: 1, type_id: 74, x: 50, y: 50 }], combat: COMBAT });
+  const villager = r.unitById.get(201);
+  // 25 hp at 4 a hit every 2 s: dead some 13 s after the militia reaches it.
+  assert.ok(villager.removedAt < 150_000 && villager.killed, String(villager.removedAt));
+  assert.equal(r.unitById.get(150).removedAt, Infinity);
+});
+
+test('a unit an order names later is still alive then, whatever the fight says', () => {
+  const r = battle([
+    { t: 1000, type: 'MOVE', player: 2, object_ids: [201], x: 52, y: 50 },
+    { t: 300_000, type: 'MOVE', player: 2, object_ids: [201], x: 88, y: 90 },
+    { t: 800_000, type: 'MOVE', player: 1, object_ids: [101], x: 15, y: 10 },
+    { t: 800_000, type: 'MOVE', player: 2, object_ids: [200], x: 90, y: 90 },
+  ], { objects: [{ id: 150, player: 1, type_id: 74, x: 50, y: 50 }], combat: COMBAT });
+  assert.ok(r.unitById.get(201).removedAt > 300_000);
+});
+
+test('a soldier left out when its group is ordered again died in between', () => {
+  const objects = [151, 152, 153, 154].map((id) => ({ id, player: 1, type_id: 74, x: 40 + id - 150, y: 40 }));
+  const r = battle([
+    { t: 100_000, type: 'MOVE', player: 1, object_ids: [151, 152, 153, 154], x: 60, y: 60 },
+    { t: 120_000, type: 'MOVE', player: 1, object_ids: [151, 152, 153], x: 70, y: 60 },
+    { t: 800_000, type: 'MOVE', player: 1, object_ids: [101], x: 15, y: 10 },
+  ], { objects });
+  const gone = r.unitById.get(154);
+  assert.ok(gone.removedAt > 100_000 && gone.removedAt <= 120_000, String(gone.removedAt));
+  assert.equal(r.unitById.get(151).removedAt, Infinity);
+
+  // Named again later: only left behind, not dead.
+  const back = battle([
+    { t: 100_000, type: 'MOVE', player: 1, object_ids: [151, 152, 153, 154], x: 60, y: 60 },
+    { t: 120_000, type: 'MOVE', player: 1, object_ids: [151, 152, 153], x: 70, y: 60 },
+    { t: 400_000, type: 'MOVE', player: 1, object_ids: [154], x: 70, y: 60 },
+    { t: 800_000, type: 'MOVE', player: 1, object_ids: [101], x: 15, y: 10 },
+  ], { objects });
+  assert.ok(back.unitById.get(154).removedAt > 400_000);
+});
+
+test('upgrades and civilization bonuses change the numbers fights use', () => {
+  const kill = (timeline, extra = {}) => {
+    const r = battle([
+      { t: 1000, type: 'MOVE', player: 2, object_ids: [201], x: 52, y: 50 },
+      ...timeline,
+      { t: 800_000, type: 'MOVE', player: 1, object_ids: [101], x: 15, y: 10 },
+      { t: 800_000, type: 'MOVE', player: 2, object_ids: [200], x: 90, y: 90 },
+    ], { objects: [{ id: 150, player: 1, type_id: 74, x: 50, y: 50 }, { id: 160, player: 1, type_id: 103, x: 20, y: 20 }], combat: { ...COMBAT, ...extra } });
+    return r.unitById.get(201).removedAt;
+  };
+  const plain = kill([]);
+  const forged = kill([{ t: 500, type: 'RESEARCH', player: 1, object_ids: [160], technology_id: 67 }]);
+  assert.ok(forged < plain, `${forged} < ${plain}`);
 });
