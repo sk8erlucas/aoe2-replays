@@ -2,6 +2,9 @@
 
 Separados entre lo que necesita una decisión o acción tuya y lo que se puede avanzar sin vos.
 
+## Idea nueva: vida de las unidades y cuándo mueren
+El replay no trae vida ni muertes, pero sí dice cuándo una unidad seguía viva (aparece en una orden) y, para un tercio de los soldados, entre qué dos órdenes murió (sale de su grupo y no vuelve). Hoy el motor los mata casi siempre más de un minuto tarde. Hecho el 22/11/2026 (noche): esa evidencia, las muertes durante la simulación, y vida y daño con los datos del juego (mejoras y bonus de civilización incluidos). El 92-93 % de los soldados con evidencia mueren dentro de su ventana (antes 15-30 %), y el motor quedó más rápido. Falta la vida de los edificios. Detalle en [26-vida-y-muertes](./26-vida-y-muertes.md).
+
 ## Sesión del 22/11/2026 (tarde): bosques, flechas y soldados
 Detalle en [25](./25-bosques-flechas-y-soldados.md), con la partida `/m/522846419?p=5675276` (4v4 Black Forest, 61 min).
 - **Árboles que faltaban**: un árbol nuevo del juego (abeto) y su terreno que el parser no conocía; ahora son bosque. Las partidas guardadas se corrigen solas.

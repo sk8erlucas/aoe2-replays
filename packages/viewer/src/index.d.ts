@@ -25,6 +25,12 @@ export class Unit {
   removedAt: number;
   /** removedAt is an estimated death in a fight. */
   fell: boolean;
+  /** It fell in a fight the engine worked out (its hit points ran out). */
+  killed?: boolean;
+  /** The orders show it died within this window (see Replay#deathEvidence). */
+  fellExact?: { from: number; to: number; t: number };
+  /** Hit points left, once it has been hit. */
+  hp?: number;
   approx: boolean;
   positionAt(t: number): { x: number; y: number; moving: boolean; target: { x: number; y: number } | null };
   /**
