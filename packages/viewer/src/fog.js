@@ -4,8 +4,9 @@
 // line of sight (the game's data). The map is a grid of tiles: 2 seen now,
 // 1 seen before (explored), 0 never seen. Explored is approximate: the union of
 // what was seen every EXPLORE_STEP_MS, so it never needs replaying every frame.
-// Positions are the engine's estimates, and line of sight upgrades (Town
-// Watch, Treadmill...) and civilization bonuses are not counted.
+// Positions are the engine's estimates. Line of sight upgrades (Town Watch,
+// Town Patrol, the ages for scouts) and civilization bonuses count, from the
+// game's effects (Replay.attributeAt).
 //
 // As in the game, whoever attacks the team shows where it is, even from
 // outside its sight: an enemy unit fighting one of the team's (by order or on
@@ -71,7 +72,6 @@ export class Fog {
   #seen(t) {
     const n = this.size;
     const grid = new Uint8Array(n * n);
-    const game = this.replay.game;
     const stamp = (x, y, r) => {
       const r2 = r * r;
       for (let dy = -Math.ceil(r); dy <= r; dy++) {
@@ -100,7 +100,7 @@ export class Fog {
       }
       const at = u.positionAt(t);
       ours.push(at);
-      stamp(at.x, at.y, game?.units?.[u.typeAt(t)]?.los ?? DEFAULT_UNIT_LOS);
+      stamp(at.x, at.y, this.replay.attributeAt(u.player, u.typeAt(t), 'los', t) ?? DEFAULT_UNIT_LOS);
     }
     for (const b of this.replay.buildings) {
       if (b.t > t || b.removedAt <= t) continue;
@@ -114,7 +114,7 @@ export class Fog {
         }
         continue;
       }
-      const known = game?.buildings?.[b.typeId]?.los;
+      const known = this.replay.attributeAt(b.player, b.typeId, 'los', t, { building: true });
       const los = known ?? (/^Town Center/.test(this.replay.objectName(b.typeId)) ? TOWN_CENTER_LOS : DEFAULT_BUILDING_LOS);
       stamp(b.x, b.y, los + b.size / 2);
     }

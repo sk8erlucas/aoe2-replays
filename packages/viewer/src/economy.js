@@ -15,6 +15,7 @@ import {
 } from './palette.js';
 
 export const RESOURCES = ['food', 'wood', 'gold', 'stone'];
+const STARTING_TOTAL = STARTING_STOCK.reduce((a, b) => a + b, 0);
 const FOOD = 0;
 const WOOD = 1;
 const GOLD = 2;
@@ -34,8 +35,10 @@ const INCOME = {
 
 /**
  * { players, refused }: per player, the stock at each sync, chronological:
- * [{ t, total, drift, food, wood, gold, stone }] (drift: game total minus the
- * estimate before correcting it); and the trained units whose purchase the
+ * [{ t, total, drift, gathered, food, wood, gold, stone }] (drift: game total
+ * minus the estimate before correcting it; gathered: everything gathered so far,
+ * the game's total less what the estimate says came in or went out otherwise:
+ * purchases, refunds, trades and tributes); and the trained units whose purchase the
  * stock couldn't pay (the game would have refused the click). Null if the
  * replay has no totals (parsed before November 2026).
  */
@@ -126,6 +129,7 @@ export function stockTimeline(replay) {
     let earned = [0, 0, 0, 0];
     let spent = [0, 0, 0, 0];
     let now = 0;
+    let moved = 0; // net of everything charged, refunded, traded and tributed
     const advance = (to) => {
       if (to <= now) return;
       for (let i = 0; i < 4; i++) {
@@ -158,6 +162,7 @@ export function stockTimeline(replay) {
           }
           delta.forEach((v, i) => {
             stock[i] += v;
+            moved += v;
             if (v < 0) spent[i] -= v;
           });
         }
@@ -166,7 +171,8 @@ export function stockTimeline(replay) {
       // How far off the estimate was before the correction: how good it is.
       const drift = total - stock.reduce((a, b) => a + b, 0);
       reconcile(stock, total, earned, spent);
-      samples.push({ t: s.t, total, drift, food: stock[FOOD], wood: stock[WOOD], gold: stock[GOLD], stone: stock[STONE] });
+      const gathered = Math.max(0, Math.round(total - STARTING_TOTAL - moved));
+      samples.push({ t: s.t, total, drift, gathered, food: stock[FOOD], wood: stock[WOOD], gold: stock[GOLD], stone: stock[STONE] });
       earned = [0, 0, 0, 0];
       spent = [0, 0, 0, 0];
     }

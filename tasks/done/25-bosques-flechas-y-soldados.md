@@ -1,5 +1,7 @@
 # 25: Bosques de abetos, flechas y soldados tomados por aldeanos
 
+> Movido a `done/` el 25/11/2026: lo que quedaba abierto pasó a [`PENDIENTES.md`](../PENDIENTES.md) y lo que hay que probar a mano, a [`PRUEBAS.md`](../PRUEBAS.md).
+
 Pedidos de Lucas del 22/11/2026 con la partida `/m/522846419?p=5675276` (4v4 Black Forest, 61 min, Fibonaku).
 
 ## Hecho (22/11/2026)

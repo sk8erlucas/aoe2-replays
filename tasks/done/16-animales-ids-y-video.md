@@ -1,5 +1,7 @@
 # 16: Animales, IDs de unidades, detalles del motor y video demo
 
+> Movido a `done/` el 25/11/2026: lo que quedaba abierto pasó a [`PENDIENTES.md`](../PENDIENTES.md) y lo que hay que probar a mano, a [`PRUEBAS.md`](../PRUEBAS.md).
+
 Sesión del 11/11/2026 (tarde), sobre la partida del reporte de Santiago ([`/m/520299380`](https://aoe2replays.sitemaster.com.ar/m/520299380), Black Forest 4v4, 46 min; él es el jugador 6). Se midió con un script qué hace cada aldeano del jugador 6 en cada momento, antes y después de cada cambio.
 
 ## Resultado en esa partida (jugador 6, al llegar a Feudal, 16:52)

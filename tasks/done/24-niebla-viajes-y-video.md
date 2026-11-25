@@ -1,6 +1,8 @@
 # 24: Niebla de guerra, viajes a depositar, objetos nuevos y video
 
-Pedidos de Lucas del 21/11/2026 con la partida `/m/522595678?p=397671` (4v4 Black Forest, 78 min): revisarla, avanzar lo que falta de la experiencia de juego ([08](./08-experiencia-de-juego.md)) y terminar el video ([05](./05-video.md)), cuya cámara se veía muy de cerca.
+> Movido a `done/` el 25/11/2026: lo que quedaba abierto pasó a [`PENDIENTES.md`](../PENDIENTES.md) y lo que hay que probar a mano, a [`PRUEBAS.md`](../PRUEBAS.md).
+
+Pedidos de Lucas del 21/11/2026 con la partida `/m/522595678?p=397671` (4v4 Black Forest, 78 min): revisarla, avanzar lo que falta de la experiencia de juego ([08](../08-experiencia-de-juego.md)) y terminar el video ([05](./05-video.md)), cuya cámara se veía muy de cerca.
 
 ## Hecho (21/11/2026)
 - [x] **Arbustos de ananá y gallinas**: el mapa los tenía y `aocref` no los conoce, así que el parser tomaba los arbustos (2650, 125 de comida) como decoración y los aldeanos mandados ahí quedaban "parados". Ahora tienen nombre y categoría (`reference.py`) y el motor corrige los replays guardados antes. Las gallinas salvajes (2084, 2086, 2088) se cazan; las mansas, se pastorean.

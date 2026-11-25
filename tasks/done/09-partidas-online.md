@@ -1,5 +1,7 @@
 # Fase 9: Partidas online (sin subir archivos)
 
+> Movido a `done/` el 25/11/2026: lo que quedaba abierto pasó a [`PENDIENTES.md`](../PENDIENTES.md) y lo que hay que probar a mano, a [`PRUEBAS.md`](../PRUEBAS.md).
+
 Objetivo: buscar un jugador por nombre, ver sus partidas recientes y reproducir cualquiera **sin que nadie tenga que subir el archivo**. Las partidas online de AoE2: DE son públicas y sus replays se pueden descargar.
 
 ## Qué se verificó (27/10/2026)
@@ -45,6 +47,6 @@ Ninguna de estas APIs está documentada como pública ni tiene acuerdo de uso co
 - [x] Atribución visible a las fuentes de datos
 
 ### Más adelante
-- [x] Seguir jugadores y ver sus partidas nuevas (cuentas, [13](./13-cuentas.md))
+- [x] Seguir jugadores y ver sus partidas nuevas (cuentas, [13](../13-cuentas.md))
 - [ ] Estadísticas agregadas por jugador (civilizaciones más usadas, build orders, APM promedio)
 - [ ] Partidas destacadas (jugadores de ELO alto) en la portada

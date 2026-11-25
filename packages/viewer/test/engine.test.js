@@ -1445,3 +1445,82 @@ test('upgrades and civilization bonuses change the numbers fights use', () => {
   const forged = kill([{ t: 500, type: 'RESEARCH', player: 1, object_ids: [160], technology_id: 67 }]);
   assert.ok(forged < plain, `${forged} < ${plain}`);
 });
+
+test('Wheelbarrow and Hand Cart make loads bigger and walks faster, from the game effects', () => {
+  const gameData = {
+    units: { 83: { speed: 1, class: 4, train: [[109, 25]] } },
+    buildings: { 109: { size: 4, buildTime: 0, class: 3 } },
+    techs: {
+      213: { at: [[109, 75]], fx: [[5, -1, 4, 5, 1.1], [5, -1, 4, 14, 1.27]] },
+      249: { at: [[109, 55]], fx: [[5, -1, 4, 14, 1.5], [5, -1, 4, 5, 1.1]] },
+    },
+    carry: { 83: 10, 122: 35 },
+  };
+  const r = new Replay({
+    game: { duration_ms: 600_000, players: [{ number: 1, name: 'A', color_id: 0, team_id: 2, start: { x: 10, y: 10 } }] },
+    map: { size: 60, terrain: [], elevation: [] },
+    initial_objects: [
+      { id: 100, player: 1, type_id: 109, x: 10, y: 10 },
+      { id: 101, player: 1, type_id: 83, x: 20, y: 10 },
+    ],
+    timeline: [
+      { t: 1000, type: 'RESEARCH', player: 1, object_ids: [100], technology_id: 213 },
+      { t: 2000, type: 'RESEARCH', player: 1, object_ids: [100], technology_id: 249 },
+    ],
+    chat: [],
+    legend: { objects: { 109: { name: 'Town Center', category: 'building' }, 83: { name: 'Villager', category: 'unit' } } },
+  }, { gameData });
+  assert.equal(r.attributeAt(1, 83, 'carry', 0, { base: 10 }), 10);
+  assert.equal(r.attributeAt(1, 83, 'carry', 80_000, { base: 10 }), 12.7, 'Wheelbarrow done at 76 s');
+  assert.equal(r.attributeAt(1, 83, 'carry', 200_000, { base: 10 }).toFixed(2), '19.05', 'and Hand Cart after it in the queue');
+  assert.equal(r.attributeAt(1, 83, 'carry', 200_000, { base: 35 }).toFixed(2), '66.68', 'hunters carry more');
+  assert.equal(r.attributeAt(1, 83, 'speed', 200_000).toFixed(2), '1.21');
+  assert.equal(r.attributeAt(2, 83, 'speed', 200_000), 1, 'only for the player who researched it');
+  assert.equal(r.attributeAt(1, 999, 'los', 0), undefined, 'no data, no number');
+});
+
+test('units walk faster once their speed upgrade is done', () => {
+  const gameData = {
+    units: { 83: { speed: 1, class: 4, train: [[109, 25]] } },
+    buildings: { 109: { size: 4, buildTime: 0, class: 3 } },
+    techs: { 213: { at: [[109, 10]], fx: [[5, -1, 4, 5, 1.25]] } },
+  };
+  const r = new Replay({
+    game: { duration_ms: 600_000, players: [{ number: 1, name: 'A', color_id: 0, team_id: 2, start: { x: 10, y: 10 } }] },
+    map: { size: 60, terrain: [], elevation: [] },
+    initial_objects: [
+      { id: 100, player: 1, type_id: 109, x: 10, y: 10 },
+      { id: 101, player: 1, type_id: 83, x: 20, y: 20 },
+    ],
+    timeline: [
+      { t: 1000, type: 'MOVE', player: 1, object_ids: [101], x: 30, y: 20 },
+      { t: 2000, type: 'RESEARCH', player: 1, object_ids: [100], technology_id: 213 },
+      { t: 30_000, type: 'MOVE', player: 1, object_ids: [101], x: 50, y: 20 },
+    ],
+    chat: [],
+    legend: { objects: { 109: { name: 'Town Center', category: 'building' }, 83: { name: 'Villager', category: 'unit' } } },
+  }, { gameData });
+  const u = r.unitById.get(101);
+  assert.equal(u.positionAt(5000).x, 24, 'before: 1 tile per second');
+  assert.equal(u.positionAt(34_000).x, 35, 'after: 1.25');
+});
+
+test('scores: military from what was brought down, technology from researches, economy from the totals', () => {
+  const r = battle([
+    { t: 1000, type: 'BUILD', player: 1, building_id: 12, object_ids: [101], x: 20, y: 10 },
+    { t: 60_000, type: 'DE_QUEUE', player: 1, object_ids: [500], amount: 3, unit_id: 74 },
+    { t: 70_000, type: 'RESEARCH', player: 2, object_ids: [200], technology_id: 22 },
+    { t: 200_000, type: 'ORDER', player: 1, object_ids: [301, 302, 303], target_id: 202, x: 80, y: 80 },
+    { t: 600_000, type: 'MOVE', player: 2, object_ids: [201], x: 85, y: 85 },
+  ], {
+    combat: { techs: { 22: { at: [[109, 25]], cost: [50, 0, 0, 0] } } },
+  });
+  r.game.buildings[70].cost = [0, 25, 0, 0]; // read on the first scoresAt
+  // The house (25 wood) falls at 225 s to player 1's assault.
+  assert.equal(r.scoresAt(224_000).get(1).military, 0);
+  assert.equal(r.scoresAt(226_000).get(1).military, 5);
+  assert.equal(r.scoresAt(226_000).get(2).technology, 10, 'Loom: 50 / 5');
+  assert.equal(r.scoresAt(226_000).get(2).economy, null, 'no totals in this replay');
+  const s = r.scoresAt(226_000).get(1);
+  assert.equal(s.total, s.military + s.technology + s.society);
+});

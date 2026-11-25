@@ -1,5 +1,7 @@
 # 23: Recursos por tipo, cancelaciones y qué se puede hacer exacto
 
+> Movido a `done/` el 25/11/2026: lo que quedaba abierto pasó a [`PENDIENTES.md`](../PENDIENTES.md) y lo que hay que probar a mano, a [`PRUEBAS.md`](../PRUEBAS.md).
+
 Pedidos de Lucas del 20/11/2026 con la partida `/m/522363603?p=5675276` (4v4 Black Forest, 68 min, Fibonaku): el panel de recursos separado por comida, madera, oro y piedra, y "¿se puede hacer todo exacto, como el juego?".
 
 ## ¿Se puede hacer exacto?
@@ -17,7 +19,7 @@ Lo que sí se puede, y es lo que se viene haciendo:
 - [x] **Cancelaciones de la cola**: `SPECIAL` con `order_id` 4 sobre un edificio saca una unidad o investigación de la cola (`slot_id`: 0 la que se está haciendo; 1 en adelante, cada grupo de iguales que espera). Comprobado con los totales: Dekaryn encola 4 aldeanos, saca 3, investiga Telar, y el total cierra con la devolución. La unidad no sale, la cola se adelanta, el costo vuelve y queda en el registro ("saca de la cola"). Antes el motor decía que las cancelaciones no estaban en el replay.
 - [x] **Cola de 15**: los clics de más (Fibonaku encola lanceros de a 5 decenas de veces estando al tope de población) los rechaza el juego; antes el motor los fabricaba igual. Esta partida pasa de 8028 a 6971 unidades.
 - [x] **Análisis**: "unidades entrenadas" cuenta lo que entró de verdad a la cola (sin cancelaciones ni clics de más). Fibonaku: 1605 → 1203 militares.
-- [x] Planes terminados movidos a [`done/`](./done/).
+- [x] Planes terminados movidos a [`done/`](./).
 
 ## Falta
 - [x] **Producción frenada por población** (20/11/2026): cada edificio da su lugar (casa 5, centro urbano 5, castillo 20, del juego: `pop` en `game-data.json`; los hunos no necesitan casas) hasta el límite de la partida, y cada unidad ocupa el suyo (las ovejas, nada). Una unidad entrenada que saldría sin lugar espera a que haya (una casa terminada, una unidad que se va); si nunca hay, no sale. Si una orden la nombra, estaba afuera a más tardar en esa orden. Antes, al pasar el límite, el motor mataba a la unidad más vieja. En `/m/522363603` dejan de salir entre 15 y 201 unidades por jugador (kevinr: 1059 → 858 militares); Fibonaku casi no cambia (1208 → 1186) porque sus lanceros mueren en las peleas y liberan lugar: con ~10 cuarteles y su economía (~71 000 recursos en lanceros) es posible. No hay con qué compararlo: el replay no trae las estadísticas del final.

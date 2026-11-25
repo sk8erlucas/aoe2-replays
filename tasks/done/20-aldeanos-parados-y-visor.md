@@ -1,5 +1,7 @@
 # 20: Aldeanos parados, borrados propios, pantalla completa y música
 
+> Movido a `done/` el 25/11/2026: lo que quedaba abierto pasó a [`PENDIENTES.md`](../PENDIENTES.md) y lo que hay que probar a mano, a [`PRUEBAS.md`](../PRUEBAS.md).
+
 Pedidos de Lucas del 16/11/2026, después de ver partidas en el visor.
 
 ## Motor (`packages/viewer/src/engine.js`)
@@ -26,5 +28,5 @@ Pedidos de Lucas del 16/11/2026, después de ver partidas en el visor.
 - [x] **Soldados que desaparecían**: `#dropUncommanded` sacaba del mapa a toda unidad entrenada cuyo ID nunca se vinculó, al llegar al punto de reunión. Muchos soldados nunca se vinculan (80 de los 175 Caballeros de los francos), así que los ejércitos se vaciaban. Ahora solo se van los aldeanos; los soldados se quedan en el punto de reunión hasta que el límite de población los saca.
 - [x] **Órdenes perdidas por la selección**: ~120 órdenes sin IDs por partida llegaban justo después de encolar, investigar o poner un punto de reunión, y el motor se las daba al edificio. Ahora usan la última selección de unidades (`selectionTracker`).
 - [x] **IDs corridos en `SPECIAL`** (parser, ver `services/parser/README.md`): 273 IDs basura en esta partida, que además ensuciaban la selección. Los replays ya guardados se corrigen al cargarlos.
-- [~] **Medir contra el juego.** (19/11/2026: `total_res` ya está en el contrato como `resource_totals` y se muestra en la pestaña Recursos, [22](./22-puertas-abandonos-y-pestanas.md).) Los `sync` del replay traen, por jugador, `obj_count` y `total_res` (de `mgz.fast.sync`). `obj_count` no sirve para contar unidades: cuenta otros objetos (Dekaryn sube 118 en 5 minutos sin entrenar casi nada; parecen proyectiles). `total_res` parece el total de recursos en reserva: si se confirma, daría números reales a los visores de [18](./18-visores-de-partida.md). Exponerlo en el contrato sería un campo nuevo opcional.
+- [~] **Medir contra el juego.** (19/11/2026: `total_res` ya está en el contrato como `resource_totals` y se muestra en la pestaña Recursos, [22](./22-puertas-abandonos-y-pestanas.md).) Los `sync` del replay traen, por jugador, `obj_count` y `total_res` (de `mgz.fast.sync`). `obj_count` no sirve para contar unidades: cuenta otros objetos (Dekaryn sube 118 en 5 minutos sin entrenar casi nada; parecen proyectiles). `total_res` parece el total de recursos en reserva: si se confirma, daría números reales a los visores de [18](../18-visores-de-partida.md). Exponerlo en el contrato sería un campo nuevo opcional.
 - [ ] Probar en el navegador `/m/521966600?p=5675276` siguiendo a Fibonaku: lanceros que pasan a piqueros (29:48) y a alabarderos (36:54), trabuquetes del castillo, y que los ejércitos no se vacíen en el punto de reunión.

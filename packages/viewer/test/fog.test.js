@@ -86,3 +86,25 @@ test('an enemy attacking the team from out of sight is seen while it attacks', (
   assert.equal(archerAt([{ t: 1000, type: 'MOVE', player: 3, object_ids: [302], x: 15, y: 10 },
     { t: 2000, type: 'STANCE', player: 3, stance_id: 3, object_ids: [302] }]), false);
 });
+
+test('Town Watch makes towers see farther, from the game effects', () => {
+  const gameData = {
+    units: { 83: { speed: 1, class: 4, los: 4, train: [] } },
+    buildings: { 79: { size: 1, buildTime: 0, class: 52, los: 8 }, 109: { size: 4, buildTime: 0, class: 3, los: 8 } },
+    techs: { 8: { at: [[109, 25]], fx: [[4, -1, 3, 1, 4], [4, -1, 52, 1, 4]] } },
+  };
+  const r = new Replay({
+    game: { duration_ms: 200_000, players: [{ number: 1, name: 'A', color_id: 0, team_id: 2, start: { x: 10, y: 10 } }] },
+    map: { size: 60, terrain: [], elevation: [] },
+    initial_objects: [
+      { id: 100, player: 1, type_id: 109, x: 10, y: 10 },
+      { id: 102, player: 1, type_id: 79, x: 40, y: 40 },
+    ],
+    timeline: [{ t: 1000, type: 'RESEARCH', player: 1, object_ids: [100], technology_id: 8 }],
+    chat: [],
+    legend: { objects: { 109: { name: 'Town Center', category: 'building' }, 79: { name: 'Watch Tower', category: 'building' } } },
+  }, { gameData });
+  const fog = new Fog(r, 1);
+  assert.ok(!fog.sees(fog.at(10_000), 40, 50), 'a tower sees 8 tiles');
+  assert.ok(fog.sees(fog.at(30_000), 40, 50), 'and 12 with Town Watch');
+});

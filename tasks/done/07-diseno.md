@@ -18,5 +18,5 @@ Cerrado el 16/11/2026. Lo que queda (ilustraciones, íconos de línea propios y 
 - [x] Rediseñar inicio, subida y visor con esos tokens
 - [x] Logo/favicon propio
 - [~] Ilustraciones propias en estilo grabado (portada, 404, estados vacíos): pasa a DESIGN.md como opcional; la portada usa arte oficial del juego
-- [-] Sprites propios para unidades y edificios: descartado, se usan los del juego ([08](../08-experiencia-de-juego.md), [14](../14-calidad-grafica.md))
+- [-] Sprites propios para unidades y edificios: descartado, se usan los del juego ([08](../08-experiencia-de-juego.md), [14](14-calidad-grafica.md))
 - [-] Mockups o prototipo navegable: ya no hace falta, la web está hecha

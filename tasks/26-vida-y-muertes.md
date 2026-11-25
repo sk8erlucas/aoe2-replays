@@ -3,7 +3,7 @@
 Pregunta de Lucas del 22/11/2026: no vemos la vida de las unidades, entonces ¿cómo sabemos cuándo mueren? ¿No conviene calcular la vida para saberlo más exacto?
 
 ## Cómo se sabe hoy
-El replay no trae vida, daño ni muertes: solo las órdenes de los jugadores (ver [23](./23-recursos-cancelaciones-y-exactitud.md#se-puede-hacer-exacto)). El motor estima las muertes **después** de simular la partida (`#estimateFalls`, `#enforcePopulationLimit`):
+El replay no trae vida, daño ni muertes: solo las órdenes de los jugadores (ver [23](./done/23-recursos-cancelaciones-y-exactitud.md#se-puede-hacer-exacto)). El motor estima las muertes **después** de simular la partida (`#estimateFalls`, `#enforcePopulationLimit`):
 - Exactas: lo borrado por su dueño (`DELETE`) y los animales que se terminan de comer.
 - Estimadas: una unidad mandada a atacar (o a terreno enemigo) que su jugador **nunca vuelve a mover** cae cuando termina la pelea (25 s, `ATTACK_HOLD_MS`), si el jugador siguió jugando al menos un minuto más. Y si un jugador tiene más unidades que población, sobran las que murieron.
 
@@ -78,7 +78,7 @@ Las dos primeras columnas cuentan los soldados con evidencia según la regla de 
 - [ ] Probar en el navegador: que los ejércitos se achiquen en la pelea y que el panel "Ejército" baje a tiempo.
 
 ## Riesgos y límites
-- **Nunca va a ser exacto**: el juego vuelve a simular la partida con su motor (ver [23](./23-recursos-cancelaciones-y-exactitud.md)). El objetivo es que las muertes caigan en el momento correcto cuando el replay lo dice, y que sean razonables cuando no.
+- **Nunca va a ser exacto**: el juego vuelve a simular la partida con su motor (ver [23](./done/23-recursos-cancelaciones-y-exactitud.md)). El objetivo es que las muertes caigan en el momento correcto cuando el replay lo dice, y que sean razonables cuando no.
 - **Selecciones que se separan**: un jugador que divide un ejército en dos grupos no hace morir a nadie. La regla exige que la unidad no vuelva a aparecer nunca. Las que solo se dejan de usar (quedan quietas en casa) no salen de ningún grupo, así que no dan evidencia.
 - **Costo del paso 3**: un daño por recarga para cada unidad en pelea. Con los pasos 1 y 2 hechos antes, hay muchas menos unidades vivas en la simulación, así que debería compensar.
 - **Datos del juego**: hay que extraerlos de nuevo con el juego instalado (`tools/sprites`), y registrar en `docs/LEGAL.md` si cambia algo.

@@ -1,5 +1,7 @@
 # 17: Murallas, jabalíes y granjas (reporte de Santiago, 12/11/2026)
 
+> Movido a `done/` el 25/11/2026: lo que quedaba abierto pasó a [`PENDIENTES.md`](../PENDIENTES.md) y lo que hay que probar a mano, a [`PRUEBAS.md`](../PRUEBAS.md).
+
 Partida del reporte: [520532792](https://aoe2replays.sitemaster.com.ar/m/520532792?t=132), 4v4 en Black Forest; Santiago es el jugador 5 (callmeshock). El replay está en `fixtures/` (fuera de git).
 
 ## Murallas

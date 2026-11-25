@@ -1,6 +1,6 @@
 // Graphics quality levels (no DOM, so it is testable in Node). High is the full
 // look; medium and low download and decode much less, for phones and modest
-// computers. See tasks/14-calidad-grafica.md.
+// computers. See tasks/done/14-calidad-grafica.md.
 
 export const QUALITIES = ['high', 'medium', 'low'];
 

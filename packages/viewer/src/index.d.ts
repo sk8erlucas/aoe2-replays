@@ -173,6 +173,12 @@ export class Replay {
   objectName(typeId: number): string;
   /** What a player is researching at t (estimated), with progress 0..1. */
   researchesAt(player: number, t: number): Array<{ techId: number; name: string; t0: number; t1: number; progress: number }>;
+  /**
+   * Line of sight, speed or carry capacity of a unit or building type for a player at
+   * `now`, with the effects of its researches done by then and its civilization's bonuses.
+   * Undefined without game data.
+   */
+  attributeAt(player: number, typeId: number, attr: 'los' | 'speed' | 'carry', now: number, options?: { building?: boolean; base?: number }): number | undefined;
   /** Each player's villagers at t by job (estimated). */
   villagerJobsAt(t: number): Map<number, VillagerJobs>;
   /** Each player's stockpile (food + wood + gold + stone) at t as the game had it, or null if the replay lacks it. */
@@ -182,6 +188,12 @@ export class Replay {
    * the split by resource estimated and corrected to it every sync. Null without totals.
    */
   stockAt(t: number): Map<number, { total: number; food: number; wood: number; gold: number; stone: number } | null> | null;
+  /**
+   * Each player's score at t like the game's, estimated with its rules: military
+   * (enemy kills, the least exact), economy (from the game's totals; null without
+   * them), technology and society.
+   */
+  scoresAt(t: number): Map<number, { total: number; military: number; economy: number | null; technology: number; society: number }>;
   /** Each player's army at t by kind (estimated). */
   armyAt(t: number): Map<number, Army>;
   /** Age, units, researches and buildings per player at t (estimated, ages exact with notices). */
