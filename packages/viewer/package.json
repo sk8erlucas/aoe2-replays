@@ -16,7 +16,7 @@
     }
   },
   "dependencies": {
-    "mediabunny": "1.66.0"
+    "mediabunny": "1.66.2"
   },
   "scripts": {
     "test": "node --test \"test/**/*.test.js\""
