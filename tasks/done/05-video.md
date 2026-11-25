@@ -1,5 +1,7 @@
 # Fase 5: Exportar a video
 
+> Movido a `done/` el 25/11/2026: lo que quedaba abierto pasó a [`PENDIENTES.md`](../PENDIENTES.md) y lo que hay que probar a mano, a [`PRUEBAS.md`](../PRUEBAS.md).
+
 Botón "🎬 Video" en la barra del visor (`VideoExport.tsx`), con el grabador en `packages/viewer/src/video.js` (entrada aparte, `@aoe2-replays/viewer/video`, que la web carga recién al abrir el diálogo).
 
 - [x] Prueba de concepto con `MediaRecorder` sobre el canvas (12/11/2026): **descartado**. Graba con el reloj real, así que un fotograma lento (sprites decodificándose) estiraba el video y los que se mandaban para recuperar el tiempo se perdían (117 de 150 en 5 s). Pausar el grabador mientras se dibuja no lo arregló en Chrome.

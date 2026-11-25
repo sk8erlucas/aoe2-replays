@@ -26,7 +26,7 @@ export default defineConfig([
     // eslint-plugin-react-hooks 7 adds rules for the React Compiler, which this app
     // doesn't use. The viewer reads and writes refs during render on purpose (the
     // animation loop lives outside React). Revisit when adopting the compiler:
-    // tasks/12-next-16.md. rules-of-hooks and exhaustive-deps stay on, as before.
+    // tasks/done/12-next-16.md. rules-of-hooks and exhaustive-deps stay on, as before.
     rules: {
       "react-hooks/set-state-in-effect": "off",
       "react-hooks/refs": "off",

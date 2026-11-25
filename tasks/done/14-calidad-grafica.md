@@ -1,5 +1,7 @@
 # Fase 14: Calidad gráfica (baja, media, alta)
 
+> Movido a `done/` el 25/11/2026: lo que quedaba abierto pasó a [`PENDIENTES.md`](../PENDIENTES.md) y lo que hay que probar a mano, a [`PRUEBAS.md`](../PRUEBAS.md).
+
 Objetivo: que el visor ande bien en equipos modestos y celulares, con un selector de calidad como el de los juegos.
 
 **Prioridad alta (09/11/2026): en un celular el visor hoy no llega a cargar, es demasiado pesado.** Referencia: `public/sprites` son 133 MB en 2573 archivos. Una partida no baja todo, pero lo que importa en el celular es además la memoria: cada atlas WebP ocupa mucho más una vez decodificado.

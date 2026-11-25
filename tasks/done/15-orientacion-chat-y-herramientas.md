@@ -1,5 +1,7 @@
 # 15: Orientación del mapa, chat, IA por jugador y herramientas
 
+> Movido a `done/` el 25/11/2026: lo que quedaba abierto pasó a [`PENDIENTES.md`](../PENDIENTES.md) y lo que hay que probar a mano, a [`PRUEBAS.md`](../PRUEBAS.md).
+
 Reportes de jugadores del 11/11/2026. Se investigó cada uno con datos antes de tocar nada.
 
 ## Mapa girado

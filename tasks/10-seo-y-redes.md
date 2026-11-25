@@ -5,12 +5,12 @@ Objetivo: que la gente encuentre el sitio buscando partidas o jugadores, y que c
 ## Base técnica
 Hoy las páginas de jugador (`/p/<id>`) y de partida (`/m/<id>`) se arman en el navegador: los buscadores y las vistas previas de redes ven una página casi vacía. Lo primero es que el servidor entregue el contenido y los metadatos.
 
-- [x] Metadatos por página con `generateMetadata` (título, descripción, URL canónica): portada, jugador (nombre) y partida (mapa y jugadores, si ya está guardada). Falta enriquecer la descripción con ELO, duración y ganador.
+- [x] Metadatos por página con `generateMetadata` (título, descripción, URL canónica): portada, jugador (nombre) y partida (si ya está guardada). Desde el 25/11/2026 la descripción de la partida lleva mapa, modo, tamaño, duración, jugadores con ELO y ganadores (`src/lib/matchMeta.ts`).
 - [ ] Renderizar en el servidor lo esencial de `/p/<id>` y `/m/<id>` (datos del jugador, resumen de la partida) para que sea indexable; el visor sigue siendo del lado del cliente
 - [x] `robots.txt` y `sitemap.xml` (por ahora el sitemap solo tiene la portada; `/r/` lleva `noindex`):
   - Indexar: portada, jugadores, partidas online.
   - **No indexar** replays subidos (`/r/<id>`, son privados o de enlace) ni páginas de gestión: `noindex` además de excluirlos del sitemap.
-- [~] Sitemap dinámico: incluye las últimas 1000 partidas guardadas. Faltan los jugadores, que hoy no se registran al verlos.
+- [x] Sitemap dinámico: incluye las últimas 1000 partidas guardadas y, desde el 25/11/2026, sus jugadores (hasta 2000): el de la copia bajada y, en las partidas guardadas desde entonces, todos (se guarda el `profile_id` de cada jugador).
 - [-] Datos estructurados (JSON-LD): descartado por ahora. Google retiró en noviembre de 2024 el cuadro de búsqueda de sitelinks (lo único que daba `SearchAction`), y `BreadcrumbList` o `Event` no suman con dos niveles de páginas. Revisar si aparecen páginas por mapa o civilización
 - [ ] URLs legibles: además del número, slug descriptivo (`/m/516586396-black-forest-4v4`), redirigiendo al canónico
 - [ ] Rendimiento (Core Web Vitals): imágenes con tamaño fijo, fuentes autoalojadas (ya), cargar el visor y los sprites solo cuando se usan, medir con Lighthouse en CI

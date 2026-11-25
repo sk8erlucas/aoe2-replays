@@ -43,7 +43,7 @@ Revisión completa del código con estos puntos. Ya conocidos (hallazgos de desa
 - [x] `npm audit` sin hallazgos; `npm audit` y `pip-audit` corren en el CI; fijar versiones de Python con rango acotado (hoy FastAPI/uvicorn tienen rango amplio).
   - 20/11/2026: aviso alto en `effect` (ReDoS, GHSA-7589-6fvf-x4pw), que Prisma 7.10.1 fija en 3.20.0 a través de `@prisma/config`. Se fuerza 3.22.5 con `overrides` en el `package.json` raíz (misma versión mayor, `prisma generate` anda). **Sacar el override cuando Prisma suba su versión de `effect`.**
 - [x] Dependabot (npm, pip, Docker, GitHub Actions) con revisión semanal.
-- [ ] Revisar licencias de todas las dependencias (registrar en `docs/LEGAL.md`).
+- [x] Revisar licencias de todas las dependencias (registrar en `docs/LEGAL.md`): hecho el 25/11/2026, con las indirectas de producción.
 
 ## 2. Infraestructura (Dokploy)
 - [~] Backups automáticos de Postgres (diarios, con prueba de restauración): pasos en `docs/DEPLOY.md` y formato probado con la base local. Falta crear el bucket y activarlos en Dokploy (manual), y ensayar la restauración allá.

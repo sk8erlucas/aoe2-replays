@@ -1,182 +1,83 @@
 # Pendientes
 
-Separados entre lo que necesita una decisión o acción tuya y lo que se puede avanzar sin vos.
+Lista general de lo que falta, separado entre lo que necesita una decisión o acción tuya y lo que se puede avanzar sin vos. Las pruebas a mano (navegador, celular, Safari, Docker) están en [`PRUEBAS.md`](./PRUEBAS.md).
 
-## Idea nueva: vida de las unidades y cuándo mueren
-El replay no trae vida ni muertes, pero sí dice cuándo una unidad seguía viva (aparece en una orden) y, para un tercio de los soldados, entre qué dos órdenes murió (sale de su grupo y no vuelve). Hoy el motor los mata casi siempre más de un minuto tarde. Hecho el 22/11/2026 (noche): esa evidencia, las muertes durante la simulación, y vida y daño con los datos del juego (mejoras y bonus de civilización incluidos). El 92-93 % de los soldados con evidencia mueren dentro de su ventana (antes 15-30 %), y el motor quedó más rápido. Falta la vida de los edificios. Detalle en [26-vida-y-muertes](./26-vida-y-muertes.md).
-
-## Sesión del 22/11/2026 (tarde): bosques, flechas y soldados
-Detalle en [25](./25-bosques-flechas-y-soldados.md), con la partida `/m/522846419?p=5675276` (4v4 Black Forest, 61 min).
-- **Árboles que faltaban**: un árbol nuevo del juego (abeto) y su terreno que el parser no conocía; ahora son bosque. Las partidas guardadas se corrigen solas.
-- **Soldados que se veían como aldeanos**: los Huskarls de Fibonaku en la pelea.
-- **Castillos, torres, centros urbanos y arqueros disparan flechas** (solo se ve; nadie cae por ellas).
-- **Castillo que tira murallas por orden del jugador**: cuenta como asalto y las tira.
-- **Para probar en el navegador**: esa partida (bosques, la pelea del min 39 y las flechas).
-- **Segunda tanda (noche)**: los soldados pelean solos según su agresividad (y en patrulla y ataque en movimiento), las carretas ya no aparecen en la pelea, el que ataca desde fuera de la visión se ve, y las murallas tienen postes en las puntas y esquinas como en el juego.
-
-## Sesión del 22/11/2026: mapa explorado y opciones del video
-Detalle en [24](./24-niebla-viajes-y-video.md#correcciones-22112026).
-- **Mapa explorado**: el replay trae la opción "Revelar mapa" (el parser la leía mal); la niebla distingue lo explorado de lo que se ve ahora.
-- **Video**: elegir a quién sigue la cámara (nunca libre) y la niebla; aviso si pesa más de 300 MB.
-- **Clics sin recursos**: las unidades que no se podían pagar no salen.
-
-## Sesión del 21/11/2026: niebla, viajes a depositar y video
-Detalle en [24](./24-niebla-viajes-y-video.md), con la partida `/m/522595678?p=397671` (4v4 Black Forest, 78 min).
-- **Arbustos de ananá y gallinas** (objetos nuevos del juego) y **lo que trae cada animal y recurso, del juego**: muchos menos aldeanos "parados" falsos.
-- **Niebla de guerra** opcional por jugador (selector "Niebla").
-- **Viajes a depositar**: los aldeanos llevan sus cargas al campamento y vuelven.
-- **Video**: encuadre elegible (Media por defecto), vertical 9:16 y música del juego.
-- **Para probar en el navegador**: la niebla, los viajes y un video con música y en vertical.
-
-## Sesión del 20/11/2026: recursos por tipo y cancelaciones
-Detalle en [23](./23-recursos-cancelaciones-y-exactitud.md), con la partida `/m/522363603?p=5675276` (4v4 Black Forest, 68 min).
-- **Recursos**: total exacto y comida, madera, oro y piedra estimados, ajustados al total del juego cada ~17 s. Costos sacados del juego.
-- **Cancelaciones de la cola**: están en el replay (antes se creía que no). Las unidades canceladas ya no aparecen, la cola se adelanta y se devuelve el costo.
-- **Cola de 15**: los clics de más ya no fabrican unidades. El análisis cuenta lo entrenado de verdad.
-- **Población** (PR siguiente): las unidades esperan lugar (casas, centros urbanos, castillos, hasta 200) en vez de salir igual; las que nunca tienen lugar no salen.
-- **¿Exacto?** Explicado en [23](./23-recursos-cancelaciones-y-exactitud.md): el juego vuelve a simular la partida con su motor; acá se usa todo lo exacto del replay y se anclan las estimaciones a eso.
-- Planes terminados en [`done/`](./done/).
-- **Decisiones**: el nombre queda "AoE2 Replays" y sin publicidad.
-
-## Sesión del 19/11/2026: puertas, abandonos y pestañas del panel
-Detalle en [22](./22-puertas-abandonos-y-pestanas.md), con la partida `/m/522164674?p=397671` (4v4 Arena).
-- **Puertas del mapa** (Arena las trae puestas): ya se ven, con el sprite de la puerta construida.
-- **Abandonos**: lo del jugador que se rinde queda en el mapa (aldeanos parados, soldados quietos, edificios en pie), como en el juego.
-- **Panel con pestañas**: Aldeanos, Ejército, Recursos y Resumen. **Los recursos son reales** (los trae el replay, `resource_totals` en el parser); las partidas guardadas antes no los tienen.
-- **Video**: los paneles salen en la exportación (opción).
-- **Para probar en el navegador**: esa partida (puertas, pestañas, el final con las rendiciones) y un video con el panel. Las partidas guardadas antes se vuelven a procesar solas al abrirlas (columna `parser_revision`, se aplica con la migración del deploy).
-
-## Sesión del 16/11/2026: unidades que faltan y edificios destruidos
-Detalle en [19](./19-unidades-y-edificios-destruidos.md), con la partida `/m/521529321`.
-- **Unidades que faltaban**: las colas en varios cuarteles a la vez se reparten, el Huskarl encolado en el cuartel sale de ahí y el centro urbano terminado (que cambia de ID) sigue entrenando. Los godos de esa partida pasan de 116 a 417 unidades.
-- **Edificios destruidos** (estimado): arrasados si sufren un ataque de verdad y su dueño no los vuelve a usar, y despejados si alguien construye encima.
-- Ataque en movimiento y patrulla ahora mueven a las unidades; detener las frena; seguir y guardia las llevan hasta el objetivo.
-- **Construir con varios aldeanos** es más rápido, como en el juego: n aldeanos a (n + 2) / 3 la velocidad de uno ([08](./08-experiencia-de-juego.md)).
-- Diseño (fase 7) cerrado: lo opcional que queda está en [DESIGN](../docs/DESIGN.md).
-- **Para probar en el navegador**: esa partida siguiendo a Dekaryn, y la de las murallas (`/m/520532792`).
-
-## Sesión del 18/11/2026 (tarde): recorridos, constructores y paneles
-Detalle en [21](./21-recorridos-constructores-y-paneles.md).
-- **Recorridos**: las unidades ya no cruzan el agua (el río de Highland, "Water, Shallow", el parser lo tomaba por vado) y rodean los bosques; los barcos van por agua.
-- **Constructores**: quien termina un edificio sigue con los cimientos propios más cercanos.
-- **Guarnición**: los aldeanos que entran al centro urbano (o con la campana) vuelven a trabajar con "volver al trabajo"; antes quedaban parados para siempre. Arreglado otro error de IDs del parser (`UNGARRISON`).
-- **Paneles** sobre el mapa (`V`): aldeanos por tarea de cada jugador e investigaciones en curso del jugador seguido, con los íconos del juego.
-- **Obras**: arrancan cuando llega el primer constructor, no al poner los cimientos.
-- **CI**: `npm audit` ya no corta por avisos de herramientas de desarrollo sin arreglo (solo críticos); las dependencias de producción siguen exigiendo cero avisos altos.
-- **Para probar en el navegador**: `/m/521966600?p=5675276`.
-
-## Sesión del 18/11/2026: mejoras de unidades, unidades que faltan y visor
-Detalle en [20](./20-aldeanos-parados-y-visor.md), con la partida `/m/521966600` (3v3 Highland).
-- **Mejoras de unidades**: al terminar la investigación las unidades cambian (Caballero → Paladín) y las nuevas salen mejoradas. Tiempos de investigación del juego en `game-data.json` (`tools/sprites/gamedata.py`).
-- **Unidades que faltaban**: trabuquetes que no salían del castillo, soldados que desaparecían al llegar al punto de reunión, ~120 órdenes por partida que se perdían por la selección y un error del parser en los IDs de `SPECIAL`.
-- **Pedidos del 16/11 (noche)**: quien termina un centro urbano se pone a juntar recursos; los aldeanos borrados se van (con desvanecido y en el registro); pantalla completa (`Mayús+F`); la música se pausa con la reproducción.
-- **Para probar en el navegador**: esa partida siguiendo a Fibonaku (`?p=5675276`), la pantalla completa (también en iPhone) y la música al pausar.
-
-## Idea nueva: visores de partida
-Paneles arriba del visor, que se eligen y ordenan, con los aldeanos de cada jugador por recurso y los puntajes como arriba del minimapa del juego (estimados). También las investigaciones en curso del jugador seguido, con ícono y barra de progreso como en el juego. Plan en [18-visores-de-partida](./18-visores-de-partida.md).
-
-## Repo abierto
-El repo es público desde octubre de 2026. Lo que queda de seguridad e infraestructura está en [11-apertura-publica](./11-apertura-publica.md); la migración a Next 16 (hecha el 11/11/2026, falta el deploy de prueba) en [12-next-16](./12-next-16.md).
-
-## Cuentas
-Hecho el 09/11/2026: registro y login con email y contraseña, vincular el jugador, seguir hasta 20 jugadores, campanita de partidas nuevas, borrar la cuenta y página de privacidad. El 10/11/2026: "Mis replays" (las subidas con sesión quedan en la cuenta y no vencen; se puede guardar uno subido antes). El 11/11/2026: favoritos (partidas y replays con estrella, momentos guardados con nota, página `/favorites`, también sin cuenta en el navegador) y renombrar replays. Falta recuperar la contraseña (con Resend): [13-cuentas](./13-cuentas.md).
-
-## Prioridad: celulares y calidad gráfica
-**En un celular el visor no llegaba a cargar** por memoria: una sola civilización pedía hasta ~270 MB de atlas decodificados. Hecho el 10/11/2026: atlas de edificios por arquitectura y edad, copia a media resolución, liberación de páginas sin usar, selector Alta / Media / Baja / Automática (Baja o Media en celulares, baja solo si se traba) y zoom con dos dedos. **Falta probarlo en un celular de verdad** y medir: [14-calidad-grafica](./14-calidad-grafica.md).
-
-## Sesión del 11/11/2026
-- Visor: atajos de teclado con ayuda (`?`), ELO y resultado de cada jugador en partidas online.
-- Perfil: "Ver más partidas". `/m/<id>` sin `?p=` ya descarga la partida sola.
-- Favoritos y momentos guardados, renombrar replays ([13](./13-cuentas.md)).
-- Imágenes de vista previa generadas para partidas y jugadores ([10](./10-seo-y-redes.md)).
-- Next 16 y ESLint 10 en una rama aparte ([12](./12-next-16.md)).
-- **Para probar en el navegador** (no hubo navegador en la sesión; la API se probó contra la base local): la estrella, "Guardar momento", `/favorites` (con y sin cuenta, y pasar los del navegador a la cuenta), la ayuda de atajos y "Renombrar".
-
-## Sesión del 11/11/2026 (tarde): reportes de jugadores
-Detalle en [15-orientacion-chat-y-herramientas](./15-orientacion-chat-y-herramientas.md).
-- **El mapa se veía girado 90°** (reporte confirmado con la guía de RMS y las puertas del juego). Corregido.
-- **Aldeanos quietos en el TC**: los que salían con punto de reunión en una oveja o en el suelo no se movían. Ahora salen hacia el punto de reunión.
-- **Chat con avisos del juego** ("ha avanzado a la Edad Feudal"): fuera del chat; ahora dan la hora exacta de llegada a cada edad.
-- **Resumen para IA por jugador** y sección **Herramientas** (`/tools` y portada) con AoE2 Overlay.
-- **Falta**: rehacer las capturas (`public/images/visor`, `og.jpg`, `docs/screenshots`) porque muestran el mapa con la orientación vieja, probar en el navegador y pedir el replay del reporte de "aldeanos a oro".
-
-## Sesión del 11/11/2026 (noche)
-- **Producción caída para ver partidas** desde Next 16 (gzip doble): hotfix en el PR #23.
-- Motor: jabalíes atraídos, animales compartidos, IDs por orden de creación, bengalas que ya no cortan el trabajo, campamentos y molino, investigaciones en la cola. Detalle y números en [16](./16-animales-ids-y-video.md).
-- Video demo en la portada.
-
-## Sesión del 12/11/2026
-- **Música del juego**: en los videos demo y en el visor (botón "♪ Música", no arranca sola). Extraída de la instalación con [`tools/music`](../tools/music) ([08](./08-experiencia-de-juego.md)).
-- **Partidas online**: Microsoft guarda los replays ~4 meses; si falta la copia de un jugador se prueba con las de los demás (antes daba "no disponible") ([09](./09-partidas-online.md)).
-- **Para probar en el navegador**: el botón de música (también en Safari/iPhone) y el sonido de los videos de la portada.
-
-## Sesión del 13/11/2026: reporte de Santiago
-Detalle en [17](./17-murallas-jabalies-granjas.md).
-- **Murallas**: las canceladas ya no quedan dibujadas ("dos murallas que no hice"); los tramos se ven planificados, en construcción o terminados, y se levantan de a uno.
-- **Jabalíes**: el atraído al TC llega y se lo comen los pastores al terminar las ovejas; los abandonados se pudren; las unidades detrás de un edificio se ven en silueta.
-- **Granjas**: las encoladas con Shift se reparten, un granjero por granja, sin duplicadas.
-- **Para probar**: la partida del reporte (`/m/520532792`).
-
-## Sesión del 12/11/2026 (noche)
-- **Exportar a video** ([05](./05-video.md)): botón "🎬 Video" en el visor; MP4 generado en el navegador con WebCodecs y Mediabunny, con rango, velocidad, 720p/1080p, marca de agua, progreso y cancelar. Probado en Chrome con la web real.
-- **Campanita**: el nombre del jugador lleva a su historial (`/p/<id>`); el resto de la fila, a la partida. También en "Partidas de los que seguís" de la portada.
-- **Para probar en el navegador**: la campanita con una cuenta que siga jugadores, y el video en Safari, Firefox y un celular.
-
-## Sesión del 12/11/2026 (tarde)
-- **Parser cerrado**: test con un 1v1 en el build 188329, nombres para los IDs que `aocref` no tiene, `aoe2rec` descartado.
-- **Plan de la web cerrado** ([03-web](./done/03-web.md)): quedan el CAPTCHA y la publicidad, que ya están en la tabla de abajo. La cola de parseo no hace falta (0,33 s para 48 min).
-- **Portada**: sección "Partidas de los que seguís" con las últimas partidas de la campanita, solo con sesión iniciada.
-- **Para probar en el navegador**: esa sección con una cuenta que siga jugadores, y que al abrir una partida desde ahí se marque como leída en la campanita.
-
-## Parser (cerrado el 12/11/2026)
-Plan en [01-parser](./done/01-parser.md). Queda abierto:
-- [ ] Probar contra la primera versión del juego con un save distinto de 68.9 (hoy se parsea y se marca `untested_version`).
-- [ ] Decidir si se proponen los parches de 68.9 a `mgz` upstream (lo haría Lucas con su cuenta).
-
-## Próxima sesión
-Quedó a medio revisar o detectado al cerrar la sesión del 29/10/2026:
-- [x] **Capturas desactualizadas** (rehechas el 30/10/2026 con el terreno nuevo): las de `docs/screenshots`, `public/images/visor`, `og.jpg` y la vista previa de GitHub son de antes de las texturas de terreno. Rehacerlas desde la web con la partida de demo anonimizada (necesita Docker con la base local).
-- [ ] **GitHub**: subir la imagen de Settings → Social preview (nueva, con el terreno) y publicar un primer Release (por ejemplo `v0.1.0`).
-- [x] **Muros**: las diagonales estaban invertidas (corregido), los tramos escalonados se ven continuos y las puertas reemplazan los tramos de muro que tapan.
-- [x] **Puertas**: la puerta 673 caía en un muro horizontal porque el mapa entero estaba girado 90°. Corregido el 11/11/2026 ([15](./15-orientacion-chat-y-herramientas.md)).
-- [x] **Tipo de unidad mal asignado**: los IDs nuevos se vinculan con la unidad entrenada cuando se creó ese ID (el juego los asigna en orden de creación; los IDs conocidos acotan la ventana de tiempo), y el tipo de orden desempata (construir/recolectar → aldeano, atacar → militar). Hecho en `ee72b67`; si aparecen casos raros, revisar con partidas completas.
-- [x] **Centro urbano incompleto / piezas negras**: los anexos se ubicaban sobre el eje equivocado (corregido: el anexo `(dx, dy)` va en `(-dx, +dy)`).
-- [x] Ovejas con dueño dibujadas como milicia (ahora usan su sprite de animal con el color del jugador).
-- [x] Si una página del atlas o una textura falla al bajar, se reintenta (antes el edificio quedaba invisible).
-- [x] **`manifest.json` de sprites pesaba 5,5 MB**: partido en núcleo + `civs/<id>.json`; una partida de 8 jugadores baja ~390 KB comprimidos en vez de 1,7 MB.
-- [x] Migración a Next 16 y ESLint 10 ([12](./12-next-16.md)), en la rama `next-16`: falta probarla en el navegador y en un deploy de prueba.
+Planes abiertos, con más detalle: [08 experiencia de juego](./08-experiencia-de-juego.md), [10 SEO y redes](./10-seo-y-redes.md), [11 apertura pública](./11-apertura-publica.md), [13 cuentas](./13-cuentas.md), [18 visores de partida](./18-visores-de-partida.md) y [26 vida y muertes](./26-vida-y-muertes.md). Los terminados, o con poco pendiente, están en [`done/`](./done/): lo que les quedaba abierto pasó a esta lista el 25/11/2026.
 
 ## Manual (necesita tu decisión o acción)
 | Tema | Qué hace falta | Bloquea |
 |---|---|---|
 | CAPTCHA | Crear claves de Cloudflare Turnstile (sitio + secreto) | Protección de subidas anónimas |
-| Ilustraciones | Decidir si se encargan o se hacen propias (estilo grabado, ver [DESIGN](../docs/DESIGN.md)). El logo ya está | Portada final |
-| GitHub | Protección de `main`, secret scanning, reporte privado de vulnerabilidades, etiquetas `good first issue`, imagen de vista previa y primer Release | Colaboradores |
-| Replays de prueba | Hechos la partida completa y el 1v1. Falta uno de versión 66/67 (si todavía se puede conseguir) | Probar los parches viejos |
-| Docker local | El build de imágenes falla por certificados SSL en esta máquina (antivirus o proxy que intercepta HTTPS). Postgres local sí funciona | Probar las imágenes antes del deploy |
+| Correo (Resend) | Crear la cuenta, verificar el dominio y generar `RESEND_API_KEY` | Recuperar la contraseña y verificar emails ([13](./13-cuentas.md)) |
 | Backups | Crear un bucket S3 privado y activar los backups de la base en Dokploy ([DEPLOY](../docs/DEPLOY.md#backups)) | Perder replays subidos si falla el servidor |
-| Legal | Leer reglas de contenido de fans de Microsoft ([LEGAL](../docs/LEGAL.md)) | Publicidad, lanzamiento |
-| Dominio propio | Opcional: hoy la web está en aoe2replays.sitemaster.com.ar (`SITE_URL`) | SEO |
-| Correo (Resend) | Crear la cuenta, verificar el dominio y generar `RESEND_API_KEY` | Recuperar la contraseña y verificar emails |
-| Decisiones abiertas | Quedan dominio y hosting definitivos ([DECISIONS](../docs/DECISIONS.md)). Expiración (30 días) y tamaño (30 MB) confirmados (19/11/2026); sin publicidad y el nombre queda (20/11/2026) | Ajustes |
+| GitHub | Protección de `main`, secret scanning, reporte privado de vulnerabilidades, Dependabot alerts, etiquetas `good first issue`, campo "website", imagen de vista previa (Settings → Social preview) y primer Release (`v0.1.0`) | Colaboradores |
+| Ilustraciones | Decidir si se encargan o se hacen propias (estilo grabado, ver [DESIGN](../docs/DESIGN.md)). El logo ya está | Portada final |
+| Replays de prueba | Uno de versión 66/67 (si todavía se puede conseguir) y el del reporte de "aldeanos a oro" ([15](./done/15-orientacion-chat-y-herramientas.md#aldeanos-a-oro)) | Probar los parches viejos; ese reporte |
+| Docker local | El build de imágenes falla por certificados SSL en esta máquina (antivirus o proxy que intercepta HTTPS). Postgres local sí funciona | Probar las imágenes antes del deploy |
+| Legal | Leer reglas de contenido de fans de Microsoft ([LEGAL](../docs/LEGAL.md)) | Lanzamiento |
+| Dominio propio | Opcional: hoy la web está en aoe2replays.sitemaster.com.ar (`SITE_URL`) | SEO, Search Console |
+| Parser upstream | Decidir si se proponen los parches de 68.9 a `mgz` (con tu cuenta) | |
+| Video del overlay | Si se hace una versión en inglés del video de AoE2 Overlay, usarla en la interfaz en inglés | |
+| Decisiones abiertas | Hosting definitivo ([DECISIONS](../docs/DECISIONS.md)). Ya decidido: expiración 30 días, tamaño 30 MB, sin publicidad, el nombre queda | |
 
 ## Automático (se puede avanzar sin vos)
-- [x] Persistencia: Postgres + Prisma, guardar el JSON (gzip) con enlace privado y token de gestión
-- [x] Página `/r/<id>` para cada replay
-- [ ] Cola de parseo y estados `pending` / `ready` / `failed` (cuando haga falta)
-- [~] Tests de la API de la web: validación de ids, tokens y límites (`npm test -w apps/web`, sin base de datos). Falta subida, permisos y expiración contra una base de prueba
-- [x] CI de GitHub Actions (tests, lint, build y build de imágenes Docker)
-- [x] Lint y formato para Python (ruff, en el CI)
-- [x] Análisis básico: build order, APM, edades y actividad por jugador
-- [x] Vista isométrica del mapa y cámara
-- [x] Estilo pergamino aplicado a la web
-- [x] Árboles talados y recursos agotados (estimación)
-- [x] Sprites del juego (B1: extractor + atlas) ([08](./08-experiencia-de-juego.md))
-- [x] Pestaña "IA" en el visor: resumen y detalle completo en texto para pegar en una IA, y descarga del JSON
-- [x] Búsqueda de jugadores, perfiles y partidas online `/m/<matchId>` ([09](./09-partidas-online.md))
-- [x] Portada con hero, contenido y capturas; README público y CONTRIBUTING
-- [x] Plantillas de issue y pull request, código de conducta ([06](./done/06-comunidad.md))
-- [x] Música de fondo en el visor ([08](./08-experiencia-de-juego.md))
-- [x] Interfaz en español e inglés
-- [~] SEO y compartir en redes: hechos los metadatos por jugador y partida, el sitemap con partidas, la página 404, el botón "Compartir" (menú nativo, WhatsApp, X, Reddit, Telegram) y las imágenes de vista previa generadas. Falta renderizar en el servidor ([10](./10-seo-y-redes.md))
-- [x] Exportar a video ([05](./05-video.md)): WebCodecs + Mediabunny, en el navegador
+
+### Motor del visor (estimaciones)
+- [ ] **Vida de los edificios** contra el daño del asedio y de las unidades, en lugar de la regla del asalto (`#estimateRazed`) ([26](./26-vida-y-muertes.md), paso 4). Reemplaza también ajustar `RAZE_MIN_ATTACKERS` y los 25 s ([19](./done/19-unidades-y-edificios-destruidos.md)).
+- [ ] **Peleas**: que empiecen cuando en el juego (responder al que pega desde lejos, el asedio dispara solo, unidades que se juntan antes de atacar); monjes, regeneración, flechas extra con guarnición, Química y Balística, altura ([25](./done/25-bosques-flechas-y-soldados.md), [26](./26-vida-y-muertes.md)).
+- [ ] **IDs sin vincular**: soldados entrenados sin ID (Dekaryn: 43 de 107) y "sin tarea" alto en algunos momentos (francos a los 35 min: 38 de 89). Revisar `#planIds` ([19](./done/19-unidades-y-edificios-destruidos.md), [21](./done/21-recorridos-constructores-y-paneles.md)).
+- [ ] `SPECIAL` con `order_id` 8 (grupos de aldeanos, sin objetivo) y 1 (militares): sin identificar ([23](./done/23-recursos-cancelaciones-y-exactitud.md)).
+- [ ] Colas con Shift de otras órdenes (mover, recolectar): hoy se toman como reemplazo ([17](./done/17-murallas-jabalies-granjas.md)).
+- [ ] Recorridos: edificios y acantilados como obstáculos; árboles talados que abren paso ([21](./done/21-recorridos-constructores-y-paneles.md)).
+- [ ] **Murallas en escalera** (ángulos que no son rectos ni a 45°) y **superpuestas** entre jugadores: reproducir cómo el juego arma las diagonales ([25](./done/25-bosques-flechas-y-soldados.md)).
+- [ ] Ingresos que no se modelan: comercio, reliquias, pesca, bonus de civilización (se ven como `drift` positivo) ([23](./done/23-recursos-cancelaciones-y-exactitud.md)).
+- [ ] Niebla: visión aliada solo con Cartografía en partidas sin equipo compartido, y lo explorado más fino ([24](./done/24-niebla-viajes-y-video.md)).
+- [ ] Cargas visibles en el sprite de los aldeanos.
+- [ ] Costo del motor (~2-5 s en partidas largas de 8): si molesta en celulares, armar la partida en un Web Worker ([16](./done/16-animales-ids-y-video.md)).
+
+### Visores y análisis
+- [ ] **Puntajes**: compararlos con los del juego en una partida real y ajustar (reliquias, exploración y lo que el juego suma aparte) ([18](./18-visores-de-partida.md)).
+- [ ] Configurar los visores: elegir y ordenar, guardarlo, versión compacta en celular ([18](./18-visores-de-partida.md)). APM del momento.
+- [ ] Estadísticas agregadas por jugador (civilizaciones, build orders, APM promedio) y partidas destacadas de ELO alto en la portada ([09](./done/09-partidas-online.md), [10](./10-seo-y-redes.md)).
+
+### Gráficos y sonido
+- [ ] Partir las páginas `b-*-other` del atlas (muros, puertas y edificios únicos juntos, ~23 MB decodificadas en Alta) por tipo de edificio. Necesita otra corrida del extractor (~1,5 h) ([14](./done/14-calidad-grafica.md)).
+- [ ] Granjas con el gráfico del juego (otro formato, no SLD) y sonidos del juego (bancos de Wwise) ([08](./08-experiencia-de-juego.md)).
+- [ ] Rehacer las capturas (`public/images/visor`, `og.jpg`, `docs/screenshots`) con la orientación nueva, y dejar el grabador del video demo en `tools/` ([15](./done/15-orientacion-chat-y-herramientas.md), [16](./done/16-animales-ids-y-video.md)).
+- [ ] Revisar el peso de la portada y las capturas en celular ([14](./done/14-calidad-grafica.md)).
+
+### Web e infraestructura
+- [ ] Mecanismo para que un jugador pida ocultar su perfil ([09](./done/09-partidas-online.md)).
+- [ ] Renderizar en el servidor lo esencial de `/p/<id>` y `/m/<id>` ([10](./10-seo-y-redes.md)).
+- [ ] Tests de la API contra una base de prueba en el CI: subida, permisos, expiración, cuentas y favoritos ([13](./13-cuentas.md)).
+- [ ] Caché y límites compartidos (Postgres o Redis) si hay más de una instancia de la web; cola de parseo y descargas si se vuelve lento ([09](./done/09-partidas-online.md), [11](./11-apertura-publica.md)).
+- [ ] Más adelante: TypeScript 7 y Node 24 LTS; si se adopta el React Compiler, prender sus reglas de lint ([12](./done/12-next-16.md)).
+- [ ] Sacar el `override` de `effect` cuando Prisma suba su versión (revisado el 25/11/2026: Prisma 7.10.1 sigue con `effect` 3.20.0) ([11](./11-apertura-publica.md)).
+
+### Parser
+- [ ] Probar contra la primera versión del juego con un save distinto de 68.9 (hoy se parsea y se marca `untested_version`).
+
+## Hecho el 25/11/2026
+- **Limpieza de `tasks/`**: 14 planes con poco pendiente pasaron a `done/`; lo abierto quedó en esta lista y las pruebas en [`PRUEBAS.md`](./PRUEBAS.md).
+- **Mejoras del juego en la niebla y los viajes**: `game-data.json` trae ahora los efectos de visión, velocidad y carga, la clase de los edificios y lo que carga cada aldeano (los cazadores, 35). `Replay.attributeAt` los aplica: con Guardia y Patrulla del pueblo las torres y edificios ven más lejos, las edades suben la visión de exploradores y puestos, y con Carretilla y Carro de mano los aldeanos cargan más y caminan más rápido al depositar.
+- **Descripción de las partidas** para buscadores y redes: mapa, modo, tamaño, duración, jugadores con ELO y ganadores ([10](./10-seo-y-redes.md)).
+- **Velocidad con mejoras**: las unidades caminan con su velocidad del momento, con las mejoras de su jugador y los bonus de su civilización (Carretilla, Carro de mano, Crianza, Escuderos...) y la de su tipo mejorado.
+- **Puntajes estimados**: pestaña "Puntaje" en el panel (militar, economía, tecnología y sociedad) ([18](./18-visores-de-partida.md)).
+- **Jugadores en el sitemap** ([10](./10-seo-y-redes.md)).
+- **Cimientos planificados** para todos los edificios: ya estaba desde el plan 21 (la obra arranca cuando llega el primer constructor).
+- **Licencias de las dependencias** revisadas y registradas en [LEGAL](../docs/LEGAL.md) ([11](./11-apertura-publica.md)).
+
+## Historial
+Lo hecho en cada sesión está en su plan:
+- 22/11/2026: vida y muertes ([26](./26-vida-y-muertes.md)); bosques, flechas y soldados ([25](./done/25-bosques-flechas-y-soldados.md)); mapa explorado y video ([24](./done/24-niebla-viajes-y-video.md)).
+- 21/11/2026: niebla, viajes a depositar y video ([24](./done/24-niebla-viajes-y-video.md)).
+- 20/11/2026: recursos por tipo, cancelaciones y población ([23](./done/23-recursos-cancelaciones-y-exactitud.md)).
+- 19/11/2026: puertas, abandonos y pestañas ([22](./done/22-puertas-abandonos-y-pestanas.md)).
+- 18/11/2026: recorridos, constructores y paneles ([21](./done/21-recorridos-constructores-y-paneles.md)); mejoras de unidades y visor ([20](./done/20-aldeanos-parados-y-visor.md)).
+- 16/11/2026: unidades que faltan y edificios destruidos ([19](./done/19-unidades-y-edificios-destruidos.md)).
+- 13/11/2026: murallas, jabalíes y granjas ([17](./done/17-murallas-jabalies-granjas.md)).
+- 12/11/2026: exportar a video ([05](./done/05-video.md)), música, parser cerrado ([01](./done/01-parser.md)), plan de la web cerrado ([03](./done/03-web.md)).
+- 11/11/2026: orientación, chat e IA ([15](./done/15-orientacion-chat-y-herramientas.md)); animales e IDs ([16](./done/16-animales-ids-y-video.md)); Next 16 ([12](./done/12-next-16.md)); favoritos ([13](./13-cuentas.md)).
+- 10/11/2026: calidad gráfica y celulares ([14](./done/14-calidad-grafica.md)).
+- 09/11/2026: cuentas ([13](./13-cuentas.md)).
+- Antes: preparación, parser, prototipo, web, análisis, comunidad, diseño y partidas online ([`done/`](./done/)).

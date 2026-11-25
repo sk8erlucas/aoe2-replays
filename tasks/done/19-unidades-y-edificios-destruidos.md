@@ -1,5 +1,7 @@
 # 19: Unidades que faltan y edificios destruidos
 
+> Movido a `done/` el 25/11/2026: lo que quedaba abierto pasó a [`PENDIENTES.md`](../PENDIENTES.md) y lo que hay que probar a mano, a [`PRUEBAS.md`](../PRUEBAS.md).
+
 Reporte del 16/11/2026 con la partida `/m/521529321` (4v4 en Black Forest, 46 min, siguiendo a Dekaryn): "hay unidades que faltan" y "hay edificios que se destruyen y quedan ahí como si nada".
 
 ## Diagnóstico

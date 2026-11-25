@@ -1,13 +1,13 @@
 # 18: Visores de partida
 
-> 18/11/2026: el motor ya tiene `Replay.researches` (cada investigación con su edificio e inicio y fin estimados con el tiempo del juego), que es lo que necesita el panel de investigaciones en curso. Y los `sync` del replay traen `total_res` por jugador, que podría dar recursos reales (ver [20](./20-aldeanos-parados-y-visor.md)).
+> 18/11/2026: el motor ya tiene `Replay.researches` (cada investigación con su edificio e inicio y fin estimados con el tiempo del juego), que es lo que necesita el panel de investigaciones en curso. Y los `sync` del replay traen `total_res` por jugador, que podría dar recursos reales (ver [20](./done/20-aldeanos-parados-y-visor.md)).
 
 **Objetivo:** paneles arriba del visor, que cada uno elige y ordena, con lo que pasa en la partida en cada momento: cuántos aldeanos tiene cada jugador y en qué recurso está cada grupo, y los puntajes como los que muestra el juego arriba del minimapa. La idea es parecerse al panel del modo espectador del juego (y a herramientas de casteo como Capture Age), pero en el navegador y sobre la repetición.
 
 ## Visores
-- [x] **Aldeanos por recurso**, por jugador (18/11/2026, [21](./21-recorridos-constructores-y-paneles.md)): total y cuántos en comida, madera, oro, piedra y construyendo (y ociosos, si el motor lo puede saber). Con la muestra de color del jugador al lado del nombre, nunca el nombre en color.
-- [ ] **Puntajes**, por jugador, como arriba del minimapa del juego: total y, al desplegar, militar, economía, tecnología y sociedad.
-- [x] Otros que salen del motor y el análisis (19/11/2026, [22](./22-puertas-abandonos-y-pestanas.md)): pestañas Ejército (por tipo), Recursos (reales, de los `sync` del replay) y Resumen (edad, población, investigaciones, edificios). Falta el APM del momento. Recursos por tipo (estimados, ajustados al total) desde el 20/11/2026 ([23](./23-recursos-cancelaciones-y-exactitud.md)).
+- [x] **Aldeanos por recurso**, por jugador (18/11/2026, [21](./done/21-recorridos-constructores-y-paneles.md)): total y cuántos en comida, madera, oro, piedra y construyendo (y ociosos, si el motor lo puede saber). Con la muestra de color del jugador al lado del nombre, nunca el nombre en color.
+- [x] **Puntajes**, por jugador, como arriba del minimapa del juego: total, militar, economía, tecnología y sociedad (25/11/2026: pestaña "Puntaje" del panel, `Replay.scoresAt`). Economía: un décimo de lo juntado, que sale del total exacto de los `sync` más lo gastado; tecnología: un quinto de lo que costaron las investigaciones; sociedad: un quinto de castillos y maravillas en pie; militar: un quinto de lo que costaba lo enemigo derribado (quien pegó último, o repartido entre los enemigos). Falta compararlo con los puntajes del juego en una partida real y ajustar (reliquias, exploración, bonus que el juego suma).
+- [x] Otros que salen del motor y el análisis (19/11/2026, [22](./done/22-puertas-abandonos-y-pestanas.md)): pestañas Ejército (por tipo), Recursos (reales, de los `sync` del replay) y Resumen (edad, población, investigaciones, edificios). Falta el APM del momento. Recursos por tipo (estimados, ajustados al total) desde el 20/11/2026 ([23](./done/23-recursos-cancelaciones-y-exactitud.md)).
 - [x] Equipos agrupados en partidas por equipos (separados con una línea).
 - [x] **Investigaciones en curso del jugador seguido** (18/11/2026, sin íconos todavía) (pedido de Lucas, 16/11/2026): cuando la cámara sigue a un jugador, arriba a la izquierda la fila de íconos de lo que está investigando, cada uno con su barra de progreso, como en el juego. Al terminar, el ícono se va (y se puede marcar un momento "listo"). También las edades en curso.
   - Datos: el motor ya pone las investigaciones en la cola del edificio (`#occupy` en `engine.js`, con `RESEARCH_TIMES` de `palette.js`). Falta guardar cada una con inicio y fin (la cola del edificio la puede atrasar) y exponer `researchAt(player, t)` → `[{ tech, building, start, end }]`, sin DOM y con tests. Tiempos de `game-data.json` si `tools/sprites` los puede sacar (hoy salen de `palette.js`); sin bonus de civilización ni de universidad, así que es estimado.
@@ -20,7 +20,7 @@
 - [ ] Guardarlo en el navegador, y en la cuenta si hay sesión.
 - [ ] Atajo para mostrarlos u ocultarlos (sumarlo a la ayuda de `?`).
 - [ ] Celular: versión compacta (una fila que se desliza) o desplegable, sin tapar el mapa.
-- [x] Que salgan en la exportación a video ([05](./05-video.md)), con opción de sacarlos (19/11/2026).
+- [x] Que salgan en la exportación a video ([05](./done/05-video.md)), con opción de sacarlos (19/11/2026).
 
 ## De dónde salen los datos
 El replay guarda solo las órdenes: todo esto es una estimación del motor y hay que decirlo en la interfaz (como ya se hace con lo estimado).

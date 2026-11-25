@@ -1,5 +1,7 @@
 # 22: Puertas del mapa, abandonos y pestañas del panel
 
+> Movido a `done/` el 25/11/2026: lo que quedaba abierto pasó a [`PENDIENTES.md`](../PENDIENTES.md) y lo que hay que probar a mano, a [`PRUEBAS.md`](../PRUEBAS.md).
+
 Pedidos de Lucas del 19/11/2026 después de ver `/m/522164674?p=397671` (4v4 Arena, 48 min, Dekaryn).
 
 ## Hecho (19/11/2026)
