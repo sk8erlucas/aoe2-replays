@@ -61,3 +61,17 @@ test('units the player could not pay for never come out', () => {
   assert.equal(trained.filter((u) => !u.stalled).length, 4);
   assert.equal(trained.filter((u) => u.unaffordable).length, 2);
 });
+
+test('what was gathered comes from the game totals and what the estimate says went out', () => {
+  const r = new Replay({
+    game: { duration_ms: 120_000, players: [{ number: 1, name: 'A', color_id: 0, team_id: 2, start: { x: 10, y: 10 } }] },
+    map: { size: 40, terrain: [], elevation: [] },
+    initial_objects: [{ id: 100, player: 1, type_id: 109, x: 10, y: 10 }],
+    timeline: [{ t: 5000, type: 'DE_QUEUE', player: 1, object_ids: [100], amount: 2, unit_id: 83 }],
+    chat: [],
+    legend: { objects: { 109: { name: 'Town Center', category: 'building' }, 83: { name: 'Villager', category: 'unit' } } },
+    resource_totals: [{ t: 17_000, players: { 1: 800 } }],
+  }, { gameData: { units: { 83: { speed: 1, class: 4, train: [[109, 25]], cost: [50, 0, 0, 0] } }, buildings: { 109: { size: 4, buildTime: 0 } }, techs: {} } });
+  // Started with 700, paid 100 for two villagers and has 800: gathered 200.
+  assert.equal(r.scoresAt(20_000).get(1).economy, 20);
+});

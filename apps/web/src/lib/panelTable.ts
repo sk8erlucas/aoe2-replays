@@ -4,7 +4,7 @@ import type { Player } from "@aoe2-replays/shared";
 import type { Replay } from "@aoe2-replays/viewer";
 import type { Messages } from "@/i18n/messages";
 
-export const PANEL_TABS = ["villagers", "army", "resources", "overview"] as const;
+export const PANEL_TABS = ["villagers", "army", "resources", "overview", "score"] as const;
 export type PanelTab = (typeof PANEL_TABS)[number];
 export type PanelRow = Record<string, number | string | null>;
 export type PanelColumn = { key: string; label: string; title: string };
@@ -15,6 +15,7 @@ const JOBS = ["food", "wood", "gold", "stone", "build", "idle"] as const;
 const ARMY = ["infantry", "archers", "cavalry", "siege", "ships", "monks"] as const;
 const STOCK = ["food", "wood", "gold", "stone"] as const;
 const OVERVIEW = ["age", "pop", "researches", "buildings"] as const;
+const SCORE = ["total", "military", "economy", "technology", "society"] as const;
 const TAB_KEY = "viewer-panel-tab";
 
 /** The tab picked last in this browser, else villagers. */
@@ -64,6 +65,12 @@ export function panelTable(replay: Replay, tab: PanelTab, t: number, p: PanelLab
         { key: "total", label: "Σ", title: p.stockTitle },
         ...STOCK.map((k) => ({ key: k, label: p.stockShort[k], title: p.stockKinds[k] })),
       ],
+    };
+  }
+  if (tab === "score") {
+    return {
+      rows: toRows(replay.scoresAt(t)),
+      columns: SCORE.map((k) => ({ key: k, label: p.scoreShort[k], title: p.scoreTitles[k] })),
     };
   }
   if (tab === "overview") {

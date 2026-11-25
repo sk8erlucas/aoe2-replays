@@ -97,6 +97,7 @@ export function storedGame(data: ReplayData, raw: string) {
     players: data.game.players.map((p) => ({
       number: p.number,
       name: p.name,
+      profile_id: p.profile_id ?? null,
       civilization: p.civilization,
       color_id: p.color_id,
       team_id: p.team_id,

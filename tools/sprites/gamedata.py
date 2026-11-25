@@ -16,7 +16,10 @@
   accuracy (%, ranged); and the effects that change them: each tech's (fx:
   [type, unit, class, attribute, amount], types 0 set, 4 add, 5 multiply) and
   each civilization's bonuses (civs). The engine uses them to estimate when
-  units die.
+  units die. The same effects carry line of sight, speed and carry capacity
+  upgrades (Town Watch, Wheelbarrow...), for the fog and the villagers' trips;
+- carry: what each villager task unit carries at once (hunters 35, the rest 10),
+  and buildings' class, which some of those effects target (towers).
 
 Run on its own to refresh only this file (fast), or from extract.py.
 """
@@ -27,10 +30,12 @@ import re
 from pathlib import Path
 
 UNIT, BUILDING = 70, 80
-# Effect commands that change combat: 0 set, 4 add, 5 multiply; on hit
-# points (0), armour (8), attack (9), reload (10) and range (12).
+# Effect commands the engine applies: 0 set, 4 add, 5 multiply; on hit points
+# (0), line of sight (1), speed (5), armour (8), attack (9), reload (10), range
+# (12) and carry capacity (14).
 FX_TYPES = {0, 4, 5}
-FX_ATTRIBUTES = {0, 8, 9, 10, 12}
+FX_ATTRIBUTES = {0, 1, 5, 8, 9, 10, 12, 14}
+VILLAGER_CLASS = 4
 UPGRADE_UNIT = 3
 # Resource 4 is population headroom: a building gives it, a unit takes it (negative).
 POP = 4
@@ -82,7 +87,7 @@ def _combat(unit):
 
 
 def _fx(dat, effect_id):
-    """An effect's commands that change combat: [type, unit, class, attribute, amount]."""
+    """An effect's commands the engine applies: [type, unit, class, attribute, amount]."""
     if not 0 <= effect_id < len(dat.effects):
         return []
     return [[c.type, c.a, c.b, c.c, round(c.d, 3)] for c in dat.effects[effect_id].effect_commands
@@ -112,7 +117,7 @@ def game_data(dat, game: Path):
                     units[unit.id]['pop'] = -_pop(unit)
             elif unit.type == BUILDING and not trained and unit.id not in buildings:
                 buildings[unit.id] = {'size': round(unit.collision_size_x * 2), 'buildTime': trains[0][1],
-                                      'los': round(unit.line_of_sight, 1), **_combat(unit)}
+                                      'class': unit.class_, 'los': round(unit.line_of_sight, 1), **_combat(unit)}
                 if cost:
                     buildings[unit.id]['cost'] = cost
                 if _pop(unit) > 0:
@@ -146,6 +151,8 @@ def game_data(dat, game: Path):
         amount = max((s.amount for s in unit.resource_storages if s.type in COST_INDEX), default=0)
         if amount > 0:
             carries[unit.id] = round(amount)
+    carry = {unit.id: round(unit.resource_capacity) for unit in gaia
+             if unit is not None and unit.class_ == VILLAGER_CLASS and unit.resource_capacity > 0}
     names = {}
     for entry in techs.values():
         for _, to in entry.get('up', []):
@@ -180,7 +187,8 @@ def game_data(dat, game: Path):
             bonuses.append({'tech': tech_id, 'req': req, 'fx': fx} if req else {'tech': tech_id, 'fx': fx})
         if bonuses:
             civs[civ_id] = bonuses
-    return {'units': units, 'buildings': buildings, 'techs': techs, 'gaia': carries, 'names': names, 'civs': civs}
+    return {'units': units, 'buildings': buildings, 'techs': techs, 'gaia': carries, 'names': names, 'civs': civs,
+            'carry': carry}
 
 
 def write(dat, game: Path, out: Path):

@@ -203,6 +203,9 @@ export class Unit {
     // Each segment starts at t0 in (x0, y0) and walks to (x1, y1).
     this.path = [{ t0: t, x0: x, y0: y, x1: x, y1: y, speed: DEFAULT_SPEED }];
     this.speed = DEFAULT_SPEED;
+    // Its speed at t with its player's upgrades (Wheelbarrow, Husbandry...), set by
+    // the engine when it has game data; else `speed`.
+    this.speedAt = null;
     // What the unit is doing over time: { t0, t1, kind } with kind a resource
     // category (tree, gold, stone, berries) or 'build'. Chronological.
     this.activities = [];
@@ -307,9 +310,10 @@ export class Unit {
     const points = this.nav && (from.x !== x || from.y !== y) ? this.nav.path(from.x, from.y, x, y) : [{ x, y }];
     let t0 = t;
     let at = from;
+    const speed = this.speedAt ? this.speedAt(t) : this.speed;
     for (const p of points) {
-      this.path.push({ t0, x0: at.x, y0: at.y, x1: p.x, y1: p.y, speed: this.speed, ...(auto ? { auto } : null) });
-      t0 += (Math.hypot(p.x - at.x, p.y - at.y) / Math.max(0.1, this.speed)) * 1000;
+      this.path.push({ t0, x0: at.x, y0: at.y, x1: p.x, y1: p.y, speed, ...(auto ? { auto } : null) });
+      t0 += (Math.hypot(p.x - at.x, p.y - at.y) / Math.max(0.1, speed)) * 1000;
       at = p;
     }
   }
@@ -353,8 +357,16 @@ const DROP_ANYTHING = /^Town Center/;
 // What a villager carries before walking to drop it off, and how much faster it
 // gathers than the estimated rates (those include the walks). Estimated, for the
 // look of it: the gathering totals don't depend on these.
+// The carry itself is the game's (game-data.json `carry`, by villager task unit:
+// hunters carry more), with Wheelbarrow and Hand Cart; CARRY without data.
 const CARRY = 10;
+const HUNTER = 122;
 const RAW_RATE = 1.4;
+// What counts for the society score (scoresAt).
+const SOCIETY = /^(Castle|Wonder)$/;
+const costSum = (c) => (c ? c[0] + c[1] + c[2] + c[3] : 0);
+// Game attribute ids of the effect commands attributeAt applies.
+const FX_ATTRIBUTE = { los: 1, speed: 5, carry: 14 };
 // Farther than this from any drop site (tiles), no trips are drawn.
 const TRIP_MAX = 15;
 const VILLAGER_JOB = {
@@ -548,6 +560,9 @@ export class Replay {
       else if (this.nav.land.costAt(unit.path[0].x0, unit.path[0].y0) > 0) unit.nav = this.nav.land;
     }
     unit.path[0].speed = unit.speed;
+    if (unit.player > 0 && this.game?.units) {
+      unit.speedAt = (t) => this.attributeAt(unit.player, unit.typeAt(t), 'speed', t) ?? unit.speed;
+    }
     this.units.push(unit);
     this.newUnits.push(unit);
     if (unit.id != null) {
@@ -1966,6 +1981,7 @@ export class Replay {
       if (armour != null) perHit += Math.max(0, amount - armour);
     }
     perHit = Math.max(1, perHit) * (a.acc ?? 100) / 100;
+    target.hitBy = attacker.player; // for the military score
     const hits = (COMBAT_STEP_MS / 1000 / Math.max(0.5, a.reload)) * volleys;
     target.hp ??= t.hp;
     target.hp -= perHit * hits;
@@ -2023,6 +2039,38 @@ export class Replay {
     }
     this.statCache.set(key, st);
     return st;
+  }
+
+  /**
+   * Line of sight, speed or carry capacity (`attr`: 'los', 'speed', 'carry') of a
+   * unit or building type for a player at `now`: the game's number with the
+   * effects of the player's researches done by then and its civilization's
+   * bonuses (Town Watch, Wheelbarrow, Hand Cart...). `base` replaces the type's
+   * own number (what a villager carries depends on its task). Undefined without
+   * game data for it.
+   */
+  attributeAt(player, typeId, attr, now, { building = false, base } = {}) {
+    const data = building ? this.game?.buildings?.[typeId] : this.game?.units?.[typeId];
+    const start = base ?? data?.[attr];
+    if (start === undefined || !data) return start;
+    const done = this.#effectsDone(player, now);
+    const key = `${player}:${building ? 'b' : 'u'}${typeId}:${attr}:${start}:${done.length}`;
+    this.attrCache ??= new Map();
+    const hit = this.attrCache.get(key);
+    if (hit !== undefined) return hit;
+    const id = FX_ATTRIBUTE[attr];
+    const cls = data.class;
+    let v = start;
+    for (const fx of done) {
+      for (const [type, unit, klass, a, amount] of fx) {
+        if (a !== id || unit === -1 && klass === -1) continue;
+        if (unit !== -1 && unit !== typeId) continue;
+        if (klass !== -1 && klass !== cls) continue;
+        v = type === 0 ? amount : type === 4 ? v + amount : type === 5 ? v * amount : v;
+      }
+    }
+    this.attrCache.set(key, v);
+    return v;
   }
 
   // Effect lists in force for a player at `now`: its civilization's bonuses
@@ -2201,6 +2249,7 @@ export class Replay {
       if (idleFrom >= this.duration) continue;
       u.removedAt = Math.max(u.spawnT, idleFrom);
       u.fell = true; // fades out
+      u.dropped = true; // nobody killed it
     }
   }
 
@@ -2286,6 +2335,7 @@ export class Replay {
         else a.attackers.add(from);
       }
       a.last = e.t;
+      a.by = e.player;
       assaults.set(target, a);
     }
     for (const [b, a] of assaults) {
@@ -2296,6 +2346,7 @@ export class Replay {
       if (fellAt <= b.t || playedOn - fellAt < FALLEN_AFTER_MS || b.removedAt <= fellAt) continue;
       b.removedAt = fellAt;
       b.razed = true;
+      b.razedBy = a.by;
     }
   }
 
@@ -2540,8 +2591,11 @@ export class Replay {
     const walkTiles = d - site.size / 2 - 0.5;
     if (walkTiles < 1) return null;
     const rate = (a.kind === 'hunt' || a.kind === 'shepherd' ? MEAT_RATE : a.kind === 'farm' ? FARM_RATE : GATHER_RATES[a.kind] ?? 0.33) * RAW_RATE;
-    const work = (CARRY / rate) * 1000;
-    const walk = (walkTiles / Math.max(0.1, u.speed)) * 1000;
+    const type = u.typeAt(t);
+    const carry = this.attributeAt(u.player, type, 'carry', t, { base: this.game?.carry?.[a.kind === 'hunt' ? HUNTER : type] ?? CARRY }) ?? CARRY;
+    const speed = this.attributeAt(u.player, type, 'speed', t) ?? u.speed;
+    const work = (carry / rate) * 1000;
+    const walk = (walkTiles / Math.max(0.1, speed)) * 1000;
     const phase = (t - a.t0) % (work + 2 * walk);
     if (phase < work) return null;
     const out = phase < work + walk;
@@ -2782,6 +2836,87 @@ export class Replay {
       out.set(p.number, at ? { total: at.total, food: at.food, wood: at.wood, gold: at.gold, stone: at.stone } : null);
     }
     return out;
+  }
+
+  /**
+   * Each player's score at t, like the one over the game's minimap (estimated:
+   * the replay doesn't have it), with the game's rules as far as they are known:
+   * economy, a tenth of what was gathered (from the game's totals, so close);
+   * technology, a fifth of what its researches done cost; society, a fifth of
+   * its castles and wonders standing; military, a fifth of what the enemy units
+   * and buildings it brought down cost (the least exact: deaths and who caused
+   * them are estimates; one nobody is known to have hit is shared among its
+   * enemies). Economy is null without the totals (replays parsed before
+   * November 2026).
+   */
+  scoresAt(t) {
+    if (this.stock === undefined) this.stockAt(0);
+    const stock = this.stock;
+    const kills = this.#kills();
+    const out = new Map();
+    for (const p of this.players) {
+      const end = Math.min(this.duration, this.resignedAt.get(p.number) ?? Infinity);
+      let economy = null;
+      if (stock) {
+        const list = stock.get(p.number) ?? [];
+        let at = null;
+        for (const s of list) {
+          if (s.t > t) break;
+          at = s;
+        }
+        economy = Math.floor((at?.gathered ?? 0) / 10);
+      }
+      let tech = 0;
+      for (const r of this.researches) {
+        if (r.player === p.number && r.t1 <= t && r.t1 <= end) tech += costSum(this.game?.techs?.[r.techId]?.cost);
+      }
+      out.set(p.number, { total: 0, military: 0, economy, technology: Math.floor(tech / 5), society: 0 });
+    }
+    for (const k of kills) {
+      if (k.t > t) break;
+      for (const n of k.by) {
+        const row = out.get(n);
+        if (row) row.military += k.value / k.by.length / 5;
+      }
+    }
+    for (const b of this.buildings) {
+      if (b.player <= 0 || b.removedAt <= t || b.startT + b.buildTime > t || !SOCIETY.test(this.objectName(b.typeId))) continue;
+      const row = out.get(b.player);
+      if (row) row.society += costSum(this.game?.buildings?.[b.typeId]?.cost) / 5;
+    }
+    for (const row of out.values()) {
+      row.military = Math.floor(row.military);
+      row.society = Math.floor(row.society);
+      row.total = row.military + (row.economy ?? 0) + row.technology + row.society;
+    }
+    return out;
+  }
+
+  // Enemy units and buildings brought down, by time: { t, value, by: [players] }.
+  #kills() {
+    if (this.killList) return this.killList;
+    const list = [];
+    const add = (victim, t, value, by) => {
+      if (!value) return;
+      if (by != null && this.#enemies(by, victim.player)) {
+        list.push({ t, value, by: [by] });
+        return;
+      }
+      const enemies = this.players.map((p) => p.number)
+        .filter((n) => this.#enemies(n, victim.player) && (this.resignedAt.get(n) ?? Infinity) > t);
+      if (enemies.length) list.push({ t, value, by: enemies });
+    };
+    for (const u of this.units) {
+      if (u.player <= 0 || !u.fell || u.deleted || u.dropped || !Number.isFinite(u.removedAt)) continue;
+      if ((this.resignedAt.get(u.player) ?? Infinity) <= u.removedAt) continue;
+      add(u, u.removedAt, costSum(this.game?.units?.[u.typeAt(u.removedAt - 1)]?.cost), u.hitBy);
+    }
+    for (const b of this.buildings) {
+      if (b.player <= 0 || !b.razed || !Number.isFinite(b.removedAt)) continue;
+      add(b, b.removedAt, costSum(this.game?.buildings?.[b.typeId]?.cost), b.razedBy);
+    }
+    this.killList = list.sort((a, b) => a.t - b.t);
+    return this.killList;
   }
 
   /**
