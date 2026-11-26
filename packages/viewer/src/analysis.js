@@ -13,7 +13,8 @@
 // one millisecond, all game long), so it is not the player either.
 import { noticeTimes, settleAgeUps } from './notices.js';
 
-const NOT_ACTIONS = new Set(['GAME', 'RESIGN', 'DE_TRANSFORM']);
+// Commands that aren't a player's action (internal, or the end of its game).
+export const NOT_ACTIONS = new Set(['GAME', 'RESIGN', 'DE_TRANSFORM']);
 
 // Units that work rather than fight; everything else trained counts as army.
 const ECONOMY_UNITS = /^(Villager|Fishing Ship|Trade Cart|Trade Cog|Transport Ship)\b/;

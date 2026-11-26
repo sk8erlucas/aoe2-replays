@@ -804,7 +804,7 @@ function battle(timeline, { duration = 900_000, objects = [], combat = null } = 
       35: { speed: 0.5, class: 13, train: [[49, 36]] },
       ...combat?.units,
     },
-    buildings: { 12: { size: 3, buildTime: 50 }, 82: { size: 4, buildTime: 200 }, 621: { size: 4, buildTime: 150 }, 70: { size: 2, buildTime: 25 } },
+    buildings: { 12: { size: 3, buildTime: 50 }, 82: { size: 4, buildTime: 200 }, 621: { size: 4, buildTime: 150 }, 70: { size: 2, buildTime: 25 }, ...combat?.buildings },
   };
   return new Replay({
     game: {
@@ -1523,4 +1523,57 @@ test('scores: military from what was brought down, technology from researches, e
   assert.equal(r.scoresAt(226_000).get(2).economy, null, 'no totals in this replay');
   const s = r.scoresAt(226_000).get(1);
   assert.equal(s.total, s.military + s.technology + s.society);
+});
+
+test('a building told to be attacked falls when its hit points run out, not before an order names it', () => {
+  const objects = [{ id: 150, player: 1, type_id: 35, x: 76, y: 80 }];
+  const combat = {
+    units: { 35: { speed: 0.5, class: 13, train: [], hp: 175, atk: [[4, 2], [11, 125]], reload: 5, range: 0 } },
+    buildings: { 70: { size: 2, buildTime: 25, class: 3, hp: 550, arm: [[4, 7], [11, 0]] } },
+  };
+  const house = (timeline) => battle(timeline, { objects, combat });
+  // A house: 550 hit points. The ram: 125 a hit every 5 s, 75 a 3 s combat step: 8 steps from 12 s.
+  const r = house([
+    { t: 10_000, type: 'ORDER', player: 1, object_ids: [150], target_id: 202, x: 80, y: 80 },
+    { t: 600_000, type: 'MOVE', player: 2, object_ids: [201], x: 85, y: 85 },
+  ]);
+  const b = r.buildingById.get(202);
+  assert.ok(b.hp <= 0, 'brought down by its hit points');
+  assert.ok(b.razed, 'razed');
+  assert.equal(b.removedAt, 33_000);
+  assert.equal(b.razedBy, 1);
+  const named = house([
+    { t: 10_000, type: 'ORDER', player: 1, object_ids: [150], target_id: 202, x: 80, y: 80 },
+    { t: 300_000, type: 'DE_QUEUE', player: 2, object_ids: [202], amount: 1, unit_id: 83 },
+    { t: 600_000, type: 'MOVE', player: 2, object_ids: [201], x: 85, y: 85 },
+  ]);
+  assert.ok(named.buildingById.get(202).removedAt > 300_000, 'its owner used it later: still standing then');
+});
+
+test('APM now counts the actions of the last minute', () => {
+  const r = battle([
+    { t: 10_000, type: 'MOVE', player: 1, object_ids: [101], x: 20, y: 20 },
+    { t: 50_000, type: 'MOVE', player: 1, object_ids: [101], x: 22, y: 20 },
+    { t: 55_000, type: 'GAME', player: 1 },
+    { t: 80_000, type: 'MOVE', player: 1, object_ids: [101], x: 24, y: 20 },
+  ]);
+  assert.equal(r.overviewAt(60_000).get(1).apm, 2);
+  assert.equal(r.overviewAt(100_000).get(1).apm, 2, 'the one at 10 s is out, GAME is no action');
+  assert.equal(r.overviewAt(100_000).get(2).apm, 0);
+});
+
+test('units garrisoned in a castle add arrows to its volleys', () => {
+  const objects = [{ id: 110, player: 1, type_id: 82, x: 70, y: 70 }];
+  const arrows = (r) => {
+    let n = 0;
+    for (let t = 400_000; t < 404_000; t += 50) n += r.shotsAt(r.stateAt(t)).length;
+    return n;
+  };
+  const alone = battle([{ t: 300_000, type: 'MOVE', player: 2, object_ids: [201], x: 74, y: 74 }], { objects });
+  const manned = battle([
+    { t: 100_000, type: 'SPECIAL', player: 1, order_id: 5, object_ids: [101], target_id: 110 },
+    { t: 300_000, type: 'MOVE', player: 2, object_ids: [201], x: 74, y: 74 },
+  ], { objects });
+  assert.ok(manned.unitById.get(101).hiddenAt(400_000), 'the villager is inside');
+  assert.ok(arrows(manned) > arrows(alone), `${arrows(manned)} > ${arrows(alone)}`);
 });
