@@ -8,6 +8,7 @@ import { FollowControls } from "@/components/FollowControls";
 import { errorText, useI18n } from "@/i18n/I18nProvider";
 import type { Messages } from "@/i18n/messages";
 import type { MatchSummary, Profile } from "@/lib/aoe2companion";
+import { playerStats, type StatRow } from "@/lib/playerStats";
 
 type Load =
   | { kind: "loading" }
@@ -95,6 +96,7 @@ export default function ProfilePage() {
     }
   }
   const ratings = profile.ratings.filter((r) => r.rating != null);
+  const stats = playerStats(matches, id);
 
   return (
     <main className="page">
@@ -142,6 +144,17 @@ export default function ProfilePage() {
                   ))}
                 </tbody>
               </table>
+            </div>
+          </section>
+        )}
+
+        {stats.games > 0 && (
+          <section>
+            <h2>{t.profile.statsTitle}</h2>
+            <p className="muted small">{t.profile.statsOf(stats.games, stats.wins, stats.losses)}</p>
+            <div className="player-stats">
+              <StatTable rows={stats.civs} label={t.profile.civs} t={t} />
+              <StatTable rows={stats.maps} label={t.profile.maps} t={t} />
             </div>
           </section>
         )}
@@ -209,5 +222,31 @@ export default function ProfilePage() {
         </p>
       </div>
     </main>
+  );
+}
+
+function StatTable({ rows, label, t }: { rows: StatRow[]; label: string; t: Messages }) {
+  if (!rows.length) return null;
+  return (
+    <div className="table-scroll">
+      <table className="stats ratings">
+        <thead>
+          <tr>
+            <th scope="col">{label}</th>
+            <th scope="col">{t.profile.games}</th>
+            <th scope="col">{t.profile.winRate}</th>
+          </tr>
+        </thead>
+        <tbody>
+          {rows.map((r) => (
+            <tr key={r.name}>
+              <th scope="row">{r.name}</th>
+              <td>{r.games}</td>
+              <td>{`${Math.round((r.wins / r.games) * 100)}%`}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
   );
 }

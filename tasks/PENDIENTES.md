@@ -23,8 +23,8 @@ Planes abiertos, con más detalle: [08 experiencia de juego](./08-experiencia-de
 ## Automático (se puede avanzar sin vos)
 
 ### Motor del visor (estimaciones)
-- [ ] **Vida de los edificios** contra el daño del asedio y de las unidades, en lugar de la regla del asalto (`#estimateRazed`) ([26](./26-vida-y-muertes.md), paso 4). Reemplaza también ajustar `RAZE_MIN_ATTACKERS` y los 25 s ([19](./done/19-unidades-y-edificios-destruidos.md)).
-- [ ] **Peleas**: que empiecen cuando en el juego (responder al que pega desde lejos, el asedio dispara solo, unidades que se juntan antes de atacar); monjes, regeneración, flechas extra con guarnición, Química y Balística, altura ([25](./done/25-bosques-flechas-y-soldados.md), [26](./26-vida-y-muertes.md)).
+- [ ] Castillos y torres que tiran edificios por orden del jugador: hoy dibujan las flechas y cuentan para la regla del asalto, pero no les sacan vida ([26](./26-vida-y-muertes.md)).
+- [ ] **Peleas**: que empiecen cuando en el juego (responder al que pega desde lejos, el asedio dispara solo, unidades que se juntan antes de atacar); monjes, regeneración, Química y Balística, altura, aldeanos que reparan ([25](./done/25-bosques-flechas-y-soldados.md), [26](./26-vida-y-muertes.md)).
 - [ ] **IDs sin vincular**: soldados entrenados sin ID (Dekaryn: 43 de 107) y "sin tarea" alto en algunos momentos (francos a los 35 min: 38 de 89). Revisar `#planIds` ([19](./done/19-unidades-y-edificios-destruidos.md), [21](./done/21-recorridos-constructores-y-paneles.md)).
 - [ ] `SPECIAL` con `order_id` 8 (grupos de aldeanos, sin objetivo) y 1 (militares): sin identificar ([23](./done/23-recursos-cancelaciones-y-exactitud.md)).
 - [ ] Colas con Shift de otras órdenes (mover, recolectar): hoy se toman como reemplazo ([17](./done/17-murallas-jabalies-granjas.md)).
@@ -37,8 +37,8 @@ Planes abiertos, con más detalle: [08 experiencia de juego](./08-experiencia-de
 
 ### Visores y análisis
 - [ ] **Puntajes**: compararlos con los del juego en una partida real y ajustar (reliquias, exploración y lo que el juego suma aparte) ([18](./18-visores-de-partida.md)).
-- [ ] Configurar los visores: elegir y ordenar, guardarlo, versión compacta en celular ([18](./18-visores-de-partida.md)). APM del momento.
-- [ ] Estadísticas agregadas por jugador (civilizaciones, build orders, APM promedio) y partidas destacadas de ELO alto en la portada ([09](./done/09-partidas-online.md), [10](./10-seo-y-redes.md)).
+- [ ] Configurar los visores: elegir y ordenar, guardarlo, versión compacta en celular ([18](./18-visores-de-partida.md)).
+- [ ] Más estadísticas por jugador (build orders, APM promedio: piden bajar y procesar sus replays) y partidas destacadas de ELO alto en la portada ([09](./done/09-partidas-online.md), [10](./10-seo-y-redes.md)).
 
 ### Gráficos y sonido
 - [ ] Partir las páginas `b-*-other` del atlas (muros, puertas y edificios únicos juntos, ~23 MB decodificadas en Alta) por tipo de edificio. Necesita otra corrida del extractor (~1,5 h) ([14](./done/14-calidad-grafica.md)).
@@ -47,7 +47,6 @@ Planes abiertos, con más detalle: [08 experiencia de juego](./08-experiencia-de
 - [ ] Revisar el peso de la portada y las capturas en celular ([14](./done/14-calidad-grafica.md)).
 
 ### Web e infraestructura
-- [ ] Mecanismo para que un jugador pida ocultar su perfil ([09](./done/09-partidas-online.md)).
 - [ ] Renderizar en el servidor lo esencial de `/p/<id>` y `/m/<id>` ([10](./10-seo-y-redes.md)).
 - [ ] Tests de la API contra una base de prueba en el CI: subida, permisos, expiración, cuentas y favoritos ([13](./13-cuentas.md)).
 - [ ] Caché y límites compartidos (Postgres o Redis) si hay más de una instancia de la web; cola de parseo y descargas si se vuelve lento ([09](./done/09-partidas-online.md), [11](./11-apertura-publica.md)).
@@ -56,6 +55,13 @@ Planes abiertos, con más detalle: [08 experiencia de juego](./08-experiencia-de
 
 ### Parser
 - [ ] Probar contra la primera versión del juego con un save distinto de 68.9 (hoy se parsea y se marca `untested_version`).
+
+## Hecho el 26/11/2026
+- **Vida de los edificios**: caen cuando sus atacantes les sacan la vida, con la armadura del juego; la regla del asalto queda de respaldo ([26](./26-vida-y-muertes.md)).
+- **Flechas con guarnición**: cada unidad adentro de un castillo, torre o centro urbano suma una flecha.
+- **Perfiles ocultos** a pedido del jugador (`HIDDEN_PROFILES`, ver [DEPLOY](../docs/DEPLOY.md)): sin página, búsqueda, vista previa, sitemap ni seguidores; sus partidas siguen. La página de privacidad explica cómo pedirlo.
+- **APM del momento** en la pestaña Resumen del panel ([18](./18-visores-de-partida.md)).
+- **Lo que más juega cada jugador** en su perfil: civilizaciones y mapas con partidas y % de victorias, sobre las partidas cargadas.
 
 ## Hecho el 25/11/2026
 - **Limpieza de `tasks/`**: 14 planes con poco pendiente pasaron a `done/`; lo abierto quedó en esta lista y las pruebas en [`PRUEBAS.md`](./PRUEBAS.md).

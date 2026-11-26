@@ -46,6 +46,7 @@ SEARCHES_PER_MINUTE=60   # búsquedas de jugadores por IP por minuto; 0 = sin l�
 MATCH_IMPORTS_PER_HOUR=20          # partidas online descargadas de Microsoft por IP por hora; 0 = sin límite
 MATCH_IMPORTS_PER_HOUR_GLOBAL=300  # lo mismo, para todo el sitio; 0 = sin límite
 REGISTRATIONS_PER_HOUR=10           # cuentas creadas por IP; 0 = sin límite
+HIDDEN_PROFILES=                    # perfiles ocultos a pedido del jugador (ids separados por comas): sin página, búsqueda, vista previa ni sitemap
 LOGINS_PER_15_MINUTES=20            # intentos de login por IP y por email; 0 = sin límite
 MAX_FOLLOWS=20                      # jugadores que puede seguir una cuenta
 MAX_FAVORITES=500                   # favoritos y momentos guardados por cuenta

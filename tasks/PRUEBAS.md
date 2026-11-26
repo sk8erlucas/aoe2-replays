@@ -18,6 +18,7 @@ Los enlaces van a producción: https://aoe2replays.sitemaster.com.ar. Las partid
 
 ## Visor: motor y mapa
 - [ ] **Orientación**: una partida conocida comparada con el minimapa del juego ([15](./done/15-orientacion-chat-y-herramientas.md)).
+- [ ] **Edificios que caen por su vida** (nuevo, 26/11/2026): en `522846419` y `522595678`, que los centros urbanos y castillos que caen tengan sentido (en el juego, ¿cayeron?) y que no desaparezcan edificios que siguen en pie. Flechas de más en un castillo o centro urbano con gente adentro (campana).
 - [ ] **Muertes** (`522846419`, pelea del min 39-41): los ejércitos se achican durante la pelea y el panel "Ejército" baja a tiempo ([26](./26-vida-y-muertes.md)).
 - [ ] **Flechas** (`522846419`): castillos, torres, centros urbanos y arqueros; también con niebla y en el video ([25](./done/25-bosques-flechas-y-soldados.md)).
 - [ ] **Bosques de abetos** (`522846419`): sin huecos y las unidades los rodean.
@@ -54,5 +55,7 @@ Los enlaces van a producción: https://aoe2replays.sitemaster.com.ar. Las partid
 - [ ] Imágenes de Docker y un deploy de prueba antes de producción (el build local falla por certificados; lo hace el CI).
 - [ ] Reprocesado de partidas guardadas: contra la base local y en producción con `/m/522164674`.
 - [ ] Descripción nueva de `/m/<id>` para buscadores y redes (25/11/2026): pegar un enlace en WhatsApp o Discord y ver mapa, modo, duración, ELO y ganadores.
+- [ ] Perfil de un jugador (nuevo, 26/11/2026): la sección "Lo que más juega" (civilizaciones y mapas) y que se actualice con "Ver más partidas"; APM en la pestaña Resumen del visor.
+- [ ] Perfil oculto: con `HIDDEN_PROFILES=<id>` en un entorno de prueba, `/p/<id>` da error, no sale en la búsqueda ni en el sitemap y no se puede seguir.
 - [ ] Sitemap (`/sitemap.xml`): aparecen los jugadores `/p/<id>` de las partidas guardadas.
 - [ ] Vista previa de Discord: color de tema y tamaño de imagen ([10](./10-seo-y-redes.md)).

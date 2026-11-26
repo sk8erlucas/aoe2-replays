@@ -1,7 +1,7 @@
 import { getProfile } from "@/lib/aoe2companion";
 import { OG_SIZE, ogImage } from "@/lib/ogImage";
 import { serverMessages } from "@/lib/pageMeta";
-import { isMatchId } from "@/lib/validate";
+import { isHiddenProfile, isMatchId } from "@/lib/validate";
 
 export const size = OG_SIZE;
 export const contentType = "image/png";
@@ -13,7 +13,7 @@ type Props = { params: Promise<{ profileId: string }> };
 export default async function Image({ params }: Props) {
   const { profileId } = await params;
   const t = await serverMessages();
-  const profile = isMatchId(profileId) ? await getProfile(Number(profileId)).catch(() => null) : null;
+  const profile = isMatchId(profileId) && !isHiddenProfile(profileId) ? await getProfile(Number(profileId)).catch(() => null) : null;
   const ratings = (profile?.ratings ?? []).filter((r) => r.rating != null).sort((a, b) => b.wins + b.losses - (a.wins + a.losses));
   return ogImage({
     kicker: t.profile.rankings,

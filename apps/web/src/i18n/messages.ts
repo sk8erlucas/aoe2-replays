@@ -212,6 +212,12 @@ const es = {
     losses: "Derrotas",
     winRate: "% victorias",
     recent: "Partidas recientes",
+    statsTitle: "Lo que más juega",
+    statsOf: (games: number, wins: number, losses: number) =>
+      `En las ${games} partidas cargadas abajo: ${wins} victorias y ${losses} derrotas. Con "Ver más partidas" se suman.`,
+    civs: "Civilización",
+    maps: "Mapa",
+    games: "Partidas",
     noMatches: "No encontramos partidas recientes.",
     match: "Partida",
     win: "Victoria",
@@ -321,12 +327,13 @@ const es = {
       stockTitle: "Total en reserva, exacto: lo trae el replay (se actualiza cada ~17 s)",
       noResources: "Este replay se procesó antes de que guardáramos los recursos: no los trae.",
       ages: ["Oscura", "Feudal", "Castillos", "Imperial"],
-      overviewShort: { age: "Edad", pop: "Pobl.", researches: "Inv.", buildings: "Edif." },
+      overviewShort: { age: "Edad", pop: "Pobl.", researches: "Inv.", buildings: "Edif.", apm: "APM" },
       overviewTitles: {
         age: "Edad actual (exacta si el replay trae los avisos del juego)",
         pop: "Aldeanos y unidades militares vivos (estimado)",
         researches: "Investigaciones terminadas, sin las edades (estimado)",
         buildings: "Edificios en pie, sin murallas ni granjas (estimado)",
+        apm: "Acciones en el último minuto (exacto)",
       },
       scoreShort: { total: "Σ", military: "Mil.", economy: "Eco.", technology: "Tec.", society: "Soc." },
       scoreTitles: {
@@ -581,7 +588,7 @@ const es = {
       },
       {
         title: "Cómo borrar tus datos",
-        text: "Podés borrar tu cuenta desde Mi cuenta, y un replay desde su enlace de gestión. Para otro pedido, como ocultar un perfil, abrí un issue en GitHub.",
+        text: "Podés borrar tu cuenta desde Mi cuenta, y un replay desde su enlace de gestión. Si sos un jugador y querés que tu perfil no se muestre acá, abrí un issue en GitHub: lo ocultamos de la búsqueda, su página, las vistas previas y el sitemap (las partidas siguen, porque son públicas en el juego). Para otro pedido, también por GitHub.",
       },
     ],
   },
@@ -835,6 +842,12 @@ const en: Messages = {
     losses: "Losses",
     winRate: "Win rate",
     recent: "Recent matches",
+    statsTitle: "What they play most",
+    statsOf: (games: number, wins: number, losses: number) =>
+      `In the ${games} matches loaded below: ${wins} wins and ${losses} losses. "Load more matches" adds to them.`,
+    civs: "Civilization",
+    maps: "Map",
+    games: "Matches",
     noMatches: "No recent matches found.",
     match: "Match",
     win: "Win",
@@ -944,12 +957,13 @@ const en: Messages = {
       stockTitle: "Total in stock, exact: from the replay (updated every ~17 s)",
       noResources: "This replay was processed before we kept resources: it doesn't have them.",
       ages: ["Dark", "Feudal", "Castle", "Imperial"],
-      overviewShort: { age: "Age", pop: "Pop.", researches: "Tech", buildings: "Bldg." },
+      overviewShort: { age: "Age", pop: "Pop.", researches: "Tech", buildings: "Bldg.", apm: "APM" },
       overviewTitles: {
         age: "Current age (exact when the replay has the game's notices)",
         pop: "Villagers and military units alive (estimated)",
         researches: "Researches done, ages apart (estimated)",
         buildings: "Buildings standing, walls and farms apart (estimated)",
+        apm: "Actions in the last minute (exact)",
       },
       scoreShort: { total: "Σ", military: "Mil.", economy: "Eco.", technology: "Tech", society: "Soc." },
       scoreTitles: {
@@ -1203,7 +1217,7 @@ const en: Messages = {
       },
       {
         title: "How to delete your data",
-        text: "You can delete your account from My account, and a replay from its management link. For anything else, like hiding a profile, open an issue on GitHub.",
+        text: "You can delete your account from My account, and a replay from its management link. If you are a player and want your profile not shown here, open an issue on GitHub: we hide it from the search, its page, previews and the sitemap (matches stay, since they are public in the game). For anything else, GitHub too.",
       },
     ],
   },

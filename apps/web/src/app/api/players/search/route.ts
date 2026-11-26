@@ -4,7 +4,7 @@ import { searchProfiles } from "@/lib/aoe2companion";
 import { apiError } from "@/lib/http";
 import { allow } from "@/lib/ratelimit";
 import { hashIp } from "@/lib/replays";
-import { LIMITS } from "@/lib/validate";
+import { isHiddenProfile, LIMITS } from "@/lib/validate";
 
 export async function GET(request: Request) {
   const q = new URL(request.url).searchParams.get("q")?.trim() ?? "";
@@ -14,7 +14,7 @@ export async function GET(request: Request) {
     return apiError(429, "rate_limited", "Too many searches. Wait a moment.");
   }
   try {
-    return NextResponse.json({ profiles: await searchProfiles(q) });
+    return NextResponse.json({ profiles: (await searchProfiles(q)).filter((p) => !isHiddenProfile(p.profileId)) });
   } catch {
     return apiError(502, "source_unavailable", "Player search is not responding.");
   }

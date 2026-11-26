@@ -153,3 +153,13 @@ test("favorites and saved moments from a request body", () => {
     assert.equal(parseFavorite(bad), null, JSON.stringify(bad));
   }
 });
+
+test("profiles hidden at their player's request", async () => {
+  const { isHiddenProfile } = await import("../src/lib/validate.ts");
+  const env = { HIDDEN_PROFILES: "123, 456 789" };
+  assert.ok(isHiddenProfile("123", env));
+  assert.ok(isHiddenProfile(789, env));
+  assert.equal(isHiddenProfile("12", env), false);
+  assert.equal(isHiddenProfile(null, env), false);
+  assert.equal(isHiddenProfile("123", {}), false);
+});
