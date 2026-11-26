@@ -3,11 +3,11 @@
 import { NextResponse } from "next/server";
 import { getMatches, getProfile } from "@/lib/aoe2companion";
 import { apiError } from "@/lib/http";
-import { isMatchId, parsePage } from "@/lib/validate";
+import { isHiddenProfile, isMatchId, parsePage } from "@/lib/validate";
 
 export async function GET(request: Request, { params }: { params: Promise<{ profileId: string }> }) {
   const { profileId } = await params;
-  if (!isMatchId(profileId)) return apiError(404, "not_found", "Player not found.");
+  if (!isMatchId(profileId) || isHiddenProfile(profileId)) return apiError(404, "not_found", "Player not found.");
   const page = parsePage(new URL(request.url).searchParams.get("page"));
   if (page == null) return apiError(400, "bad_request", "Invalid page.");
   try {

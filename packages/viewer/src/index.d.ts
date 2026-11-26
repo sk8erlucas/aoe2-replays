@@ -123,6 +123,8 @@ export type Army = { total: number } & Record<ArmyKind, number>;
 
 export interface PlayerOverview {
   age: number;
+  /** Actions in the last minute (exact). */
+  apm: number;
   villagers: number;
   army: number;
   /** Researches done (ages apart). */

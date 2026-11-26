@@ -27,9 +27,12 @@
 // Deaths are guessed: eaten animals vanish when their food runs out; a unit last
 // sent to fight (or into enemy ground) and never ordered again is taken as fallen;
 // so are units over the population limit (others must have died). What a player
-// who resigns leaves stays where it was, idle. A building under a real assault (siege or several
-// soldiers) that its owner never uses again is taken as razed, and one with a
-// new foundation over it as gone by then.
+// who resigns leaves stays where it was, idle. Buildings have the game's hit
+// points: those told to attack one hit it until it falls (not before the last
+// order naming it). Besides, a building under a real assault (siege or several
+// soldiers) that its owner never uses again is taken as razed (the simulation
+// hits less than the game: units without an id, siege on its own), and one with
+// a new foundation over it as gone by then.
 // Garrisoned units are inside their building (not drawn) until let out; back
 // to work sends them to what they were doing. A builder that is done goes on to
 // the nearest unfinished building of its player.
@@ -46,6 +49,7 @@ import {
 import { isSystemMessage, noticeTimes, settleAgeUps } from './notices.js';
 import { NavGrid } from './pathing.js';
 import { stockTimeline } from './economy.js';
+import { NOT_ACTIONS } from './analysis.js';
 
 // How far a villager sent to a taken farm looks for a free one (tiles). Estimated.
 const FARM_SEARCH = 10;
@@ -362,6 +366,13 @@ const DROP_ANYTHING = /^Town Center/;
 const CARRY = 10;
 const HUNTER = 122;
 const RAW_RATE = 1.4;
+// How far a ranged attacker hits a building from (tiles): its range in the game
+// data, capped (a trebuchet's 16 would need unpacking, which isn't simulated).
+const SIEGE_REACH = 10;
+// APM now (overviewAt): actions in the last minute.
+const APM_WINDOW_MS = 60_000;
+// Most arrows in one building volley (with units garrisoned inside).
+const MAX_ARROWS = 25;
 // What counts for the society score (scoresAt).
 const SOCIETY = /^(Castle|Wonder)$/;
 const costSum = (c) => (c ? c[0] + c[1] + c[2] + c[3] : 0);
@@ -1067,7 +1078,8 @@ export class Replay {
     if (!place || place.removedAt <= t) return false;
     if (this.#enemies(unit.player, place.player)) {
       this.#approach(unit, t, place, place.size / 2 + (villager ? MELEE_STOP : reach), i);
-      unit.startActivity(t, 'attack', t + ATTACK_HOLD_MS);
+      // With the building's hit points it is attacked until it falls (#attackBuilding).
+      unit.startActivity(t, 'attack', this.game?.buildings?.[place.typeId]?.hp ? Infinity : t + ATTACK_HOLD_MS);
       (unit.targets ??= []).push({ t, target: place });
       return true;
     }
@@ -1102,7 +1114,9 @@ export class Replay {
       this.#stopGathering(unit, t);
       unit.lastOrderT = t;
       this.#approach(unit, t, building, building.size / 2, i++);
-      unit.hidden.push({ t0: unit.arrivalT(), t1: Infinity });
+      const inside = { t0: unit.arrivalT(), t1: Infinity, unit };
+      unit.hidden.push(inside);
+      (building.inside ??= []).push(inside); // for its arrows (#arrows)
       unit.garrison = { building, resume };
       (building.garrisoned ??= new Set()).add(unit);
     }
@@ -1884,8 +1898,11 @@ export class Replay {
     g.mask.fill(0);
     const cellOf = (v) => Math.min(n - 1, Math.max(0, Math.floor(v / 8)));
     const fighters = [];
+    const besiegers = [];
     for (const u of this.#aliveAt(now)) {
+      if (u.targets && u.activityAt(now) === 'attack' && !(u.targets[u.targets.length - 1].target instanceof Unit)) besiegers.push(u);
       if (u.hidden.length && u.hiddenAt(now)) continue;
+
       const c = this.#combatType(u.upgrades.length ? u.typeAt(now) : u.typeId);
       if (c.ship) continue;
       const at = u.positionAt(now);
@@ -1936,11 +1953,12 @@ export class Replay {
       }
       return false;
     };
+    this.#attackBuildings(besiegers, now);
     for (const b of this.#firingBuildings(now)) {
       const side = sides.get(b.player) ?? 0;
       const fire = this.#fire(b);
       const target = nearest({ at: b, side }, fire.range + b.size / 2);
-      if (target && target.u.removedAt > now) this.#hit(b, target.u, now, fire.arrows);
+      if (target && target.u.removedAt > now) this.#hit(b, target.u, now, this.#arrows(b, fire, now));
     }
     for (const f of fighters) {
       const { u } = f;
@@ -1948,6 +1966,35 @@ export class Replay {
       if (u.stanceAt(now) === 'none') continue;
       this.#fight(f, nearest, now);
     }
+  }
+
+  // Units told to attack a building (siege, soldiers or villagers) hit it once
+  // there, until it falls; then they stop. Buildings without hit points in the
+  // game data are left to the assault rule (#estimateRazed).
+  #attackBuildings(units, now) {
+    for (const u of units) {
+      const b = u.targets[u.targets.length - 1].target;
+      if (!b || !this.game?.buildings?.[b.typeId]?.hp) continue;
+      if (b.removedAt <= now) {
+        u.stopActivity(now);
+        continue;
+      }
+      if (u.hidden.length && u.hiddenAt(now)) continue;
+      const type = this.game?.units?.[u.typeAt(now)];
+      const reach = Math.max(MELEE_STOP, RANGED_CLASSES.has(type?.class) ? RANGED_STOP : 0, Math.min(type?.range ?? 0, SIEGE_REACH));
+      const at = u.positionAt(now);
+      const d = Math.hypot(b.x - at.x, b.y - at.y) - b.size / 2;
+      if (d <= reach + 1) this.#hit(u, b, now);
+      else if (!at.moving) this.#approach(u, now, b, b.size / 2 + reach, 0);
+    }
+  }
+
+  // Arrows of a building's volley: its own, plus one for each unit inside, as in
+  // the game (all garrisoned units count, a simplification). Capped for drawing.
+  #arrows(b, fire, t) {
+    let extra = 0;
+    for (const x of b.inside ?? []) if (x.t0 <= t && x.t1 > t && x.unit.removedAt > t) extra++;
+    return Math.min(MAX_ARROWS, fire.arrows + extra);
   }
 
   // Finished castles, towers and town centers standing at `now`, of players still in.
@@ -1973,7 +2020,8 @@ export class Replay {
    */
   #hit(attacker, target, now, volleys = 1) {
     const a = this.#stats(attacker.player, attacker instanceof Unit ? attacker.typeAt(now) : attacker.typeId, now, !(attacker instanceof Unit));
-    const t = this.#stats(target.player, target.typeAt(now), now);
+    const building = !(target instanceof Unit);
+    const t = this.#stats(target.player, building ? target.typeId : target.typeAt(now), now, building);
     if (!a?.atk.size || !t) return;
     let perHit = 0;
     for (const [cls, amount] of a.atk) {
@@ -1983,11 +2031,18 @@ export class Replay {
     perHit = Math.max(1, perHit) * (a.acc ?? 100) / 100;
     target.hitBy = attacker.player; // for the military score
     const hits = (COMBAT_STEP_MS / 1000 / Math.max(0.5, a.reload)) * volleys;
-    target.hp ??= t.hp;
+    // A building still going up has the part of its hit points built so far.
+    target.hp ??= building ? t.hp * Math.max(0.1, Math.min(1, (now - target.startT) / Math.max(1, target.buildTime))) : t.hp;
     target.hp -= perHit * hits;
     if (target.hp > 0) return;
     if (this.#seenAt(target) >= now) {
       target.hp = 1; // alive in a later order: it gets away this time
+      return;
+    }
+    if (building) {
+      target.removedAt = now;
+      target.razed = true;
+      target.razedBy = attacker.player;
       return;
     }
     target.removedAt = now;
@@ -2713,7 +2768,9 @@ export class Replay {
       if (o && shotT < o.t + ATTACK_HOLD_MS && o.target.removedAt > shotT) {
         const at = o.target.positionAt ? o.target.positionAt(shotT) : o.target;
         if (Math.hypot(at.x - b.x, at.y - b.y) <= reach + (o.target.size ?? 0) / 2) {
-          for (let i = 0; i < fire.arrows; i++) fly(b.player, b.x, b.y, fire.z, at.x, at.y, 0.4, shotT + i * 150, fire.ball);
+          const arrows = this.#arrows(b, fire, shotT);
+          const gap = Math.min(150, FIRE_PERIOD_MS / 2 / arrows);
+          for (let i = 0; i < arrows; i++) fly(b.player, b.x, b.y, fire.z, at.x, at.y, 0.4, shotT + i * gap, fire.ball);
           continue;
         }
       }
@@ -2734,9 +2791,11 @@ export class Replay {
         }
       }
       near.sort((a, z) => a.d - z.d);
-      for (let i = 0; i < Math.min(fire.arrows, near.length * fire.arrows); i++) {
+      const arrows = near.length ? this.#arrows(b, fire, shotT) : 0;
+      const gap = Math.min(150, FIRE_PERIOD_MS / 2 / Math.max(1, arrows));
+      for (let i = 0; i < arrows; i++) {
         const { at } = near[i % near.length];
-        fly(b.player, b.x, b.y, fire.z, at.x, at.y, 0.4, shotT + i * 150, fire.ball);
+        fly(b.player, b.x, b.y, fire.z, at.x, at.y, 0.4, shotT + i * gap, fire.ball);
       }
     }
     for (const s of state.units) {
@@ -2951,8 +3010,9 @@ export class Replay {
 
   /**
    * A summary per player at t: age (exact with the game's notices), units
-   * alive (villagers and army, estimated), researches done (estimated end) and
-   * buildings standing (walls and farms apart).
+   * alive (villagers and army, estimated), researches done (estimated end),
+   * buildings standing (walls and farms apart) and its actions in the last
+   * minute (APM now, exact; counted like the analysis).
    */
   overviewAt(t) {
     const out = new Map();
@@ -2960,6 +3020,7 @@ export class Replay {
       const end = Math.min(this.duration, this.resignedAt.get(p.number) ?? Infinity);
       out.set(p.number, {
         age: this.ageAt(p.number, t),
+        apm: this.#actionsBetween(p.number, t - APM_WINDOW_MS, t),
         villagers: 0,
         army: 0,
         researches: this.researches.filter((r) => r.player === p.number && r.t1 <= t && r.t1 <= end && !AGE_TECHS[r.techId]).length,
@@ -2985,6 +3046,32 @@ export class Replay {
       else row.buildings++;
     }
     return out;
+  }
+
+  // How many actions a player took in (from, to], from its sorted action times.
+  #actionsBetween(player, from, to) {
+    if (!this.actionTimes) {
+      this.actionTimes = new Map();
+      for (const e of this.data.timeline) {
+        if (NOT_ACTIONS.has(e.type)) continue;
+        let list = this.actionTimes.get(e.player);
+        if (!list) this.actionTimes.set(e.player, (list = []));
+        list.push(e.t);
+      }
+      for (const list of this.actionTimes.values()) list.sort((a, b) => a - b);
+    }
+    const list = this.actionTimes.get(player) ?? [];
+    const after = (x) => {
+      let lo = 0;
+      let hi = list.length;
+      while (lo < hi) {
+        const mid = (lo + hi) >> 1;
+        if (list[mid] <= x) lo = mid + 1;
+        else hi = mid;
+      }
+      return lo;
+    };
+    return after(to) - after(from);
   }
 
   /** Where a building's gather point (rally flag) is at time t, or null if none was set. Exact. */

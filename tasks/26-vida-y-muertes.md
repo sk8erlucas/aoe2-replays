@@ -72,7 +72,8 @@ Las dos primeras columnas cuentan los soldados con evidencia según la regla de 
 - El motor quedó **más rápido** que antes de esta sesión, porque los muertos dejan de simularse: 2,0 → 1,9 s, 6,4 → 5,3 s y 4,4 → 3,4 s.
 
 ## Falta
-- [ ] Paso 4: vida de los edificios contra el daño del asedio y de las unidades, en lugar de la regla del asalto (`#estimateRazed`).
+- [x] Paso 4 (26/11/2026): vida de los edificios (`#attackBuildings`). Una orden de atacar un edificio con datos de vida dura hasta que cae (antes, 25 s); cada paso de pelea, todo atacante que llegó (asedio, soldados y aldeanos) le pega con el mismo cálculo que a las unidades, contra la armadura del edificio. Un edificio en obra tiene la vida de lo construido. Nadie lo tira antes de la última orden que lo nombra (la del dueño o la de un enemigo sobre él), y queda en `razedBy` quién lo tiró (puntaje militar). La regla del asalto sigue como respaldo, como la evidencia en las unidades: la simulación pega menos que el juego (atacantes sin ID, el asedio que pelea solo). Medido: en `522846419` caen 49 edificios por su vida (7 centros urbanos, 6 castillos) y en total 115 (antes 91); en `522363603`, 19 y 58 (antes 55). El motor tarda lo mismo.
+- [x] Flechas extra: cada unidad guarnecida en un castillo, torre o centro urbano suma una flecha a la andanada (daño y dibujo; todas cuentan, una simplificación).
 - [ ] Que las peleas empiecen cuando en el juego: responder al que pega desde lejos, que el asedio dispare solo, unidades que se juntan antes de atacar.
 - [ ] Monjes (conversión y curación), regeneración, flechas extra de los edificios con guarnición, altura, bonus de equipo.
 - [ ] Probar en el navegador: que los ejércitos se achiquen en la pelea y que el panel "Ejército" baje a tiempo.

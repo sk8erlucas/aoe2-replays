@@ -14,7 +14,7 @@ type PanelLabels = Messages["viewer"]["panels"];
 const JOBS = ["food", "wood", "gold", "stone", "build", "idle"] as const;
 const ARMY = ["infantry", "archers", "cavalry", "siege", "ships", "monks"] as const;
 const STOCK = ["food", "wood", "gold", "stone"] as const;
-const OVERVIEW = ["age", "pop", "researches", "buildings"] as const;
+const OVERVIEW = ["age", "pop", "researches", "buildings", "apm"] as const;
 const SCORE = ["total", "military", "economy", "technology", "society"] as const;
 const TAB_KEY = "viewer-panel-tab";
 
@@ -76,7 +76,7 @@ export function panelTable(replay: Replay, tab: PanelTab, t: number, p: PanelLab
   if (tab === "overview") {
     const rows = new Map<number, PanelRow>();
     for (const [n, o] of replay.overviewAt(t)) {
-      rows.set(n, { age: p.ages[o.age - 1] ?? String(o.age), pop: o.villagers + o.army, researches: o.researches, buildings: o.buildings });
+      rows.set(n, { age: p.ages[o.age - 1] ?? String(o.age), pop: o.villagers + o.army, researches: o.researches, buildings: o.buildings, apm: o.apm });
     }
     return { rows, columns: OVERVIEW.map((k) => ({ key: k, label: p.overviewShort[k], title: p.overviewTitles[k] })) };
   }

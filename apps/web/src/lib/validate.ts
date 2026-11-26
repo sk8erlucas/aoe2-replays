@@ -89,6 +89,19 @@ export function envInt(name: string, fallback: number, env: Record<string, strin
 }
 
 /**
+ * Profiles hidden at their player's request (HIDDEN_PROFILES: ids separated by
+ * commas or spaces): no profile page or preview, not in the search or the
+ * sitemap, and they can't be followed. Their matches stay, since the games
+ * themselves are public.
+ */
+export function isHiddenProfile(id: string | number | null | undefined, env: Record<string, string | undefined> = process.env): boolean {
+  if (id == null) return false;
+  const raw = env.HIDDEN_PROFILES;
+  if (!raw) return false;
+  return raw.split(/[\s,]+/).includes(String(id));
+}
+
+/**
  * Request limits, configurable per deployment (see docs/DEPLOY.md). 0 turns a
  * limit off. The match import limit is per IP and also global, because every
  * import is a download from Microsoft.

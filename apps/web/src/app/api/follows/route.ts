@@ -5,7 +5,7 @@ import { currentSession, rejectCrossSite, unauthorized } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { apiError, readJson, withErrors } from "@/lib/http";
 import { allow } from "@/lib/ratelimit";
-import { LIMITS, isMatchId } from "@/lib/validate";
+import { LIMITS, isHiddenProfile, isMatchId } from "@/lib/validate";
 
 async function list(userId: string) {
   const follows = await db().followedPlayer.findMany({
@@ -33,6 +33,7 @@ export async function POST(request: Request) {
     const body = await readJson(request);
     const profileId = String(body?.profileId ?? "");
     if (!isMatchId(profileId)) return apiError(400, "bad_request", "Invalid profile id.");
+    if (isHiddenProfile(profileId)) return apiError(404, "not_found", "Player not found.");
 
     const existing = await db().followedPlayer.findUnique({ where: { userId_profileId: { userId, profileId } } });
     if (existing) return NextResponse.json(await list(userId));
